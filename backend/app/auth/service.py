@@ -48,11 +48,11 @@ def provision_participant(
 
     existing_email = db.scalar(select(User).where(User.email == norm_email))
     if existing_email:
-        raise DuplicateParticipantError(f"User with email '{norm_email}' already exists")
+        raise DuplicateParticipantError(
+            f"User with email '{norm_email}' already exists"
+        )
 
-    existing_code = db.scalar(
-        select(User).where(User.participant_code == norm_code)
-    )
+    existing_code = db.scalar(select(User).where(User.participant_code == norm_code))
     if existing_code:
         raise DuplicateParticipantError(
             f"Participant with code '{norm_code}' already exists"
@@ -80,9 +80,7 @@ def reset_participant_password(
     norm_code = normalize_participant_code(participant_code)
     user = db.scalar(select(User).where(User.participant_code == norm_code))
     if not user:
-        raise ParticipantNotFoundError(
-            f"Participant with code '{norm_code}' not found"
-        )
+        raise ParticipantNotFoundError(f"Participant with code '{norm_code}' not found")
 
     user.password_hash = hash_password(temporary_password)
     user.must_change_password = True
@@ -156,7 +154,11 @@ def rotate_refresh_token(
     except (jwt.PyJWTError, ValueError) as exc:
         raise AuthenticationError("Invalid or expired refresh token") from exc
 
-    if payload.get("type") != "refresh" or not payload.get("jti") or not payload.get("sub"):
+    if (
+        payload.get("type") != "refresh"
+        or not payload.get("jti")
+        or not payload.get("sub")
+    ):
         raise AuthenticationError("Invalid token type")
 
     jti = payload["jti"]

@@ -95,7 +95,12 @@ def test_progress_empty_for_new_user(
     assert data["total_reviews"] == 0
     assert data["unique_vocabulary_reviewed"] == 0
     assert data["streak_days"] == 0
-    assert data["performance_breakdown"] == {"again": 0, "hard": 0, "good": 0, "easy": 0}
+    assert data["performance_breakdown"] == {
+        "again": 0,
+        "hard": 0,
+        "good": 0,
+        "easy": 0,
+    }
     assert data["recent_activity"] == []
 
 
@@ -177,7 +182,12 @@ def test_progress_aggregates_attempts_and_isolates_users(
     assert data_a["total_reviews"] == 3
     assert data_a["unique_vocabulary_reviewed"] == 2
     assert data_a["streak_days"] >= 1
-    assert data_a["performance_breakdown"] == {"again": 1, "hard": 0, "good": 1, "easy": 1}
+    assert data_a["performance_breakdown"] == {
+        "again": 1,
+        "hard": 0,
+        "good": 1,
+        "easy": 1,
+    }
     assert len(data_a["recent_activity"]) == 3
     # Check descending order
     assert data_a["recent_activity"][0]["term"] == "solitude"

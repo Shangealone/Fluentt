@@ -136,10 +136,16 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     const attemptPayload = {
       client_event_id: clientEventId,
       session_id: sessionIdRef.current,
+      client_session_id: sessionIdRef.current,
       vocabulary_item_id: currentItem.id,
       response_time_ms: durationMs,
       performance_rating: rating,
+      submitted_answer: rating,
+      correct: rating !== 'again',
+      client_interaction_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
+      device_platform: 'android',
+      application_version: 'v0.1',
     };
 
     try {

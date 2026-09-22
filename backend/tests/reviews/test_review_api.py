@@ -66,7 +66,9 @@ def sample_vocab_item(db_session: Session) -> VocabularyItem:
 
 
 @pytest.fixture
-def inactive_vocab_item(db_session: Session, sample_vocab_item: VocabularyItem) -> VocabularyItem:
+def inactive_vocab_item(
+    db_session: Session, sample_vocab_item: VocabularyItem
+) -> VocabularyItem:
     """Create an inactive vocabulary item."""
     item = VocabularyItem(
         lesson_id=sample_vocab_item.lesson_id,
@@ -159,7 +161,9 @@ def test_response_time_ms_validation_rejects_invalid_values(
     payload_float = dict(payload_neg)
     payload_float["client_event_id"] = str(uuid.uuid4())
     payload_float["response_time_ms"] = 1250.5
-    res_float = client.post("/reviews/attempts", json=payload_float, headers=auth_headers)
+    res_float = client.post(
+        "/reviews/attempts", json=payload_float, headers=auth_headers
+    )
     assert res_float.status_code == 422
 
 
@@ -199,7 +203,11 @@ def test_submit_review_attempt_persists_attempt_schedule_and_research_events(
     from app.research_logging.models import ResearchEvent
     from app.reviews.models import ReviewAttempt, ReviewSchedule
 
-    attempt = db_session.query(ReviewAttempt).filter_by(client_event_id=uuid.UUID(client_event_id)).first()
+    attempt = (
+        db_session.query(ReviewAttempt)
+        .filter_by(client_event_id=uuid.UUID(client_event_id))
+        .first()
+    )
     assert attempt is not None
     assert attempt.response_time_ms == 1420
     assert attempt.correct is True
@@ -283,20 +291,48 @@ def test_submit_review_attempt_idempotent_replay_same_client_event_id(
     from app.sync.models import AcceptedClientEvent
 
     # Exactly 1 ReviewAttempt
-    attempts = db_session.query(ReviewAttempt).filter_by(client_event_id=uuid.UUID(client_event_id)).all()
+    attempts = (
+        db_session.query(ReviewAttempt)
+        .filter_by(client_event_id=uuid.UUID(client_event_id))
+        .all()
+    )
     assert len(attempts) == 1
 
     # Exactly 1 AcceptedClientEvent
-    accepted_events = db_session.query(AcceptedClientEvent).filter_by(client_event_id=uuid.UUID(client_event_id)).all()
+    accepted_events = (
+        db_session.query(AcceptedClientEvent)
+        .filter_by(client_event_id=uuid.UUID(client_event_id))
+        .all()
+    )
     assert len(accepted_events) == 1
 
     # Exactly 1 REVIEW_ANSWERED research event
     research_answered = (
-        db_session.query(ResearchEvent)
-        .filter_by(event_type="REVIEW_ANSWERED")
-        .all()
+        db_session.query(ResearchEvent).filter_by(event_type="REVIEW_ANSWERED").all()
     )
     matching_research = [
-        e for e in research_answered if e.payload.get("client_event_id") == client_event_id
+        e
+        for e in research_answered
+        if e.payload.get("client_event_id") == client_event_id
     ]
     assert len(matching_research) == 1
+
+
+def test_submit_review_attempt_accepts_mobile_payload_with_derived_fields(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    sample_vocab_item: VocabularyItem,
+) -> None:
+    payload = {
+        "client_event_id": str(uuid.uuid4()),
+        "session_id": str(uuid.uuid4()),
+        "vocabulary_item_id": str(sample_vocab_item.id),
+        "response_time_ms": 1200,
+        "performance_rating": "good",
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+    res = client.post("/reviews/attempts", json=payload, headers=auth_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["correct"] is True
+    assert data["response_time_ms"] == 1200

@@ -110,6 +110,7 @@ def record_review_attempt(
         )
 
     # 2. Resolve review session
+    session = None
     if attempt_in.session_id:
         session = (
             db.query(ReviewSession)
@@ -119,14 +120,14 @@ def record_review_attempt(
             )
             .first()
         )
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Review session not found for user",
-            )
-    else:
+    if not session and attempt_in.client_session_id:
         session = get_or_create_review_session(
             db, user.id, attempt_in.client_session_id
+        )
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Review session not found for user",
         )
 
     # 3. Schedule next review

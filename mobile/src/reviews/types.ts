@@ -17,9 +17,15 @@ export interface ReviewSession {
 export interface ReviewAttemptCreate {
   client_event_id: string;
   session_id: string;
+  client_session_id?: string;
   vocabulary_item_id: string;
   response_time_ms: number;
   performance_rating: PerformanceRating;
+  correct?: boolean;
+  submitted_answer?: string;
+  client_interaction_at?: string;
+  device_platform?: string;
+  application_version?: string;
   created_at?: string;
 }
 
@@ -33,12 +39,15 @@ export interface SchedulingResult {
 }
 
 export interface ReviewAttemptResponse {
-  attempt_id: string;
+  attempt_id?: string;
+  id?: string;
   client_event_id: string;
   session_id: string;
   vocabulary_item_id: string;
   response_time_ms: number;
-  performance_rating: string;
-  created_at: string;
-  schedule: SchedulingResult;
+  performance_rating?: string;
+  correct?: boolean;
+  created_at?: string;
+  schedule?: SchedulingResult;
+  next_due_at?: string;
 }

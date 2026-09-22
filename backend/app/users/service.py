@@ -6,9 +6,7 @@ from app.users.models import LearnerProfile
 
 
 def get_or_create_profile(db: Session, user: User) -> LearnerProfile:
-    profile = db.scalar(
-        select(LearnerProfile).where(LearnerProfile.user_id == user.id)
-    )
+    profile = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == user.id))
     if not profile:
         profile = LearnerProfile(
             user_id=user.id,

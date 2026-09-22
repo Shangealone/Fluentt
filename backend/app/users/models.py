@@ -27,9 +27,7 @@ class LearnerProfile(Base):
         nullable=False,
         index=True,
     )
-    interface_language: Mapped[str | None] = mapped_column(
-        String(10), nullable=True
-    )
+    interface_language: Mapped[str | None] = mapped_column(String(10), nullable=True)
     target_learning_language: Mapped[str | None] = mapped_column(
         String(10), nullable=True
     )

@@ -41,9 +41,7 @@ class DevelopmentScheduler:
 
         state: dict[str, object] = {
             "is_development_only": True,
-            "deterministic_rule": (
-                "24h_on_correct_10m_on_incorrect"
-            ),
+            "deterministic_rule": ("24h_on_correct_10m_on_incorrect"),
             "last_correct": context.correct,
         }
 

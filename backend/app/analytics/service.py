@@ -61,7 +61,11 @@ def get_learner_progress(db: Session, user: User) -> LearnerProgressResponse:
         today = datetime.now(UTC).date()
         yesterday = today - timedelta(days=1)
 
-        current_check = today if today in attempt_dates else (yesterday if yesterday in attempt_dates else None)
+        current_check = (
+            today
+            if today in attempt_dates
+            else (yesterday if yesterday in attempt_dates else None)
+        )
         if current_check:
             while current_check in attempt_dates:
                 streak_days += 1
@@ -83,7 +87,8 @@ def get_learner_progress(db: Session, user: User) -> LearnerProgressResponse:
             vocabulary_item_id=att.vocabulary_item_id,
             term=term,
             correct=att.correct,
-            performance_rating=att.submitted_answer or ("good" if att.correct else "again"),
+            performance_rating=att.submitted_answer
+            or ("good" if att.correct else "again"),
             created_at=att.server_acceptance_at,
         )
         for att, term in recent_attempts

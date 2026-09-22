@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.auth.models import User
 from app.database.session import get_db
-from app.sync.schemas import SyncReviewEventsRequest, SyncReviewEventsResponse
+from app.sync.schemas import (
+    SyncReviewEventsRequest,
+    SyncReviewEventsResponse,
+    SyncServerEventResult,
+)
 from app.sync.service import sync_review_events
 
 router = APIRouter(prefix="/sync", tags=["sync"])
@@ -23,4 +27,17 @@ def sync_events(
         user=current_user,
         events=sync_in.events,
     )
-    return SyncReviewEventsResponse(accepted_events=accepted)
+    results = [
+        SyncServerEventResult(
+            client_event_id=item.client_event_id,
+            status="accepted",
+            attempt_id=item.id,
+            due_date=item.next_due_at,
+        )
+        for item in accepted
+    ]
+    return SyncReviewEventsResponse(
+        accepted_events=accepted,
+        processed_count=len(accepted),
+        results=results,
+    )

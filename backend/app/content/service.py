@@ -152,9 +152,7 @@ def get_active_lessons_by_language(
     return results
 
 
-def get_active_lesson_by_id(
-    db: Session, lesson_id: uuid.UUID
-) -> dict[str, Any] | None:
+def get_active_lesson_by_id(db: Session, lesson_id: uuid.UUID) -> dict[str, Any] | None:
     lesson = db.scalar(
         select(Lesson).where(
             Lesson.id == lesson_id,

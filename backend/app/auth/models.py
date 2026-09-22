@@ -27,9 +27,7 @@ class User(Base):
     must_change_password: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False
     )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -46,7 +44,10 @@ class User(Base):
         "RefreshSession", back_populates="user", cascade="all, delete-orphan"
     )
     learner_profile: Mapped["LearnerProfile | None"] = relationship(
-        "LearnerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
+        "LearnerProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
 
@@ -65,9 +66,7 @@ class RefreshSession(Base):
     jti: Mapped[str] = mapped_column(
         String(64), unique=True, index=True, nullable=False
     )
-    token_hash: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True
-    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

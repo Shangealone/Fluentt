@@ -177,12 +177,12 @@ def test_sync_idempotent_replay_same_client_event_id(
     assert len(accepted_records) == 1
 
     research_events = (
-        db_session.query(ResearchEvent)
-        .filter_by(event_type="REVIEW_ANSWERED")
-        .all()
+        db_session.query(ResearchEvent).filter_by(event_type="REVIEW_ANSWERED").all()
     )
     matching_events = [
-        e for e in research_events if e.payload.get("client_event_id") == client_event_id
+        e
+        for e in research_events
+        if e.payload.get("client_event_id") == client_event_id
     ]
     assert len(matching_events) == 1
 
@@ -215,7 +215,9 @@ def test_lost_acknowledgement_online_then_sync_retry(
     }
 
     # Step 1: Online submission succeeds on server
-    online_res = client.post("/reviews/attempts", json=single_attempt_payload, headers=headers)
+    online_res = client.post(
+        "/reviews/attempts", json=single_attempt_payload, headers=headers
+    )
     assert online_res.status_code == 200
     online_attempt_id = online_res.json()["id"]
 
@@ -242,12 +244,12 @@ def test_lost_acknowledgement_online_then_sync_retry(
     assert len(accepted_records) == 1
 
     research_events = (
-        db_session.query(ResearchEvent)
-        .filter_by(event_type="REVIEW_ANSWERED")
-        .all()
+        db_session.query(ResearchEvent).filter_by(event_type="REVIEW_ANSWERED").all()
     )
     matching_events = [
-        e for e in research_events if e.payload.get("client_event_id") == client_event_id
+        e
+        for e in research_events
+        if e.payload.get("client_event_id") == client_event_id
     ]
     assert len(matching_events) == 1
 
@@ -362,3 +364,29 @@ def test_sync_inactive_or_unknown_vocabulary_fails_without_accepted_event(
         .all()
     )
     assert len(accepted) == 0
+
+
+def test_sync_review_events_accepts_mobile_payload(
+    client: TestClient,
+    learner_a: tuple[User, dict[str, str]],
+    sample_vocab: VocabularyItem,
+) -> None:
+    _, headers = learner_a
+    client_event_id = str(uuid.uuid4())
+    payload = {
+        "events": [
+            {
+                "client_event_id": client_event_id,
+                "session_id": str(uuid.uuid4()),
+                "vocabulary_item_id": str(sample_vocab.id),
+                "response_time_ms": 1200,
+                "performance_rating": "good",
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+        ]
+    }
+    response = client.post("/sync/review-events", json=payload, headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["accepted_events"]) == 1
+    assert data["accepted_events"][0]["client_event_id"] == client_event_id

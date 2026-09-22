@@ -22,8 +22,9 @@ interface ServerEventResult {
 }
 
 interface SyncReviewEventsResponse {
-  processed_count: number;
-  results: ServerEventResult[];
+  processed_count?: number;
+  results?: ServerEventResult[];
+  accepted_events?: { client_event_id: string; id: string }[];
 }
 
 let isSyncing = false;
@@ -117,7 +118,15 @@ export async function drainReviewQueue(): Promise<SyncResult> {
           body: JSON.stringify(payload),
         });
 
-        for (const res of response.results) {
+        const results: ServerEventResult[] =
+          response.results ??
+          (response.accepted_events ?? []).map((e) => ({
+            client_event_id: e.client_event_id,
+            status: 'accepted' as const,
+            attempt_id: e.id,
+          }));
+
+        for (const res of results) {
           if (res.status === 'accepted') {
             await deletePendingReview(res.client_event_id);
             totalSynced++;

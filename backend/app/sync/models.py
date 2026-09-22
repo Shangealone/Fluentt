@@ -49,7 +49,5 @@ class AcceptedClientEvent(Base):
     attempt = relationship("ReviewAttempt")
 
     __table_args__ = (
-        UniqueConstraint(
-            "user_id", "client_event_id", name="uq_user_client_event_id"
-        ),
+        UniqueConstraint("user_id", "client_event_id", name="uq_user_client_event_id"),
     )

@@ -12,9 +12,7 @@ class Language(Base):
 
     code: Mapped[str] = mapped_column(String(10), primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -49,15 +47,9 @@ class Lesson(Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    content_version: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False
-    )
-    sort_order: Mapped[int] = mapped_column(
-        Integer, default=0, nullable=False
-    )
+    content_version: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -99,15 +91,9 @@ class VocabularyItem(Base):
     )
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     translation: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    content_version: Mapped[str] = mapped_column(
-        String(64), nullable=False, index=True
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False
-    )
-    sort_order: Mapped[int] = mapped_column(
-        Integer, default=0, nullable=False
-    )
+    content_version: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
@@ -120,6 +106,4 @@ class VocabularyItem(Base):
         nullable=False,
     )
 
-    lesson: Mapped[Lesson] = relationship(
-        "Lesson", back_populates="vocabulary_items"
-    )
+    lesson: Mapped[Lesson] = relationship("Lesson", back_populates="vocabulary_items")

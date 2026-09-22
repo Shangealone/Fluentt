@@ -38,8 +38,12 @@ def update_preferences(
     profile = update_profile_preferences(
         db,
         user=current_user,
-        interface_language=request.interface_language.value if request.interface_language else None,
-        target_learning_language=request.target_learning_language.value if request.target_learning_language else None,
+        interface_language=request.interface_language.value
+        if request.interface_language
+        else None,
+        target_learning_language=request.target_learning_language.value
+        if request.target_learning_language
+        else None,
     )
     return LearnerProfileResponse(
         id=profile.id,

@@ -32,9 +32,7 @@ def login(
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
     try:
-        user = authenticate_user(
-            db, email=request.email, password=request.password
-        )
+        user = authenticate_user(db, email=request.email, password=request.password)
     except AuthenticationError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
