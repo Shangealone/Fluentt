@@ -1,7 +1,10 @@
 import { clearTokens, loadTokens, saveTokens, TokenPair } from '../auth/tokenStore';
 
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8000';
+export function getApiBaseUrl(): string {
+  return process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8000';
+}
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export class ApiError extends Error {
   constructor(
@@ -52,7 +55,8 @@ export async function apiClient<T = any>(
 ): Promise<T> {
   const { requiresAuth = true, _retry = false, headers, ...rest } = options;
 
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+  const baseUrl = getApiBaseUrl();
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(headers as Record<string, string>),
@@ -126,7 +130,7 @@ async function refreshTokensOnce(): Promise<TokenPair | null> {
         throw new Error('No refresh token available');
       }
 
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: currentTokens.refreshToken }),
