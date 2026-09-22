@@ -37,7 +37,7 @@ export function VocabularyCard({ item }: VocabularyCardProps) {
       {item.exampleSentence ? (
         <View style={styles.exampleContainer}>
           <AppText style={styles.metaLabel}>{t('content.example')}:</AppText>
-          <AppText style={styles.exampleText}>"{item.exampleSentence}"</AppText>
+          <AppText style={styles.exampleText}>&ldquo;{item.exampleSentence}&rdquo;</AppText>
         </View>
       ) : null}
 

@@ -36,7 +36,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
         }
       }
     }
-  }, [status, segments, user]);
+  }, [status, segments, user, router]);
 
   return <>{children}</>;
 }

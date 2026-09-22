@@ -1,4 +1,4 @@
-import { apiClient, AuthenticationError, ApiError } from '../api/client';
+import { apiClient, AuthenticationError } from '../api/client';
 import {
   cacheLessonDetail,
   cacheLessons,

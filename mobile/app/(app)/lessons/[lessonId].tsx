@@ -32,7 +32,7 @@ export default function LessonDetailScreen() {
       const result = await fetchLessonDetail(lessonId);
       setLesson(result.lesson);
       setIsOffline(result.isOffline);
-    } catch (err: any) {
+    } catch {
       setErrorMessage(t('content.error'));
     } finally {
       setIsLoading(false);
@@ -40,8 +40,27 @@ export default function LessonDetailScreen() {
   }, [lessonId, t]);
 
   useEffect(() => {
-    loadLessonDetail();
-  }, [loadLessonDetail]);
+    if (!lessonId) return;
+    let isMounted = true;
+    fetchLessonDetail(lessonId)
+      .then((result) => {
+        if (isMounted) {
+          setLesson(result.lesson);
+          setIsOffline(result.isOffline);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setErrorMessage(t('content.error'));
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [lessonId, t]);
 
   return (
     <SafeAreaView style={styles.container}>

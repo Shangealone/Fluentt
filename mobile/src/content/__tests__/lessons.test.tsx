@@ -1,9 +1,9 @@
 import React from 'react';
-import { render, act, fireEvent } from '@testing-library/react-native';
+import { render, act } from '@testing-library/react-native';
 import LessonsScreen from '../../../app/(app)/lessons/index';
 import LessonDetailScreen from '../../../app/(app)/lessons/[lessonId]';
 import { setInterfaceLanguage } from '../../i18n';
-import { cacheLessonDetail, cacheLessons, resetCacheForTesting, initContentDatabase } from '../contentCache';
+import { cacheLessons, resetCacheForTesting, initContentDatabase } from '../contentCache';
 
 // Mock router
 const mockPush = jest.fn();

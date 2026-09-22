@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -23,24 +23,30 @@ export default function HomeScreen() {
 
   const [lessonCount, setLessonCount] = useState<number | null>(null);
   const [isOffline, setIsOffline] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  const loadLessonData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const result = await fetchLessons(targetLanguage);
-      setLessonCount(result.lessons.length);
-      setIsOffline(result.isOffline);
-    } catch {
-      // Keep home non-blocking if offline/content fail
-    } finally {
-      setIsLoading(false);
-    }
-  }, [targetLanguage]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    loadLessonData();
-  }, [loadLessonData]);
+    let isMounted = true;
+    fetchLessons(targetLanguage)
+      .then((result) => {
+        if (isMounted) {
+          setLessonCount(result.lessons.length);
+          setIsOffline(result.isOffline);
+        }
+      })
+      .catch(() => {
+        // Keep non-blocking
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [targetLanguage]);
 
   const greeting = user?.participantCode
     ? `${t('home.greeting')} (${user.participantCode})`

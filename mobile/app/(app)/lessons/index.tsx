@@ -33,7 +33,7 @@ export default function LessonsScreen() {
       const result = await fetchLessons(targetLanguage);
       setLessons(result.lessons);
       setIsOffline(result.isOffline);
-    } catch (err: any) {
+    } catch {
       setErrorMessage(t('content.error'));
     } finally {
       setIsLoading(false);
@@ -41,8 +41,26 @@ export default function LessonsScreen() {
   }, [targetLanguage, t]);
 
   useEffect(() => {
-    loadLessons();
-  }, [loadLessons]);
+    let isMounted = true;
+    fetchLessons(targetLanguage)
+      .then((result) => {
+        if (isMounted) {
+          setLessons(result.lessons);
+          setIsOffline(result.isOffline);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setErrorMessage(t('content.error'));
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [targetLanguage, t]);
 
   const renderLessonItem = ({ item }: { item: LessonSummary }) => (
     <Pressable

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, act, fireEvent } from '@testing-library/react-native';
+import { render, act, fireEvent } from '@testing-library/react-native';
 import { Text, Button } from 'react-native';
 import { AuthProvider, useAuth } from '../AuthProvider';
 import * as SecureStore from 'expo-secure-store';
