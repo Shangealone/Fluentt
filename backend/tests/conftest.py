@@ -46,6 +46,9 @@ def setup_test_environment() -> None:
     # Ensure all tables exist in test database
     import app.auth.models
     import app.content.models
+    import app.research_logging.models
+    import app.reviews.models
+    import app.sync.models
     import app.users.models  # noqa: F401
 
     Base.metadata.create_all(bind=test_engine)
@@ -60,7 +63,8 @@ def isolate_test_database() -> Generator[None]:
     with test_engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE TABLE vocabulary_items, lessons, languages, "
+                "TRUNCATE TABLE accepted_client_events, research_events, review_schedules, "
+                "review_attempts, review_sessions, vocabulary_items, lessons, languages, "
                 "learner_profiles, refresh_sessions, users CASCADE;"
             )
         )
@@ -68,7 +72,8 @@ def isolate_test_database() -> Generator[None]:
     with test_engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE TABLE vocabulary_items, lessons, languages, "
+                "TRUNCATE TABLE accepted_client_events, research_events, review_schedules, "
+                "review_attempts, review_sessions, vocabulary_items, lessons, languages, "
                 "learner_profiles, refresh_sessions, users CASCADE;"
             )
         )

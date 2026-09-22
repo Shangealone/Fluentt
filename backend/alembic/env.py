@@ -8,6 +8,9 @@ from app.database.base import Base
 import app.auth.models  # noqa: F401
 import app.users.models  # noqa: F401
 import app.content.models  # noqa: F401
+import app.reviews.models  # noqa: F401
+import app.research_logging.models  # noqa: F401
+import app.sync.models  # noqa: F401
 
 config = context.config
 
