@@ -13,6 +13,7 @@ import { AppText } from '../../src/components/AppText';
 import { setInterfaceLanguage } from '../../src/i18n';
 import { updateLearnerPreferences } from '../../src/profile/api';
 import { LanguageCode } from '../../src/profile/types';
+import { getApiErrorMessage } from '../../src/api/client';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -33,7 +34,7 @@ export default function SettingsScreen() {
       await refreshProfile();
       setSuccessMessage(t('settings.savedSuccess'));
     } catch (err: any) {
-      setErrorMessage(err.data?.detail?.[0]?.msg || t('common.error'));
+      setErrorMessage(getApiErrorMessage(err, t('common.error')));
     } finally {
       setSaving(false);
     }
@@ -48,7 +49,7 @@ export default function SettingsScreen() {
       await refreshProfile();
       setSuccessMessage(t('settings.savedSuccess'));
     } catch (err: any) {
-      setErrorMessage(err.data?.detail?.[0]?.msg || t('common.error'));
+      setErrorMessage(getApiErrorMessage(err, t('common.error')));
     } finally {
       setSaving(false);
     }

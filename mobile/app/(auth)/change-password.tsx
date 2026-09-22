@@ -12,6 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { AppText } from '../../src/components/AppText';
+import { getApiErrorMessage } from '../../src/api/client';
 
 export default function ChangePasswordScreen() {
   const { t } = useTranslation();
@@ -44,7 +45,7 @@ export default function ChangePasswordScreen() {
       setErrorMessage(null);
       await changePassword(currentPassword, newPassword);
     } catch (err: any) {
-      setErrorMessage(err.data?.detail || t('common.error'));
+      setErrorMessage(getApiErrorMessage(err, t('common.error')));
     } finally {
       setLoading(false);
     }

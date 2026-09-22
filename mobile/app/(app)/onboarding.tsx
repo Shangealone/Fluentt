@@ -13,6 +13,7 @@ import { AppText } from '../../src/components/AppText';
 import { setInterfaceLanguage } from '../../src/i18n';
 import { updateLearnerPreferences } from '../../src/profile/api';
 import { LanguageCode } from '../../src/profile/types';
+import { getApiErrorMessage } from '../../src/api/client';
 
 export default function OnboardingScreen() {
   const { t } = useTranslation();
@@ -53,7 +54,7 @@ export default function OnboardingScreen() {
       await refreshProfile();
       router.replace('/(app)/home' as any);
     } catch (err: any) {
-      setErrorMessage(err.data?.detail?.[0]?.msg || t('onboarding.validationError'));
+      setErrorMessage(getApiErrorMessage(err, t('onboarding.validationError')));
     } finally {
       setLoading(false);
     }

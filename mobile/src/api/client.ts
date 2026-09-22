@@ -6,20 +6,101 @@ export function getApiBaseUrl(): string {
 
 export const API_BASE_URL = getApiBaseUrl();
 
+export function normalizeApiErrorMessage(data: any, status?: number): string {
+  if (!data) {
+    return status ? `Request failed with status ${status}` : 'An unexpected error occurred';
+  }
+
+  // Case 1: detail is a string
+  if (typeof data.detail === 'string' && data.detail.trim().length > 0) {
+    return data.detail.trim();
+  }
+
+  // Case 2: detail is an array of Pydantic validation errors
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    const messages = data.detail
+      .map((item: any) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && typeof item.msg === 'string') {
+          return item.msg;
+        }
+        return null;
+      })
+      .filter((msg: string | null): msg is string => Boolean(msg && msg.trim().length > 0));
+
+    if (messages.length > 0) {
+      return messages.join('. ');
+    }
+  }
+
+  // Case 3: data itself is directly an array of errors
+  if (Array.isArray(data) && data.length > 0) {
+    const messages = data
+      .map((item: any) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && typeof item.msg === 'string') {
+          return item.msg;
+        }
+        return null;
+      })
+      .filter((msg: string | null): msg is string => Boolean(msg && msg.trim().length > 0));
+
+    if (messages.length > 0) {
+      return messages.join('. ');
+    }
+  }
+
+  // Case 4: data.message is a string
+  if (typeof data.message === 'string' && data.message.trim().length > 0) {
+    return data.message.trim();
+  }
+
+  // Case 5: data itself is a string
+  if (typeof data === 'string' && data.trim().length > 0) {
+    return data.trim();
+  }
+
+  return status ? `Request failed with status ${status}` : 'An unexpected error occurred';
+}
+
+export function getApiErrorMessage(err: unknown, fallbackMessage?: string): string {
+  if (err instanceof ApiError) {
+    return err.normalizedMessage || err.message || fallbackMessage || 'An unexpected error occurred';
+  }
+  if (err && typeof err === 'object') {
+    const anyErr = err as any;
+    if (typeof anyErr.normalizedMessage === 'string' && anyErr.normalizedMessage.trim().length > 0) {
+      return anyErr.normalizedMessage.trim();
+    }
+    if (anyErr.data) {
+      const normalized = normalizeApiErrorMessage(anyErr.data, anyErr.status);
+      if (normalized && normalized.trim().length > 0) return normalized;
+    }
+    if (typeof anyErr.message === 'string' && anyErr.message.trim().length > 0) {
+      return anyErr.message.trim();
+    }
+  }
+  return fallbackMessage || 'An unexpected error occurred';
+}
+
 export class ApiError extends Error {
+  public normalizedMessage: string;
+
   constructor(
     public status: number,
     public data: any,
     message?: string
   ) {
-    super(message || `API error with status ${status}`);
+    const resolvedMessage = message || normalizeApiErrorMessage(data, status);
+    super(resolvedMessage);
     this.name = 'ApiError';
+    this.normalizedMessage = resolvedMessage;
   }
 }
 
 export class AuthenticationError extends ApiError {
   constructor(status: number, data: any, message?: string) {
-    super(status, data, message || 'Authentication failed');
+    super(status, data, message || normalizeApiErrorMessage(data, status) || 'Authentication failed');
     this.name = 'AuthenticationError';
   }
 }

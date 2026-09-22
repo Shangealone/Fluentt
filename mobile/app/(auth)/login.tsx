@@ -12,6 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { AppText } from '../../src/components/AppText';
+import { getApiErrorMessage } from '../../src/api/client';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
@@ -33,7 +34,7 @@ export default function LoginScreen() {
       setErrorMessage(null);
       await login(email.trim(), password);
     } catch (err: any) {
-      setErrorMessage(err.data?.detail || t('auth.invalidCredentials'));
+      setErrorMessage(getApiErrorMessage(err, t('auth.invalidCredentials')));
     } finally {
       setLoading(false);
     }
