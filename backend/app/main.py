@@ -8,6 +8,7 @@ from app.auth.router import router as auth_router
 from app.content.router import router as content_router
 from app.database.session import get_db
 from app.reviews.router import router as reviews_router
+from app.sync.router import router as sync_router
 from app.users.router import router as users_router
 
 app = FastAPI(title="FLUENTT API", version="0.1.0")
@@ -16,6 +17,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(content_router)
 app.include_router(reviews_router)
+app.include_router(sync_router)
 
 
 @app.get("/health")
