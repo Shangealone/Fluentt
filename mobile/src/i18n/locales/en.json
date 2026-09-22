@@ -1,0 +1,79 @@
+{
+  "auth": {
+    "login": "Log in",
+    "changePassword": "Change password",
+    "email": "Email",
+    "emailPlaceholder": "learner@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "submitLogin": "Sign In",
+    "submitChangePassword": "Update Password",
+    "mustChangePasswordNotice": "First-time login detected. You must change your temporary password before proceeding.",
+    "invalidCredentials": "Invalid email or password.",
+    "passwordMismatch": "New passwords do not match.",
+    "passwordTooShort": "Password must be at least 8 characters.",
+    "onlyInEnglish": "English only string"
+  },
+  "onboarding": {
+    "title": "Welcome to FLUENTT",
+    "subtitle": "Please choose your language preferences to get started.",
+    "interfaceLanguage": "Interface Language",
+    "targetLanguage": "Target Learning Language",
+    "savePreferences": "Save and Continue",
+    "validationError": "Unsupported language preference selected. Please choose a valid language.",
+    "saving": "Saving preferences..."
+  },
+  "home": {
+    "title": "Home",
+    "greeting": "Hello, Learner",
+    "browseLessons": "Browse Lessons",
+    "settings": "Settings",
+    "currentLanguage": "Learning: {{language}}",
+    "summaryTitle": "Your Progress",
+    "activeLessonsCount": "Available Lessons: {{count}}"
+  },
+  "content": {
+    "lessons": "Lessons",
+    "lessonDetail": "Lesson Detail",
+    "empty": "No lessons are available yet.",
+    "emptyDetail": "No vocabulary items found for this lesson.",
+    "offlineNotice": "Offline Mode — displaying cached content",
+    "vocabulary": "Vocabulary",
+    "term": "Term",
+    "definition": "Definition",
+    "example": "Example Sentence",
+    "translation": "Translation",
+    "difficulty": "Difficulty",
+    "version": "Content Version",
+    "itemsCount": "{{count}} words",
+    "loading": "Loading lessons...",
+    "error": "Failed to load content from server."
+  },
+  "settings": {
+    "title": "Settings",
+    "participantCode": "Participant Code",
+    "email": "Email",
+    "interfaceLanguage": "Interface Language",
+    "targetLanguage": "Target Learning Language",
+    "logout": "Log Out",
+    "version": "FLUENTT v0.1B Mobile",
+    "savedSuccess": "Preferences updated successfully."
+  },
+  "common": {
+    "retry": "Try again",
+    "logout": "Log out",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "save": "Save",
+    "back": "Back",
+    "offline": "Offline",
+    "error": "An error occurred"
+  },
+  "languages": {
+    "en": "English",
+    "fil": "Tagalog (Filipino)"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "auth": {
+    "login": "Mag-login",
+    "changePassword": "Palitan ang Password",
+    "email": "Email",
+    "emailPlaceholder": "mag-aaral@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "Ilagay ang password",
+    "currentPassword": "Kasalukuyang password",
+    "newPassword": "Bagong password",
+    "confirmNewPassword": "Kumpirmahin ang bagong password",
+    "submitLogin": "Pumasok",
+    "submitChangePassword": "I-update ang Password",
+    "mustChangePasswordNotice": "Unang pag-login. Kailangan mong palitan ang pansamantalang password bago magpatuloy.",
+    "invalidCredentials": "Hindi wasto ang email o password.",
+    "passwordMismatch": "Hindi magkatugma ang bagong password.",
+    "passwordTooShort": "Dapat hindi bababa sa 8 karakter ang password."
+  },
+  "onboarding": {
+    "title": "Maligayang Pagdating sa FLUENTT",
+    "subtitle": "Mangyaring piliin ang iyong mga kagustuhan sa wika bago magsimula.",
+    "interfaceLanguage": "Wika ng Interface",
+    "targetLanguage": "Wikang Nais Pag-aralan",
+    "savePreferences": "I-save at Magpatuloy",
+    "validationError": "Hindi sinusuportahang wika ang napili. Pumili ng wastong wika.",
+    "saving": "Sine-save ang mga kagustuhan..."
+  },
+  "home": {
+    "title": "Tahanan",
+    "greeting": "Kumusta, Mag-aaral",
+    "browseLessons": "Tingnan ang mga Aralin",
+    "settings": "Mga Setting",
+    "currentLanguage": "Pinag-aaralan: {{language}}",
+    "summaryTitle": "Iyong Pag-unlad",
+    "activeLessonsCount": "Magagamit na Aralin: {{count}}"
+  },
+  "content": {
+    "lessons": "Mga Aralin",
+    "lessonDetail": "Detalye ng Aralin",
+    "empty": "Wala pang magagamit na mga aralin sa ngayon.",
+    "emptyDetail": "Walang natagpuang mga salita para sa araling ito.",
+    "offlineNotice": "Offline Mode — ipinapakita ang naka-cache na nilalaman",
+    "vocabulary": "Talasalitaan",
+    "term": "Salita",
+    "definition": "Kahulugan",
+    "example": "Halimbawang Pangungusap",
+    "translation": "Salin",
+    "difficulty": "Antas ng Hirap",
+    "version": "Bersyon ng Nilalaman",
+    "itemsCount": "{{count}} na salita",
+    "loading": "Ikinakarga ang mga aralin...",
+    "error": "Nabigong ikarga ang nilalaman mula sa server."
+  },
+  "settings": {
+    "title": "Mga Setting",
+    "participantCode": "Code ng Kalahok",
+    "email": "Email",
+    "interfaceLanguage": "Wika ng Interface",
+    "targetLanguage": "Wikang Nais Pag-aralan",
+    "logout": "Mag-logout",
+    "version": "FLUENTT v0.1B Mobile",
+    "savedSuccess": "Matagumpay na na-update ang mga setting."
+  },
+  "common": {
+    "retry": "Subukang muli",
+    "logout": "Mag-logout",
+    "cancel": "Kanselahin",
+    "loading": "Nagkakarga...",
+    "save": "I-save",
+    "back": "Bumalik",
+    "offline": "Offline",
+    "error": "May naganap na error"
+  },
+  "languages": {
+    "en": "Ingles (English)",
+    "fil": "Tagalog (Filipino)"
+  }
+}
