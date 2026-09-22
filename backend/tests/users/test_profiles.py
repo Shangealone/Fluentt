@@ -1,25 +1,14 @@
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
 
 from app.auth.service import (
     change_user_password,
     create_user_tokens,
     provision_participant,
 )
-from app.database.session import SessionLocal, engine
+from app.database.session import SessionLocal
 from app.main import app
 
 client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def clean_database():
-    with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE refresh_sessions, users CASCADE;"))
-    yield
-    with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE refresh_sessions, users CASCADE;"))
 
 
 def test_get_profile_returns_initial_preferences() -> None:

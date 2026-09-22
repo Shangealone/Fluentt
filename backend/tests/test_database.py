@@ -40,4 +40,4 @@ def test_health_db_with_dependency_override() -> None:
         assert response.json() == {"status": "ok"}
         assert executed is True
     finally:
-        app.dependency_overrides.clear()
+        app.dependency_overrides.pop(get_db, None)

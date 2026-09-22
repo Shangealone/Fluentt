@@ -1,7 +1,4 @@
-import email_validator
 from pydantic import BaseModel, EmailStr
-
-email_validator.TEST_ENVIRONMENT = True
 
 
 class LoginRequest(BaseModel):

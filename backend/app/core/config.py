@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+import email_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,13 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
+def apply_environment_configurations(settings: Settings) -> None:
+    # Restrict test-environment reserved domains (e.g. .test) to development and testing only
+    email_validator.TEST_ENVIRONMENT = settings.app_env in ("development", "testing")
+
+
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    apply_environment_configurations(settings)
+    return settings

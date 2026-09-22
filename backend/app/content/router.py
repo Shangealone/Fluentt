@@ -34,10 +34,18 @@ def list_lessons(
     _: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     language: Annotated[str, Query(description="Language code (e.g. en, fil)")] = "en",
+    content_version: Annotated[
+        str | None,
+        Query(
+            description="Specific content version; defaults to latest active version"
+        ),
+    ] = None,
 ) -> list[LessonSummaryResponse]:
     return [
         LessonSummaryResponse(**item)
-        for item in get_active_lessons_by_language(db, language)
+        for item in get_active_lessons_by_language(
+            db, language, content_version=content_version
+        )
     ]
 
 

@@ -95,15 +95,32 @@ def get_active_languages(db: Session) -> list[Language]:
 
 
 def get_active_lessons_by_language(
-    db: Session, language_code: str
+    db: Session, language_code: str, content_version: str | None = None
 ) -> list[dict[str, Any]]:
     norm_lang = language_code.strip().lower()
+    target_version = content_version
+
+    if target_version is None:
+        # Default learner feed: select latest active content version for the requested language
+        target_version = db.scalar(
+            select(Lesson.content_version)
+            .where(
+                Lesson.language_code == norm_lang,
+                Lesson.is_active == True,
+            )
+            .order_by(Lesson.created_at.desc())
+            .limit(1)
+        )
+        if not target_version:
+            return []
+
     lessons = list(
         db.scalars(
             select(Lesson)
             .where(
                 Lesson.language_code == norm_lang,
                 Lesson.is_active == True,
+                Lesson.content_version == target_version,
             )
             .order_by(Lesson.sort_order)
         ).all()
@@ -111,12 +128,16 @@ def get_active_lessons_by_language(
 
     results = []
     for lesson in lessons:
-        active_item_count = db.scalar(
-            select(func.count(VocabularyItem.id)).where(
-                VocabularyItem.lesson_id == lesson.id,
-                VocabularyItem.is_active == True,
+        active_item_count = (
+            db.scalar(
+                select(func.count(VocabularyItem.id)).where(
+                    VocabularyItem.lesson_id == lesson.id,
+                    VocabularyItem.is_active == True,
+                    VocabularyItem.content_version == lesson.content_version,
+                )
             )
-        ) or 0
+            or 0
+        )
         results.append(
             {
                 "id": lesson.id,
@@ -149,6 +170,7 @@ def get_active_lesson_by_id(
             .where(
                 VocabularyItem.lesson_id == lesson.id,
                 VocabularyItem.is_active == True,
+                VocabularyItem.content_version == lesson.content_version,
             )
             .order_by(VocabularyItem.sort_order)
         ).all()

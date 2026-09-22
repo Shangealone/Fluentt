@@ -1,14 +1,12 @@
 from typing import Annotated
 
-import pytest
 from fastapi import Depends
 from fastapi.testclient import TestClient
-from sqlalchemy import text
 
 from app.auth.dependencies import get_current_user
 from app.auth.models import User
 from app.auth.service import provision_participant
-from app.database.session import SessionLocal, engine
+from app.database.session import SessionLocal
 from app.main import app
 
 client = TestClient(app)
@@ -18,15 +16,6 @@ client = TestClient(app)
 @app.get("/test-protected")
 def protected_route(user: Annotated[User, Depends(get_current_user)]):
     return {"status": "ok", "user_id": str(user.id)}
-
-
-@pytest.fixture(autouse=True)
-def clean_database():
-    with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE refresh_sessions, users CASCADE;"))
-    yield
-    with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE refresh_sessions, users CASCADE;"))
 
 
 def test_login_success_and_temporary_password_flag() -> None:

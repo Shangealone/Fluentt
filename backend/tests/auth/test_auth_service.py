@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import RefreshSession
@@ -14,25 +14,6 @@ from app.auth.service import (
     reset_participant_password,
     rotate_refresh_token,
 )
-from app.database.session import SessionLocal, engine
-
-
-@pytest.fixture(autouse=True)
-def clean_database():
-    with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE refresh_sessions, users CASCADE;"))
-    yield
-    with engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE refresh_sessions, users CASCADE;"))
-
-
-@pytest.fixture
-def db_session():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def test_password_is_argon2_hashed() -> None:
