@@ -1,0 +1,90 @@
+{
+  "language": {
+    "code": "en",
+    "name": "English",
+    "is_active": true
+  },
+  "content_version": "sample-en-v0.1",
+  "lessons": [
+    {
+      "id": "11111111-0000-0000-0000-000000000001",
+      "title": "Essential Daily Greetings",
+      "description": "Common polite greetings and introductions used in everyday English conversations.",
+      "content_version": "sample-en-v0.1",
+      "is_active": true,
+      "sort_order": 1,
+      "vocabulary_items": [
+        {
+          "id": "22222222-0000-0000-0000-000000000001",
+          "term": "hello",
+          "definition": "Used as a greeting or to begin a telephone conversation.",
+          "example_sentence": "Hello, it is nice to meet you.",
+          "difficulty": "beginner",
+          "category": "greetings",
+          "translation": "kumusta",
+          "content_version": "sample-en-v0.1",
+          "is_active": true,
+          "sort_order": 1
+        },
+        {
+          "id": "22222222-0000-0000-0000-000000000002",
+          "term": "welcome",
+          "definition": "An instance or manner of greeting someone gladly.",
+          "example_sentence": "Welcome to our research study!",
+          "difficulty": "beginner",
+          "category": "greetings",
+          "translation": "maligayang pagdating",
+          "content_version": "sample-en-v0.1",
+          "is_active": true,
+          "sort_order": 2
+        },
+        {
+          "id": "22222222-0000-0000-0000-000000000003",
+          "term": "gratitude",
+          "definition": "The quality of being thankful; readiness to show appreciation.",
+          "example_sentence": "He expressed his sincere gratitude to the team.",
+          "difficulty": "intermediate",
+          "category": "politeness",
+          "translation": "pasasalamat",
+          "content_version": "sample-en-v0.1",
+          "is_active": true,
+          "sort_order": 3
+        }
+      ]
+    },
+    {
+      "id": "11111111-0000-0000-0000-000000000002",
+      "title": "Academic & Research Fundamentals",
+      "description": "Foundational vocabulary for students and researchers in Computer Science.",
+      "content_version": "sample-en-v0.1",
+      "is_active": true,
+      "sort_order": 2,
+      "vocabulary_items": [
+        {
+          "id": "22222222-0000-0000-0000-000000000004",
+          "term": "algorithm",
+          "definition": "A process or set of rules to be followed in calculations or problem-solving operations.",
+          "example_sentence": "The spaced repetition algorithm calculates optimal review intervals.",
+          "difficulty": "intermediate",
+          "category": "computing",
+          "translation": "algoritmo",
+          "content_version": "sample-en-v0.1",
+          "is_active": true,
+          "sort_order": 1
+        },
+        {
+          "id": "22222222-0000-0000-0000-000000000005",
+          "term": "reproducibility",
+          "definition": "The ability of an experiment or study to be duplicated by other researchers.",
+          "example_sentence": "Deterministic data seeding is essential for scientific reproducibility.",
+          "difficulty": "advanced",
+          "category": "research",
+          "translation": "kakayahang kopyahin / maulit",
+          "content_version": "sample-en-v0.1",
+          "is_active": true,
+          "sort_order": 2
+        }
+      ]
+    }
+  ]
+}

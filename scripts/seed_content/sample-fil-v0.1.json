@@ -1,0 +1,90 @@
+{
+  "language": {
+    "code": "fil",
+    "name": "Filipino",
+    "is_active": true
+  },
+  "content_version": "sample-fil-v0.1",
+  "lessons": [
+    {
+      "id": "33333333-0000-0000-0000-000000000001",
+      "title": "Pang-araw-araw na Pagbati",
+      "description": "Mga pangunahing pagbati at magagalang na pananalita sa wikang Filipino.",
+      "content_version": "sample-fil-v0.1",
+      "is_active": true,
+      "sort_order": 1,
+      "vocabulary_items": [
+        {
+          "id": "44444444-0000-0000-0000-000000000001",
+          "term": "kumusta",
+          "definition": "Bating pambungad sa pakikipag-usap na nangangahulugang ano ang lagay o kalagayan.",
+          "example_sentence": "Kumusta ka ngayong umaga?",
+          "difficulty": "beginner",
+          "category": "pagbati",
+          "translation": "how are you / hello",
+          "content_version": "sample-fil-v0.1",
+          "is_active": true,
+          "sort_order": 1
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000002",
+          "term": "salamat",
+          "definition": "Salitang nagpapahayag ng pagtanaw ng utang na loob o pagpapahalaga sa tulong ng iba.",
+          "example_sentence": "Maraming salamat sa iyong tulong sa aming pag-aaral.",
+          "difficulty": "beginner",
+          "category": "paggalang",
+          "translation": "thank you",
+          "content_version": "sample-fil-v0.1",
+          "is_active": true,
+          "sort_order": 2
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000003",
+          "term": "paalam",
+          "definition": "Salitang sinasabi bago umalis o maghiwalay.",
+          "example_sentence": "Paalam, mag-ingat ka sa iyong pag-uwi.",
+          "difficulty": "beginner",
+          "category": "pagbati",
+          "translation": "goodbye",
+          "content_version": "sample-fil-v0.1",
+          "is_active": true,
+          "sort_order": 3
+        }
+      ]
+    },
+    {
+      "id": "33333333-0000-0000-0000-000000000002",
+      "title": "Pagsasaliksik at Akademya",
+      "description": "Mga bokabularyong nauugnay sa pag-aaral, siyensya, at pananaliksik.",
+      "content_version": "sample-fil-v0.1",
+      "is_active": true,
+      "sort_order": 2,
+      "vocabulary_items": [
+        {
+          "id": "44444444-0000-0000-0000-000000000004",
+          "term": "pananaliksik",
+          "definition": "Sistematikong pag-aaral at pagsisiyasat upang matuklasan ang mga bagong kaalaman.",
+          "example_sentence": "Ang aming pananaliksik ay nakatuon sa pagkatuto ng wika gamit ang teknolohiya.",
+          "difficulty": "intermediate",
+          "category": "akademya",
+          "translation": "research",
+          "content_version": "sample-fil-v0.1",
+          "is_active": true,
+          "sort_order": 1
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000005",
+          "term": "pagbigkas",
+          "definition": "Ang paraan o tunog ng pagsasalita ng mga titik, salita, o pangungusap.",
+          "example_sentence": "Mahalaga ang wastong pagbigkas upang maging malinaw ang pakikipagtalastasan.",
+          "difficulty": "intermediate",
+          "category": "wika",
+          "translation": "pronunciation",
+          "content_version": "sample-fil-v0.1",
+          "is_active": true,
+          "sort_order": 2
+        }
+      ]
+    }
+  ]
+}
