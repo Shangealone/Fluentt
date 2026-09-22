@@ -1,10 +1,14 @@
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.users.models import LearnerProfile
 
 
 class User(Base):
@@ -40,6 +44,9 @@ class User(Base):
 
     refresh_sessions: Mapped[list["RefreshSession"]] = relationship(
         "RefreshSession", back_populates="user", cascade="all, delete-orphan"
+    )
+    learner_profile: Mapped["LearnerProfile | None"] = relationship(
+        "LearnerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
 
