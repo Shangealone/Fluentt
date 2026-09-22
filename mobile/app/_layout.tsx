@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
 import '../src/i18n';
 
-function NavigationGuard({ children }: { children: React.ReactNode }) {
+export function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { status, user } = useAuth();
   const segments = useSegments();
   const router = useRouter();
