@@ -108,6 +108,9 @@
     "syncFailed": "Sync failed: {{error}}",
     "lastSynced": "Last synced: {{time}}",
     "never": "Never",
+    "connectedToServer": "Online — Connected to server",
+    "serverUnreachable": "Network connected — Server unreachable",
+    "networkOffline": "Offline — No network connection",
     "offlineNotice": "Device is currently offline. Reviews will automatically synchronize when reconnected.",
     "authErrorNotice": "Authentication required. Draining paused until you log in."
   },

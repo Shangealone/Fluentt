@@ -309,4 +309,62 @@ describe('Vocabulary Review Flow', () => {
     expect(pending[0].payload.performance_rating).toBe('hard');
     expect(pending[0].status).toBe('pending');
   });
+
+  it('reproduces exact offline network failure (TypeError: Network request failed) and creates exactly one SQLite pending event', async () => {
+    const testClock = createTestClock([100, 100, 1500]); // 1400 ms elapsed
+
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url.includes('/content/lessons/lesson-uuid-1')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => mockLessonResponse,
+        });
+      }
+      // Exact React Native fetch failure when TCP connection refused on stopped FastAPI
+      return Promise.reject(new TypeError('Network request failed'));
+    });
+
+    const rendered = await render(<ReviewScreen customClock={testClock} />);
+
+    await waitFor(() => {
+      expect(rendered.getByTestId('reveal-answer-btn')).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(rendered.getByTestId('reveal-answer-btn'));
+    });
+
+    await waitFor(() => {
+      expect(rendered.getByTestId('rating-again-btn')).toBeTruthy();
+    });
+
+    await act(async () => {
+      fireEvent.press(rendered.getByTestId('rating-again-btn'));
+    });
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pathname: '/(app)/review/result',
+          params: expect.objectContaining({
+            totalCount: '1',
+            syncedCount: '0',
+            queuedCount: '1',
+          }),
+        })
+      );
+    });
+
+    const pending = await getPendingReviews();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].status).toBe('pending');
+    expect(pending[0].payload.vocabulary_item_id).toBe('vocab-1');
+    expect(pending[0].payload.performance_rating).toBe('again');
+    expect(pending[0].payload.response_time_ms).toBe(1400);
+    expect(pending[0].payload.client_event_id).toBeDefined();
+    expect(pending[0].payload.session_id).toBeDefined();
+    expect((pending[0].payload as any).password).toBeUndefined();
+    expect((pending[0].payload as any).access_token).toBeUndefined();
+  });
 });

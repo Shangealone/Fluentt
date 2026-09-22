@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,7 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { AppText } from '../../src/components/AppText';
 import { useSyncStatus } from '../../src/offline/useSyncStatus';
@@ -19,10 +19,39 @@ export default function SyncStatusScreen() {
     pendingCount,
     isSyncing,
     isOnline,
+    isServerReachable,
     lastSyncedAt,
     syncError,
     syncNow,
+    refreshCount,
+    refreshReachability,
   } = useSyncStatus();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshCount();
+      refreshReachability();
+    }, [refreshCount, refreshReachability])
+  );
+
+  let connectionBoxStyle = styles.offlineBox;
+  let connectionDotStyle = styles.offlineDot;
+  let connectionTextStyle = styles.offlineText;
+  let connectionLabel = t('sync.networkOffline');
+
+  if (isOnline && isServerReachable) {
+    connectionBoxStyle = styles.onlineBox;
+    connectionDotStyle = styles.onlineDot;
+    connectionTextStyle = styles.onlineText;
+    connectionLabel = t('sync.connectedToServer');
+  } else if (isOnline && !isServerReachable) {
+    connectionBoxStyle = styles.unreachableBox;
+    connectionDotStyle = styles.unreachableDot;
+    connectionTextStyle = styles.unreachableText;
+    connectionLabel = t('sync.serverUnreachable');
+  }
+
+  const isSyncDisabled = !isOnline || !isServerReachable || isSyncing;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -41,16 +70,12 @@ export default function SyncStatusScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Network Connectivity Badge */}
         <View
-          style={[styles.connectionBox, isOnline ? styles.onlineBox : styles.offlineBox]}
+          style={[styles.connectionBox, connectionBoxStyle]}
           testID="connection-status-badge"
         >
-          <View
-            style={[styles.dot, isOnline ? styles.onlineDot : styles.offlineDot]}
-          />
-          <AppText
-            style={[styles.connectionText, isOnline ? styles.onlineText : styles.offlineText]}
-          >
-            {isOnline ? 'Online — Connected to server' : t('sync.offlineNotice')}
+          <View style={[styles.dot, connectionDotStyle]} />
+          <AppText style={[styles.connectionText, connectionTextStyle]}>
+            {connectionLabel}
           </AppText>
         </View>
 
@@ -92,8 +117,8 @@ export default function SyncStatusScreen() {
         {/* Action Button */}
         <Pressable
           testID="sync-now-btn"
-          style={[styles.syncButton, (!isOnline || isSyncing) ? styles.disabledButton : null]}
-          disabled={!isOnline || isSyncing}
+          style={[styles.syncButton, isSyncDisabled ? styles.disabledButton : null]}
+          disabled={isSyncDisabled}
           onPress={syncNow}
         >
           {isSyncing ? (
@@ -161,6 +186,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef3c7',
     borderColor: '#fde68a',
   },
+  unreachableBox: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+  },
   dot: {
     width: 10,
     height: 10,
@@ -173,6 +202,9 @@ const styles = StyleSheet.create({
   offlineDot: {
     backgroundColor: '#d97706',
   },
+  unreachableDot: {
+    backgroundColor: '#d97706',
+  },
   connectionText: {
     fontSize: 13,
     fontWeight: '600',
@@ -183,6 +215,9 @@ const styles = StyleSheet.create({
   },
   offlineText: {
     color: '#92400e',
+  },
+  unreachableText: {
+    color: '#b45309',
   },
   card: {
     backgroundColor: '#ffffff',

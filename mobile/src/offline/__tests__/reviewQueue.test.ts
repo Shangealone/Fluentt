@@ -6,7 +6,7 @@ import {
   getPendingCount,
   PendingReviewPayload,
 } from '../reviewQueue';
-import { resetDatabaseForTesting } from '../db';
+import { resetDatabaseForTesting, closeDatabaseForTesting } from '../db';
 
 describe('Review Queue SQLite Storage', () => {
   beforeEach(async () => {
@@ -78,5 +78,32 @@ describe('Review Queue SQLite Storage', () => {
     const items = await getPendingReviews();
     expect((items[0].payload as any).access_token).toBeUndefined();
     expect((items[0].payload as any).password).toBeUndefined();
+  });
+
+  it('counts pending events even when in syncing or failed status so reviews are never hidden', async () => {
+    await enqueuePendingReview(samplePayload);
+    await markReviewStatus(samplePayload.client_event_id, 'failed', 'Network timeout');
+
+    // Must be counted as pending sync so the user does NOT see "All reviews are synchronized"
+    expect(await getPendingCount()).toBe(1);
+
+    await markReviewStatus(samplePayload.client_event_id, 'syncing');
+    expect(await getPendingCount()).toBe(1);
+  });
+
+  it('preserves pending review events across database reopen simulating app restart', async () => {
+    await enqueuePendingReview(samplePayload);
+    expect(await getPendingCount()).toBe(1);
+
+    // Simulate closing the database when app terminates
+    await closeDatabaseForTesting();
+
+    // Reopen database on new app start
+    const items = await getPendingReviews();
+    expect(items).toHaveLength(1);
+    expect(items[0].client_event_id).toBe(samplePayload.client_event_id);
+    expect(items[0].payload.vocabulary_item_id).toBe(samplePayload.vocabulary_item_id);
+    expect(items[0].payload.performance_rating).toBe(samplePayload.performance_rating);
+    expect(await getPendingCount()).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-import { apiClient, AuthenticationError, getApiErrorMessage } from '../api/client';
+import { apiClient, AuthenticationError, getApiBaseUrl, getApiErrorMessage } from '../api/client';
 import {
   deletePendingReview,
   getPendingReviews,
@@ -29,22 +29,82 @@ interface SyncReviewEventsResponse {
 
 let isSyncing = false;
 let isOnline = true;
+let isServerReachable = true;
 let lastSyncedAt: Date | null = null;
 const listeners = new Set<() => void>();
 
 function notifyListeners(): void {
   for (const listener of listeners) {
-    listener();
+    try {
+      listener();
+    } catch {
+      // Ignore listener error
+    }
   }
+}
+
+export function notifySyncStatusListeners(): void {
+  notifyListeners();
 }
 
 export function setSyncOnlineStatus(online: boolean): void {
   isOnline = online;
+  if (!online) {
+    isServerReachable = false;
+  }
   notifyListeners();
 }
 
 export function getSyncOnlineStatus(): boolean {
   return isOnline;
+}
+
+export function getServerReachability(): boolean {
+  return isServerReachable;
+}
+
+export function setServerReachability(reachable: boolean): void {
+  isServerReachable = reachable;
+  notifyListeners();
+}
+
+export async function checkServerReachability(): Promise<boolean> {
+  if (!isOnline) {
+    if (isServerReachable) {
+      isServerReachable = false;
+      notifyListeners();
+    }
+    return false;
+  }
+
+  try {
+    const baseUrl = getApiBaseUrl();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+
+    const response = await fetch(`${baseUrl}/health`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    const reachable = response.ok;
+    if (isServerReachable !== reachable) {
+      isServerReachable = reachable;
+      notifyListeners();
+    }
+    return reachable;
+  } catch {
+    if (isServerReachable !== false) {
+      isServerReachable = false;
+      notifyListeners();
+    }
+    return false;
+  }
 }
 
 export function isSyncInProgress(): boolean {
@@ -137,6 +197,7 @@ export async function drainReviewQueue(): Promise<SyncResult> {
         }
 
         lastSyncedAt = new Date();
+        isServerReachable = true;
       } catch (err: any) {
         // Clarification 4.A: Auth failure during sync
         if (err instanceof AuthenticationError || err?.status === 401 || err?.status === 403) {
@@ -152,6 +213,7 @@ export async function drainReviewQueue(): Promise<SyncResult> {
         }
 
         // Network error or timeout: reset to pending and save last_error
+        isServerReachable = false;
         const errorMsg = getApiErrorMessage(err, 'Network failure during sync');
         for (const item of batch) {
           await markReviewStatus(item.client_event_id, 'pending', errorMsg);
@@ -189,12 +251,19 @@ export function initNetInfoSyncListener(): void {
         const online = Boolean(state.isConnected && state.isInternetReachable !== false);
         const wasOffline = !isOnline;
         isOnline = online;
-        notifyListeners();
 
-        if (wasOffline && online) {
-          drainReviewQueue().catch((err) => {
-            console.warn('Auto-sync on reconnect error:', err);
+        if (online) {
+          notifyListeners();
+          checkServerReachability().then((reachable) => {
+            if (wasOffline && reachable) {
+              drainReviewQueue().catch((err) => {
+                console.warn('Auto-sync on reconnect error:', err);
+              });
+            }
           });
+        } else {
+          isServerReachable = false;
+          notifyListeners();
         }
       });
     }

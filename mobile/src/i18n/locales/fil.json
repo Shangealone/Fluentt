@@ -107,6 +107,9 @@
     "syncFailed": "Nabigo ang pag-sync: {{error}}",
     "lastSynced": "Huling na-sync: {{time}}",
     "never": "Hindi pa kailanman",
+    "connectedToServer": "Online — Nakakonekta sa server",
+    "serverUnreachable": "Konektado sa network — Hindi maabot ang server",
+    "networkOffline": "Offline — Walang koneksyon sa network",
     "offlineNotice": "Kasalukuyang offline ang device. Awtomatikong magsi-sync ang mga pagsusuri kapag nakakonekta muli.",
     "authErrorNotice": "Kinakailangan ang pagpapatotoo. Naka-pause ang pag-sync hanggang sa mag-login ka."
   },

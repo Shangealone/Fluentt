@@ -1,4 +1,9 @@
-import { drainReviewQueue, setSyncOnlineStatus } from '../syncWorker';
+import {
+  checkServerReachability,
+  drainReviewQueue,
+  getServerReachability,
+  setSyncOnlineStatus,
+} from '../syncWorker';
 import {
   enqueuePendingReview,
   getPendingReviews,
@@ -191,5 +196,61 @@ describe('Offline Review Sync Worker', () => {
     expect(result.skipped).toBe(true);
     expect(global.fetch).not.toHaveBeenCalled();
     expect(await getPendingCount()).toBe(1);
+  });
+
+  it('checks server reachability via /health and updates reachability state', async () => {
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url.includes('/health')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'ok' }),
+        });
+      }
+      return Promise.reject(new Error('Unknown'));
+    });
+
+    const isReachable = await checkServerReachability();
+    expect(isReachable).toBe(true);
+    expect(getServerReachability()).toBe(true);
+
+    // When /health fails (e.g. backend down / ECONNREFUSED)
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url.includes('/health')) {
+        return Promise.reject(new TypeError('Network request failed'));
+      }
+      return Promise.reject(new Error('Unknown'));
+    });
+
+    const isUnreachable = await checkServerReachability();
+    expect(isUnreachable).toBe(false);
+    expect(getServerReachability()).toBe(false);
+  });
+
+  it('ensures failed Sync Now attempts never delete pending items from SQLite', async () => {
+    await enqueuePendingReview(event1);
+    await enqueuePendingReview(event2);
+    expect(await getPendingCount()).toBe(2);
+
+    // Backend is down / connection refused
+    global.fetch = jest.fn().mockRejectedValue(new TypeError('Network request failed'));
+
+    // Attempt 1: Failed sync
+    const result1 = await drainReviewQueue();
+    expect(result1.syncedCount).toBe(0);
+    expect(await getPendingCount()).toBe(2);
+
+    // Attempt 2: Another failed sync
+    const result2 = await drainReviewQueue();
+    expect(result2.syncedCount).toBe(0);
+    expect(await getPendingCount()).toBe(2);
+
+    // Verify all payloads remain intact in SQLite
+    const remaining = await getPendingReviews();
+    expect(remaining).toHaveLength(2);
+    expect(remaining[0].client_event_id).toBe(event1.client_event_id);
+    expect(remaining[0].payload.vocabulary_item_id).toBe(event1.vocabulary_item_id);
+    expect(remaining[0].payload.response_time_ms).toBe(event1.response_time_ms);
+    expect(remaining[1].client_event_id).toBe(event2.client_event_id);
   });
 });

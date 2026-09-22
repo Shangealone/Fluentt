@@ -196,6 +196,12 @@ class InMemoryDatabase implements DatabaseInterface {
       if (upper.includes('WHERE STATUS = ?')) {
         const targetStatus = flatParams[0];
         count = Array.from(this.pendingReviews.values()).filter((r) => r.status === targetStatus).length;
+      } else if (upper.includes("WHERE STATUS = 'PENDING'")) {
+        count = Array.from(this.pendingReviews.values()).filter((r) => r.status === 'pending').length;
+      } else if (upper.includes('WHERE STATUS IN')) {
+        count = Array.from(this.pendingReviews.values()).filter((r) =>
+          ['pending', 'syncing', 'failed'].includes(r.status)
+        ).length;
       }
       return { count } as T;
     }
@@ -236,6 +242,14 @@ class InMemoryDatabase implements DatabaseInterface {
 let dbPromise: Promise<DatabaseInterface> | null = null;
 let inMemoryInstance: InMemoryDatabase | null = null;
 
+let SQLiteModule: typeof import('expo-sqlite') | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  SQLiteModule = require('expo-sqlite');
+} catch {
+  // Native SQLite module not available in test/Node environments
+}
+
 export async function getDatabase(): Promise<DatabaseInterface> {
   if (process.env.NODE_ENV === 'test') {
     if (!inMemoryInstance) {
@@ -247,10 +261,12 @@ export async function getDatabase(): Promise<DatabaseInterface> {
   if (!dbPromise) {
     dbPromise = (async () => {
       try {
-        const SQLite = await import('expo-sqlite');
-        const db = await SQLite.openDatabaseAsync('fluentt.db');
-        await runMigrations(db);
-        return db;
+        if (SQLiteModule && typeof SQLiteModule.openDatabaseAsync === 'function') {
+          const db = await SQLiteModule.openDatabaseAsync('fluentt.db');
+          await runMigrations(db);
+          return db;
+        }
+        throw new Error('Native SQLiteModule unavailable');
       } catch (err) {
         console.warn('Native SQLite unavailable, falling back to in-memory store:', err);
         if (!inMemoryInstance) {
@@ -261,6 +277,22 @@ export async function getDatabase(): Promise<DatabaseInterface> {
     })();
   }
   return dbPromise;
+}
+
+export async function closeDatabaseForTesting(): Promise<void> {
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      if (db.closeAsync) {
+        await db.closeAsync();
+      }
+    } catch {
+      // Ignore
+    }
+    dbPromise = null;
+  }
+  // In test environments, clear singleton pointer so getDatabase recreates or re-evaluates
+  // but note that resetDatabaseForTesting() is what clears table contents.
 }
 
 export async function resetDatabaseForTesting(): Promise<void> {

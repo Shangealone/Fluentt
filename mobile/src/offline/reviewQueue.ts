@@ -1,4 +1,5 @@
 import { getDatabase } from './db';
+import { notifySyncStatusListeners } from './syncWorker';
 
 export interface PendingReviewPayload {
   client_event_id: string;
@@ -44,6 +45,7 @@ export async function enqueuePendingReview(payload: PendingReviewPayload): Promi
     ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [sanitized.client_event_id, JSON.stringify(sanitized), 'pending', 0, null, sanitized.created_at, now]
   );
+  notifySyncStatusListeners();
 }
 
 export async function getPendingReviews(status?: 'pending' | 'syncing' | 'failed'): Promise<PendingReviewItem[]> {
@@ -94,7 +96,7 @@ export async function deletePendingReview(client_event_id: string): Promise<void
 export async function getPendingCount(): Promise<number> {
   const db = await getDatabase();
   const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM pending_review_events WHERE status = 'pending'`
+    `SELECT COUNT(*) as count FROM pending_review_events WHERE status IN ('pending', 'syncing', 'failed')`
   );
   return row?.count ?? 0;
 }
