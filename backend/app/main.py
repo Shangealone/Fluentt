@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.analytics.router import router as analytics_router
 from app.auth.router import router as auth_router
 from app.content.router import router as content_router
 from app.database.session import get_db
@@ -18,6 +19,7 @@ app.include_router(users_router)
 app.include_router(content_router)
 app.include_router(reviews_router)
 app.include_router(sync_router)
+app.include_router(analytics_router)
 
 
 @app.get("/health")

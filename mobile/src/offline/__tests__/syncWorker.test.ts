@@ -1,0 +1,195 @@
+import { drainReviewQueue, setSyncOnlineStatus } from '../syncWorker';
+import {
+  enqueuePendingReview,
+  getPendingReviews,
+  getPendingCount,
+  PendingReviewPayload,
+} from '../reviewQueue';
+import { resetDatabaseForTesting } from '../db';
+
+// Mock tokenStore
+jest.mock('../../auth/tokenStore', () => ({
+  loadTokens: jest.fn().mockResolvedValue({ accessToken: 'valid-token', refreshToken: 'valid-refresh' }),
+  saveTokens: jest.fn().mockResolvedValue(undefined),
+  clearTokens: jest.fn().mockResolvedValue(undefined),
+}));
+
+describe('Offline Review Sync Worker', () => {
+  let originalFetch: typeof global.fetch;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    originalFetch = global.fetch;
+    setSyncOnlineStatus(true);
+    await resetDatabaseForTesting();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  const event1: PendingReviewPayload = {
+    client_event_id: '11111111-1111-4111-8111-111111111111',
+    session_id: 'session-1',
+    vocabulary_item_id: 'vocab-1',
+    response_time_ms: 1200,
+    performance_rating: 'good',
+    created_at: '2026-09-22T08:00:00Z',
+  };
+
+  const event2: PendingReviewPayload = {
+    client_event_id: '22222222-2222-4222-8222-222222222222',
+    session_id: 'session-1',
+    vocabulary_item_id: 'vocab-1', // same vocabulary item, distinct client_event_id
+    response_time_ms: 950,
+    performance_rating: 'easy',
+    created_at: '2026-09-22T08:01:00Z',
+  };
+
+  it('drains pending reviews to /sync/review-events and deletes them from SQLite queue on success', async () => {
+    await enqueuePendingReview(event1);
+    expect(await getPendingCount()).toBe(1);
+
+    let syncRequestBody: any = null;
+
+    global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
+      if (url.includes('/sync/review-events')) {
+        syncRequestBody = JSON.parse(opts.body);
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            processed_count: 1,
+            results: [
+              {
+                client_event_id: event1.client_event_id,
+                status: 'accepted',
+                attempt_id: 'attempt-1',
+                due_date: '2026-09-23T08:00:00Z',
+              },
+            ],
+          }),
+        });
+      }
+      return Promise.reject(new Error('Unknown URL: ' + url));
+    });
+
+    const result = await drainReviewQueue();
+
+    expect(result.syncedCount).toBe(1);
+    expect(result.failedCount).toBe(0);
+    expect(syncRequestBody).not.toBeNull();
+    expect(syncRequestBody.events).toHaveLength(1);
+    expect(syncRequestBody.events[0].client_event_id).toBe(event1.client_event_id);
+
+    // Queue is drained
+    expect(await getPendingCount()).toBe(0);
+    const remaining = await getPendingReviews();
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('preserves distinct attempts for same vocabulary item with distinct client_event_id (Clarification 4.B)', async () => {
+    await enqueuePendingReview(event1);
+    await enqueuePendingReview(event2);
+    expect(await getPendingCount()).toBe(2);
+
+    let syncRequestBody: any = null;
+
+    global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
+      if (url.includes('/sync/review-events')) {
+        syncRequestBody = JSON.parse(opts.body);
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            processed_count: 2,
+            results: [
+              {
+                client_event_id: event1.client_event_id,
+                status: 'accepted',
+                attempt_id: 'attempt-1',
+                due_date: '2026-09-23T08:00:00Z',
+              },
+              {
+                client_event_id: event2.client_event_id,
+                status: 'accepted',
+                attempt_id: 'attempt-2',
+                due_date: '2026-09-23T08:01:00Z',
+              },
+            ],
+          }),
+        });
+      }
+      return Promise.reject(new Error('Unknown URL: ' + url));
+    });
+
+    const result = await drainReviewQueue();
+
+    expect(result.syncedCount).toBe(2);
+    expect(syncRequestBody.events).toHaveLength(2);
+    expect(syncRequestBody.events[0].client_event_id).toBe(event1.client_event_id);
+    expect(syncRequestBody.events[1].client_event_id).toBe(event2.client_event_id);
+
+    expect(await getPendingCount()).toBe(0);
+  });
+
+  it('handles 401/session expiry: queue is NOT deleted, draining pauses for auth handling (Clarification 4.A)', async () => {
+    await enqueuePendingReview(event1);
+    expect(await getPendingCount()).toBe(1);
+
+    // Backend returns 401 Unauthorized
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url.includes('/sync/review-events') || url.includes('/auth/refresh')) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: async () => ({ detail: 'Session expired' }),
+        });
+      }
+      return Promise.reject(new Error('Unknown URL: ' + url));
+    });
+
+    const result = await drainReviewQueue();
+
+    expect(result.authPaused).toBe(true);
+    expect(result.syncedCount).toBe(0);
+
+    // Critical check: Queue is NOT deleted, pending event remains stored
+    expect(await getPendingCount()).toBe(1);
+    const items = await getPendingReviews();
+    expect(items).toHaveLength(1);
+    expect(items[0].status).toBe('pending');
+    expect(items[0].client_event_id).toBe(event1.client_event_id);
+  });
+
+  it('handles network failure: retains pending events in queue, marks last_error and resets status to pending', async () => {
+    await enqueuePendingReview(event1);
+
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network timeout'));
+
+    const result = await drainReviewQueue();
+
+    expect(result.syncedCount).toBe(0);
+    expect(result.error).toBe('Network timeout');
+
+    // Retained in SQLite queue
+    expect(await getPendingCount()).toBe(1);
+    const items = await getPendingReviews();
+    expect(items).toHaveLength(1);
+    expect(items[0].last_error).toBe('Network timeout');
+    expect(items[0].attempt_count).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not attempt sync when offline', async () => {
+    await enqueuePendingReview(event1);
+    setSyncOnlineStatus(false);
+
+    global.fetch = jest.fn();
+
+    const result = await drainReviewQueue();
+
+    expect(result.skipped).toBe(true);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(await getPendingCount()).toBe(1);
+  });
+});

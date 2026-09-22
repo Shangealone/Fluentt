@@ -119,6 +119,26 @@ export default function HomeScreen() {
           </Pressable>
 
           <Pressable
+            testID="view-progress-btn"
+            style={styles.secondaryButton}
+            onPress={() => router.push('/(app)/progress' as any)}
+          >
+            <AppText style={styles.secondaryButtonText}>
+              📊 {t('progress.title')}
+            </AppText>
+          </Pressable>
+
+          <Pressable
+            testID="sync-status-btn"
+            style={styles.secondaryButton}
+            onPress={() => router.push('/(app)/sync-status' as any)}
+          >
+            <AppText style={styles.secondaryButtonText}>
+              🔄 {t('sync.title')}
+            </AppText>
+          </Pressable>
+
+          <Pressable
             testID="open-settings-btn"
             style={styles.secondaryButton}
             onPress={() => router.push('/(app)/settings' as any)}
