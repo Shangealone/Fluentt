@@ -135,6 +135,13 @@ export default function LessonDetailScreen() {
                   {t('content.itemsCount', { count: lesson.vocabularyItems.length })}
                 </AppText>
               </View>
+              <Pressable
+                testID="start-review-btn"
+                style={styles.startReviewButton}
+                onPress={() => router.push({ pathname: '/(app)/review/[lessonId]' as any, params: { lessonId: lesson.id } })}
+              >
+                <AppText style={styles.startReviewButtonText}>📖 {t('reviews.startReview')}</AppText>
+              </Pressable>
             </View>
           }
         />
@@ -214,6 +221,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     fontWeight: '500',
+  },
+  startReviewButton: {
+    marginTop: 12,
+    backgroundColor: '#2563eb',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  startReviewButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   centered: {
     flex: 1,

@@ -74,5 +74,51 @@
   "languages": {
     "en": "Ingles (English)",
     "fil": "Tagalog (Filipino)"
+  },
+  "reviews": {
+    "title": "Pagsusuri ng Salita",
+    "cardProgress": "Kard {{current}} sa {{total}}",
+    "showAnswer": "Ipakita ang Sagot",
+    "howWellDidYouKnow": "Gaano mo kakilala ang salitang ito?",
+    "ratingAgain": "Ulitin",
+    "ratingHard": "Mahirap",
+    "ratingGood": "Mabuti",
+    "ratingEasy": "Madali",
+    "completeTitle": "Tapos na ang Pagsusuri!",
+    "completeSubtitle": "Magaling! Nakapagsanay ka ngayong araw.",
+    "syncedOnline": "Nai-save at nai-iskedyul sa server",
+    "queuedOffline": "Nai-save sa device na ito. Nakabinbin ang pag-sync.",
+    "totalReviewed": "Kabuuang Nasuri",
+    "syncedCount": "Nai-sync sa Server",
+    "pendingCount": "Nakabinbin na Pag-sync",
+    "backToLessons": "Bumalik sa mga Aralin",
+    "viewSyncStatus": "Tingnan ang Katayuan ng Pag-sync",
+    "startReview": "Simulan ang Pagsusuri",
+    "noItems": "Walang mga salitang masusuri sa araling ito."
+  },
+  "sync": {
+    "title": "Offline na Pag-synchronize",
+    "status": "Katayuan ng Pag-sync",
+    "allSynced": "Ang lahat ng mga pagsusuri ay naka-sync sa server.",
+    "pendingEvents": "{{count}} (mga) pagsusuri ang nakabinbin",
+    "syncNow": "I-sync Ngayon",
+    "syncing": "Isinasaayos ang pag-sync...",
+    "syncSuccess": "Matagumpay na natapos ang pag-sync.",
+    "syncFailed": "Nabigo ang pag-sync: {{error}}",
+    "lastSynced": "Huling na-sync: {{time}}",
+    "never": "Hindi pa kailanman",
+    "offlineNotice": "Kasalukuyang offline ang device. Awtomatikong magsi-sync ang mga pagsusuri kapag nakakonekta muli.",
+    "authErrorNotice": "Kinakailangan ang pagpapatotoo. Naka-pause ang pag-sync hanggang sa mag-login ka."
+  },
+  "progress": {
+    "title": "Pag-unlad ng Mag-aaral",
+    "overview": "Pangkalahatang-ideya",
+    "totalReviews": "Kabuuang Pagsusuri",
+    "uniqueWords": "Mga Salitang Nasanay",
+    "streakDays": "Araw ng Tuloy-tuloy na Pagsasanay",
+    "days": "{{count}} araw",
+    "recentActivity": "Kamakailang Aktibidad",
+    "noActivity": "Wala pang naitalang aktibidad ng pagsusuri.",
+    "performanceBreakdown": "Pagsusuri ng Pagganap"
   }
 }

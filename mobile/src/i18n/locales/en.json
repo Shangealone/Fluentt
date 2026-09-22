@@ -75,5 +75,51 @@
   "languages": {
     "en": "English",
     "fil": "Tagalog (Filipino)"
+  },
+  "reviews": {
+    "title": "Vocabulary Review",
+    "cardProgress": "Card {{current}} of {{total}}",
+    "showAnswer": "Show Answer",
+    "howWellDidYouKnow": "How well did you know this word?",
+    "ratingAgain": "Again",
+    "ratingHard": "Hard",
+    "ratingGood": "Good",
+    "ratingEasy": "Easy",
+    "completeTitle": "Review Completed!",
+    "completeSubtitle": "Great job practicing today.",
+    "syncedOnline": "Saved and scheduled on server",
+    "queuedOffline": "Saved on this device. Sync pending.",
+    "totalReviewed": "Total Reviewed",
+    "syncedCount": "Synced to Server",
+    "pendingCount": "Pending Sync",
+    "backToLessons": "Back to Lessons",
+    "viewSyncStatus": "View Sync Status",
+    "startReview": "Start Review",
+    "noItems": "No vocabulary items available to review in this lesson."
+  },
+  "sync": {
+    "title": "Offline Synchronization",
+    "status": "Sync Status",
+    "allSynced": "All reviews are synchronized with the server.",
+    "pendingEvents": "{{count}} review(s) pending sync",
+    "syncNow": "Sync Now",
+    "syncing": "Synchronizing reviews...",
+    "syncSuccess": "Sync completed successfully.",
+    "syncFailed": "Sync failed: {{error}}",
+    "lastSynced": "Last synced: {{time}}",
+    "never": "Never",
+    "offlineNotice": "Device is currently offline. Reviews will automatically synchronize when reconnected.",
+    "authErrorNotice": "Authentication required. Draining paused until you log in."
+  },
+  "progress": {
+    "title": "Learner Progress",
+    "overview": "Overview",
+    "totalReviews": "Total Reviews",
+    "uniqueWords": "Words Practiced",
+    "streakDays": "Practice Streak",
+    "days": "{{count}} days",
+    "recentActivity": "Recent Activity",
+    "noActivity": "No review activity recorded yet.",
+    "performanceBreakdown": "Performance Breakdown"
   }
 }
