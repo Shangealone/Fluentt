@@ -1,5 +1,36 @@
 // Live End-to-End Mobile-FastAPI Integration Verification
-const API_BASE_URL = 'http://127.0.0.1:8000';
+//
+// Usage:
+//   FLUENTT_E2E_EMAIL=dev_learner@example.test \
+//   FLUENTT_E2E_TEMP_PASSWORD=<temporary-password> \
+//   FLUENTT_E2E_NEW_PASSWORD=<new-test-password> \
+//   node mobile/scripts/verify_e2e_live.mjs
+//
+// Optional environment variables:
+//   FLUENTT_API_BASE_URL=http://127.0.0.1:8000
+
+const API_BASE_URL = process.env.FLUENTT_API_BASE_URL || 'http://127.0.0.1:8000';
+
+const E2E_EMAIL = process.env.FLUENTT_E2E_EMAIL;
+const E2E_TEMP_PASSWORD = process.env.FLUENTT_E2E_TEMP_PASSWORD;
+const E2E_NEW_PASSWORD = process.env.FLUENTT_E2E_NEW_PASSWORD;
+
+const missingEnvVars = [];
+if (!E2E_EMAIL) missingEnvVars.push('FLUENTT_E2E_EMAIL');
+if (!E2E_TEMP_PASSWORD) missingEnvVars.push('FLUENTT_E2E_TEMP_PASSWORD');
+if (!E2E_NEW_PASSWORD) missingEnvVars.push('FLUENTT_E2E_NEW_PASSWORD');
+
+if (missingEnvVars.length > 0) {
+  console.error(
+    `❌ Missing required environment variables:\n` +
+      missingEnvVars.map((v) => `   - ${v}`).join('\n') +
+      `\n\nPlease set these variables before running this verification script, e.g.:\n` +
+      `  FLUENTT_E2E_EMAIL=dev_learner@example.test\n` +
+      `  FLUENTT_E2E_TEMP_PASSWORD=<temporary-password>\n` +
+      `  FLUENTT_E2E_NEW_PASSWORD=<new-test-password>\n`
+  );
+  process.exit(1);
+}
 
 async function request(endpoint, options = {}, token = null) {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -23,8 +54,8 @@ async function main() {
   const loginRes = await request('/auth/login', {
     method: 'POST',
     body: JSON.stringify({
-      email: 'dev_learner@example.com',
-      password: 'TempPass123!',
+      email: E2E_EMAIL,
+      password: E2E_TEMP_PASSWORD,
     }),
   });
 
@@ -47,8 +78,8 @@ async function main() {
     {
       method: 'POST',
       body: JSON.stringify({
-        current_password: 'TempPass123!',
-        new_password: 'PermanentPass456!',
+        current_password: E2E_TEMP_PASSWORD,
+        new_password: E2E_NEW_PASSWORD,
       }),
     },
     accessToken
