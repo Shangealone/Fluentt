@@ -167,7 +167,8 @@ export async function drainReviewQueue(): Promise<SyncResult> {
           session_id: item.payload.session_id,
           vocabulary_item_id: item.payload.vocabulary_item_id,
           response_time_ms: item.payload.response_time_ms,
-          performance_rating: item.payload.performance_rating,
+          correct: item.payload.correct,
+          submitted_answer: item.payload.submitted_answer,
           created_at: item.payload.created_at,
         })),
       };

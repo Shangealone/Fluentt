@@ -35,32 +35,17 @@ describe('ProgressScreen', () => {
     global.fetch = originalFetch;
   });
 
-  it('renders learner metrics, breakdown, and recent activity', async () => {
+  it('renders factual learner aggregates (studied, completed, correct, accuracy)', async () => {
     global.fetch = jest.fn().mockImplementation((url: string) => {
       if (url.includes('/analytics/progress')) {
         return Promise.resolve({
           ok: true,
           status: 200,
           json: async () => ({
-            total_reviews: 12,
-            unique_vocabulary_reviewed: 8,
-            streak_days: 3,
-            performance_breakdown: {
-              again: 1,
-              hard: 2,
-              good: 5,
-              easy: 4,
-            },
-            recent_activity: [
-              {
-                attempt_id: 'att-1',
-                vocabulary_item_id: 'voc-1',
-                term: 'resilience',
-                correct: true,
-                performance_rating: 'good',
-                created_at: new Date().toISOString(),
-              },
-            ],
+            vocabulary_items_studied: 8,
+            review_attempts_completed: 12,
+            correct_attempts: 9,
+            accuracy_rate: 0.75,
           }),
         });
       }
@@ -73,24 +58,22 @@ describe('ProgressScreen', () => {
       expect(rendered.getByTestId('total-reviews-stat').props.children).toBe(12);
     });
 
-    expect(rendered.getByTestId('unique-words-stat').props.children).toBe(8);
-    expect(rendered.getByTestId('streak-days-stat')).toBeTruthy();
-    expect(rendered.getByText('resilience')).toBeTruthy();
-    expect(rendered.getByText('good')).toBeTruthy();
+    expect(rendered.getByTestId('vocab-studied-stat').props.children).toBe(8);
+    expect(rendered.getByTestId('correct-attempts-stat').props.children).toBe(9);
+    expect(rendered.getByTestId('accuracy-rate-stat').props.children).toBe('75.0%');
   });
 
-  it('renders empty notice when recent activity is empty', async () => {
+  it('renders zero-attempt progress with 0.0% accuracy', async () => {
     global.fetch = jest.fn().mockImplementation((url: string) => {
       if (url.includes('/analytics/progress')) {
         return Promise.resolve({
           ok: true,
           status: 200,
           json: async () => ({
-            total_reviews: 0,
-            unique_vocabulary_reviewed: 0,
-            streak_days: 0,
-            performance_breakdown: { again: 0, hard: 0, good: 0, easy: 0 },
-            recent_activity: [],
+            vocabulary_items_studied: 0,
+            review_attempts_completed: 0,
+            correct_attempts: 0,
+            accuracy_rate: 0.0,
           }),
         });
       }
@@ -100,7 +83,11 @@ describe('ProgressScreen', () => {
     const rendered = await render(<ProgressScreen />);
 
     await waitFor(() => {
-      expect(rendered.getByTestId('empty-activity-notice')).toBeTruthy();
+      expect(rendered.getByTestId('total-reviews-stat').props.children).toBe(0);
     });
+
+    expect(rendered.getByTestId('vocab-studied-stat').props.children).toBe(0);
+    expect(rendered.getByTestId('correct-attempts-stat').props.children).toBe(0);
+    expect(rendered.getByTestId('accuracy-rate-stat').props.children).toBe('0.0%');
   });
 });

@@ -16,7 +16,7 @@ import { createMonotonicClock, MonotonicClock } from '../../../src/reviews/clock
 import { createReviewSession, submitReviewAttempt } from '../../../src/reviews/api';
 import { enqueuePendingReview } from '../../../src/offline/reviewQueue';
 import { generateUUID } from '../../../src/utils/uuid';
-import { PerformanceRating } from '../../../src/reviews/types';
+import { ReviewAttemptCreate } from '../../../src/reviews/types';
 
 interface ReviewScreenProps {
   customClock?: MonotonicClock;
@@ -124,7 +124,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     setIsRevealed(true);
   };
 
-  const handleRating = async (rating: PerformanceRating) => {
+  const handleResponse = async (isCorrect: boolean) => {
     if (isSubmitting || currentIndex >= items.length) return;
     setIsSubmitting(true);
 
@@ -133,15 +133,14 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     const currentItem = items[currentIndex];
     const clientEventId = generateUUID();
 
-    const attemptPayload = {
+    const attemptPayload: ReviewAttemptCreate = {
       client_event_id: clientEventId,
       session_id: sessionIdRef.current,
       client_session_id: sessionIdRef.current,
       vocabulary_item_id: currentItem.id,
       response_time_ms: durationMs,
-      performance_rating: rating,
-      submitted_answer: rating,
-      correct: rating !== 'again',
+      correct: isCorrect,
+      submitted_answer: isCorrect ? 'correct' : 'incorrect',
       client_interaction_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
       device_platform: 'android',
@@ -279,47 +278,29 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
           )}
         </View>
 
-        {/* Rating Buttons */}
+        {/* Binary Recall Evaluation (Development deterministic workflow) */}
         {isRevealed ? (
           <View style={styles.ratingSection} testID="rating-section">
             <AppText style={styles.ratingPrompt}>
-              {t('reviews.howWellDidYouKnow')}
+              {t('reviews.didYouKnow')}
             </AppText>
             <View style={styles.buttonGrid}>
               <Pressable
                 testID="rating-again-btn"
                 style={[styles.ratingBtn, styles.againBtn]}
                 disabled={isSubmitting}
-                onPress={() => handleRating('again')}
+                onPress={() => handleResponse(false)}
               >
-                <AppText style={styles.ratingBtnText}>{t('reviews.ratingAgain')}</AppText>
-              </Pressable>
-
-              <Pressable
-                testID="rating-hard-btn"
-                style={[styles.ratingBtn, styles.hardBtn]}
-                disabled={isSubmitting}
-                onPress={() => handleRating('hard')}
-              >
-                <AppText style={styles.ratingBtnText}>{t('reviews.ratingHard')}</AppText>
+                <AppText style={styles.ratingBtnText}>{t('reviews.incorrect')}</AppText>
               </Pressable>
 
               <Pressable
                 testID="rating-good-btn"
                 style={[styles.ratingBtn, styles.goodBtn]}
                 disabled={isSubmitting}
-                onPress={() => handleRating('good')}
+                onPress={() => handleResponse(true)}
               >
-                <AppText style={styles.ratingBtnText}>{t('reviews.ratingGood')}</AppText>
-              </Pressable>
-
-              <Pressable
-                testID="rating-easy-btn"
-                style={[styles.ratingBtn, styles.easyBtn]}
-                disabled={isSubmitting}
-                onPress={() => handleRating('easy')}
-              >
-                <AppText style={styles.ratingBtnText}>{t('reviews.ratingEasy')}</AppText>
+                <AppText style={styles.ratingBtnText}>{t('reviews.correct')}</AppText>
               </Pressable>
             </View>
           </View>

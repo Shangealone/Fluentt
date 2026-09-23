@@ -115,7 +115,8 @@ describe('SyncStatusScreen', () => {
       session_id: 'sess-1',
       vocabulary_item_id: 'vocab-1',
       response_time_ms: 1000,
-      performance_rating: 'good',
+      correct: true,
+      submitted_answer: 'correct',
     });
 
     global.fetch = jest.fn().mockImplementation((url: string) => {
@@ -173,7 +174,8 @@ describe('SyncStatusScreen', () => {
       session_id: 'sess-2',
       vocabulary_item_id: 'vocab-2',
       response_time_ms: 800,
-      performance_rating: 'easy',
+      correct: true,
+      submitted_answer: 'correct',
     });
 
     // Simulate returning to the screen (focus event)

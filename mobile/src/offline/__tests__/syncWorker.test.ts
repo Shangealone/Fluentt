@@ -38,7 +38,8 @@ describe('Offline Review Sync Worker', () => {
     session_id: 'session-1',
     vocabulary_item_id: 'vocab-1',
     response_time_ms: 1200,
-    performance_rating: 'good',
+    correct: true,
+    submitted_answer: 'correct',
     created_at: '2026-09-22T08:00:00Z',
   };
 
@@ -47,7 +48,8 @@ describe('Offline Review Sync Worker', () => {
     session_id: 'session-1',
     vocabulary_item_id: 'vocab-1', // same vocabulary item, distinct client_event_id
     response_time_ms: 950,
-    performance_rating: 'easy',
+    correct: true,
+    submitted_answer: 'correct',
     created_at: '2026-09-22T08:01:00Z',
   };
 

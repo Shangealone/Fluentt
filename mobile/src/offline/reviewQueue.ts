@@ -6,7 +6,8 @@ export interface PendingReviewPayload {
   session_id: string;
   vocabulary_item_id: string;
   response_time_ms: number;
-  performance_rating: 'again' | 'hard' | 'good' | 'easy' | string;
+  correct: boolean;
+  submitted_answer?: string;
   created_at?: string;
 }
 
@@ -27,7 +28,8 @@ export async function enqueuePendingReview(payload: PendingReviewPayload): Promi
     session_id: payload.session_id,
     vocabulary_item_id: payload.vocabulary_item_id,
     response_time_ms: payload.response_time_ms,
-    performance_rating: payload.performance_rating,
+    correct: Boolean(payload.correct),
+    submitted_answer: payload.submitted_answer,
     created_at: payload.created_at ?? new Date().toISOString(),
   };
 

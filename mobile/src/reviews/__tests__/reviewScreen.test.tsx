@@ -166,7 +166,7 @@ describe('Vocabulary Review Flow', () => {
     expect(rendered.getByTestId('rating-good-btn')).toBeTruthy();
   });
 
-  it('submits rating online and records measured monotonic response time', async () => {
+  it('submits review interaction online and records measured monotonic response time', async () => {
     const testClock = createTestClock([1000, 1000, 3250]); // 2250 ms elapsed
     let attemptBody: any = null;
 
@@ -203,7 +203,8 @@ describe('Vocabulary Review Flow', () => {
             session_id: attemptBody.session_id,
             vocabulary_item_id: attemptBody.vocabulary_item_id,
             response_time_ms: attemptBody.response_time_ms,
-            performance_rating: attemptBody.performance_rating,
+            correct: attemptBody.correct,
+            submitted_answer: attemptBody.submitted_answer,
             created_at: new Date().toISOString(),
             schedule: {
               vocabulary_item_id: attemptBody.vocabulary_item_id,
@@ -252,7 +253,8 @@ describe('Vocabulary Review Flow', () => {
 
     expect(attemptBody).not.toBeNull();
     expect(attemptBody.response_time_ms).toBe(2250);
-    expect(attemptBody.performance_rating).toBe('good');
+    expect(attemptBody.correct).toBe(true);
+    expect(attemptBody.submitted_answer).toBe('correct');
     expect(attemptBody.client_event_id).toBeDefined();
   });
 
@@ -282,11 +284,11 @@ describe('Vocabulary Review Flow', () => {
     });
 
     await waitFor(() => {
-      expect(rendered.getByTestId('rating-hard-btn')).toBeTruthy();
+      expect(rendered.getByTestId('rating-again-btn')).toBeTruthy();
     });
 
     await act(async () => {
-      fireEvent.press(rendered.getByTestId('rating-hard-btn'));
+      fireEvent.press(rendered.getByTestId('rating-again-btn'));
     });
 
     await waitFor(() => {
@@ -306,7 +308,8 @@ describe('Vocabulary Review Flow', () => {
     const pending = await getPendingReviews();
     expect(pending).toHaveLength(1);
     expect(pending[0].payload.response_time_ms).toBe(1300);
-    expect(pending[0].payload.performance_rating).toBe('hard');
+    expect(pending[0].payload.correct).toBe(false);
+    expect(pending[0].payload.submitted_answer).toBe('incorrect');
     expect(pending[0].status).toBe('pending');
   });
 
@@ -360,7 +363,8 @@ describe('Vocabulary Review Flow', () => {
     expect(pending).toHaveLength(1);
     expect(pending[0].status).toBe('pending');
     expect(pending[0].payload.vocabulary_item_id).toBe('vocab-1');
-    expect(pending[0].payload.performance_rating).toBe('again');
+    expect(pending[0].payload.correct).toBe(false);
+    expect(pending[0].payload.submitted_answer).toBe('incorrect');
     expect(pending[0].payload.response_time_ms).toBe(1400);
     expect(pending[0].payload.client_event_id).toBeDefined();
     expect(pending[0].payload.session_id).toBeDefined();

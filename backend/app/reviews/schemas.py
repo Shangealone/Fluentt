@@ -46,17 +46,13 @@ class ReviewAttemptCreate(BaseModel):
             if "client_interaction_at" not in data and "created_at" in data:
                 data["client_interaction_at"] = data["created_at"]
 
-            # 3. Map performance_rating to submitted_answer if absent
+            # 3. Map legacy performance_rating to submitted_answer if absent
             if "submitted_answer" not in data and "performance_rating" in data:
-                data["submitted_answer"] = data["performance_rating"]
+                data["submitted_answer"] = str(data["performance_rating"])
 
-            # 4. Infer correctness if not explicitly provided
+            # 4. Default correct to True only if omitted
             if "correct" not in data:
-                rating = data.get("performance_rating") or data.get("submitted_answer")
-                if rating:
-                    data["correct"] = str(rating).lower() != "again"
-                else:
-                    data["correct"] = True
+                data["correct"] = True
 
             # 5. Provide standard defaults for metadata if not provided
             if "device_platform" not in data:

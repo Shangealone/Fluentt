@@ -92,16 +92,14 @@ def test_progress_empty_for_new_user(
     resp = client.get("/analytics/progress", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
-    assert data["total_reviews"] == 0
-    assert data["unique_vocabulary_reviewed"] == 0
-    assert data["streak_days"] == 0
-    assert data["performance_breakdown"] == {
-        "again": 0,
-        "hard": 0,
-        "good": 0,
-        "easy": 0,
-    }
-    assert data["recent_activity"] == []
+    assert data["vocabulary_items_studied"] == 0
+    assert data["review_attempts_completed"] == 0
+    assert data["correct_attempts"] == 0
+    assert data["accuracy_rate"] == 0.0
+    # Strictly factual aggregates only - no gamification or streak fields
+    assert "streak_days" not in data
+    assert "performance_breakdown" not in data
+    assert "recent_activity" not in data
 
 
 def test_progress_aggregates_attempts_and_isolates_users(
@@ -126,7 +124,7 @@ def test_progress_aggregates_attempts_and_isolates_users(
 
     now = datetime.now(UTC)
 
-    # 3 attempts for user A
+    # 3 attempts for user A: 2 correct, 1 incorrect across 2 distinct vocabulary items
     attempt1 = ReviewAttempt(
         session_id=sess_a.id,
         user_id=user_a.id,
@@ -140,7 +138,7 @@ def test_progress_aggregates_attempts_and_isolates_users(
         server_acceptance_at=now - timedelta(hours=2),
         device_platform="android",
         application_version="v0.1",
-        submitted_answer="good",
+        submitted_answer="correct",
     )
     attempt2 = ReviewAttempt(
         session_id=sess_a.id,
@@ -155,7 +153,7 @@ def test_progress_aggregates_attempts_and_isolates_users(
         server_acceptance_at=now - timedelta(hours=1),
         device_platform="android",
         application_version="v0.1",
-        submitted_answer="easy",
+        submitted_answer="correct",
     )
     attempt3 = ReviewAttempt(
         session_id=sess_a.id,
@@ -170,7 +168,7 @@ def test_progress_aggregates_attempts_and_isolates_users(
         server_acceptance_at=now,
         device_platform="android",
         application_version="v0.1",
-        submitted_answer="again",
+        submitted_answer="incorrect",
     )
     db_session.add_all([attempt1, attempt2, attempt3])
     db_session.commit()
@@ -179,27 +177,19 @@ def test_progress_aggregates_attempts_and_isolates_users(
     resp_a = client.get("/analytics/progress", headers=headers_a)
     assert resp_a.status_code == 200
     data_a = resp_a.json()
-    assert data_a["total_reviews"] == 3
-    assert data_a["unique_vocabulary_reviewed"] == 2
-    assert data_a["streak_days"] >= 1
-    assert data_a["performance_breakdown"] == {
-        "again": 1,
-        "hard": 0,
-        "good": 1,
-        "easy": 1,
-    }
-    assert len(data_a["recent_activity"]) == 3
-    # Check descending order
-    assert data_a["recent_activity"][0]["term"] == "solitude"
-    assert data_a["recent_activity"][0]["performance_rating"] == "again"
+    assert data_a["vocabulary_items_studied"] == 2
+    assert data_a["review_attempts_completed"] == 3
+    assert data_a["correct_attempts"] == 2
+    assert data_a["accuracy_rate"] == round(2 / 3, 4)
 
     # User B progress must be strictly isolated (0 reviews)
     resp_b = client.get("/analytics/progress", headers=headers_b)
     assert resp_b.status_code == 200
     data_b = resp_b.json()
-    assert data_b["total_reviews"] == 0
-    assert data_b["unique_vocabulary_reviewed"] == 0
-    assert data_b["recent_activity"] == []
+    assert data_b["vocabulary_items_studied"] == 0
+    assert data_b["review_attempts_completed"] == 0
+    assert data_b["correct_attempts"] == 0
+    assert data_b["accuracy_rate"] == 0.0
 
 
 def test_progress_requires_authentication(client: TestClient):

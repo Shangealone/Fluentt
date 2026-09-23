@@ -80,11 +80,9 @@
     "title": "Vocabulary Review",
     "cardProgress": "Card {{current}} of {{total}}",
     "showAnswer": "Show Answer",
-    "howWellDidYouKnow": "How well did you know this word?",
-    "ratingAgain": "Again",
-    "ratingHard": "Hard",
-    "ratingGood": "Good",
-    "ratingEasy": "Easy",
+    "didYouKnow": "Did you know this word?",
+    "incorrect": "Incorrect",
+    "correct": "Correct",
     "completeTitle": "Review Completed!",
     "completeSubtitle": "Great job practicing today.",
     "syncedOnline": "Saved and scheduled on server",
@@ -116,13 +114,9 @@
   },
   "progress": {
     "title": "Learner Progress",
-    "overview": "Overview",
-    "totalReviews": "Total Reviews",
-    "uniqueWords": "Words Practiced",
-    "streakDays": "Practice Streak",
-    "days": "{{count}} days",
-    "recentActivity": "Recent Activity",
-    "noActivity": "No review activity recorded yet.",
-    "performanceBreakdown": "Performance Breakdown"
+    "vocabularyItemsStudied": "Vocabulary Items Studied",
+    "reviewAttemptsCompleted": "Review Attempts Completed",
+    "correctAttempts": "Correct Attempts",
+    "accuracyRate": "Accuracy Rate"
   }
 }

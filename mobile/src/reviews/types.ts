@@ -1,5 +1,3 @@
-export type PerformanceRating = 'again' | 'hard' | 'good' | 'easy';
-
 export interface ReviewSessionCreate {
   client_session_id: string;
   lesson_id?: string | null;
@@ -20,8 +18,7 @@ export interface ReviewAttemptCreate {
   client_session_id?: string;
   vocabulary_item_id: string;
   response_time_ms: number;
-  performance_rating: PerformanceRating;
-  correct?: boolean;
+  correct: boolean;
   submitted_answer?: string;
   client_interaction_at?: string;
   device_platform?: string;
@@ -45,8 +42,7 @@ export interface ReviewAttemptResponse {
   session_id: string;
   vocabulary_item_id: string;
   response_time_ms: number;
-  performance_rating?: string;
-  correct?: boolean;
+  correct: boolean;
   created_at?: string;
   schedule?: SchedulingResult;
   next_due_at?: string;

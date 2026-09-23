@@ -79,11 +79,9 @@
     "title": "Pagsusuri ng Salita",
     "cardProgress": "Kard {{current}} sa {{total}}",
     "showAnswer": "Ipakita ang Sagot",
-    "howWellDidYouKnow": "Gaano mo kakilala ang salitang ito?",
-    "ratingAgain": "Ulitin",
-    "ratingHard": "Mahirap",
-    "ratingGood": "Mabuti",
-    "ratingEasy": "Madali",
+    "didYouKnow": "Alam mo ba ang salitang ito?",
+    "incorrect": "Mali",
+    "correct": "Tama",
     "completeTitle": "Tapos na ang Pagsusuri!",
     "completeSubtitle": "Magaling! Nakapagsanay ka ngayong araw.",
     "syncedOnline": "Nai-save at nai-iskedyul sa server",
@@ -115,13 +113,9 @@
   },
   "progress": {
     "title": "Pag-unlad ng Mag-aaral",
-    "overview": "Pangkalahatang-ideya",
-    "totalReviews": "Kabuuang Pagsusuri",
-    "uniqueWords": "Mga Salitang Nasanay",
-    "streakDays": "Araw ng Tuloy-tuloy na Pagsasanay",
-    "days": "{{count}} araw",
-    "recentActivity": "Kamakailang Aktibidad",
-    "noActivity": "Wala pang naitalang aktibidad ng pagsusuri.",
-    "performanceBreakdown": "Pagsusuri ng Pagganap"
+    "vocabularyItemsStudied": "Mga Salitang Napag-aralan",
+    "reviewAttemptsCompleted": "Mga Natapos na Pagsusuri",
+    "correctAttempts": "Mga Tamang Pagsusuri",
+    "accuracyRate": "Antas ng Kawastuhan"
   }
 }

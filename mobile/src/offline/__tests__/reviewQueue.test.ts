@@ -18,7 +18,8 @@ describe('Review Queue SQLite Storage', () => {
     session_id: '22222222-2222-4222-8222-222222222222',
     vocabulary_item_id: '33333333-3333-4333-8333-333333333333',
     response_time_ms: 1250,
-    performance_rating: 'good',
+    correct: true,
+    submitted_answer: 'correct',
     created_at: '2026-09-22T08:00:00Z',
   };
 
@@ -31,7 +32,8 @@ describe('Review Queue SQLite Storage', () => {
     expect(pending[0].status).toBe('pending');
     expect(pending[0].attempt_count).toBe(0);
     expect(pending[0].payload.response_time_ms).toBe(1250);
-    expect(pending[0].payload.performance_rating).toBe('good');
+    expect(pending[0].payload.correct).toBe(true);
+    expect(pending[0].payload.submitted_answer).toBe('correct');
   });
 
   it('is idempotent when enqueuing identical client_event_id', async () => {
@@ -103,7 +105,8 @@ describe('Review Queue SQLite Storage', () => {
     expect(items).toHaveLength(1);
     expect(items[0].client_event_id).toBe(samplePayload.client_event_id);
     expect(items[0].payload.vocabulary_item_id).toBe(samplePayload.vocabulary_item_id);
-    expect(items[0].payload.performance_rating).toBe(samplePayload.performance_rating);
+    expect(items[0].payload.correct).toBe(samplePayload.correct);
+    expect(items[0].payload.submitted_answer).toBe(samplePayload.submitted_answer);
     expect(await getPendingCount()).toBe(1);
   });
 });

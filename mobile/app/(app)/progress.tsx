@@ -55,6 +55,10 @@ export default function ProgressScreen() {
     };
   }, [t]);
 
+  const accuracyPercent = progress
+    ? `${(progress.accuracy_rate * 100).toFixed(1)}%`
+    : '0.0%';
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -83,93 +87,35 @@ export default function ProgressScreen() {
         </View>
       ) : !progress ? null : (
         <ScrollView contentContainerStyle={styles.content}>
-          {/* Key Metrics Row */}
-          <View style={styles.metricsRow}>
+          {/* Factual Server-Accepted Aggregate Cards */}
+          <View style={styles.grid}>
             <View style={styles.metricCard}>
-              <AppText style={styles.metricNumber} testID="total-reviews-stat">
-                {progress.total_reviews}
+              <AppText style={styles.metricNumber} testID="vocab-studied-stat">
+                {progress.vocabulary_items_studied}
               </AppText>
-              <AppText style={styles.metricLabel}>{t('progress.totalReviews')}</AppText>
-            </View>
-
-            <View style={styles.metricCard}>
-              <AppText style={styles.metricNumber} testID="unique-words-stat">
-                {progress.unique_vocabulary_reviewed}
-              </AppText>
-              <AppText style={styles.metricLabel}>{t('progress.uniqueWords')}</AppText>
+              <AppText style={styles.metricLabel}>{t('progress.vocabularyItemsStudied')}</AppText>
             </View>
 
             <View style={styles.metricCard}>
-              <AppText style={[styles.metricNumber, styles.streakNumber]} testID="streak-days-stat">
-                🔥 {progress.streak_days}
+              <AppText style={styles.metricNumber} testID="total-reviews-stat">
+                {progress.review_attempts_completed}
               </AppText>
-              <AppText style={styles.metricLabel}>{t('progress.streakDays')}</AppText>
+              <AppText style={styles.metricLabel}>{t('progress.reviewAttemptsCompleted')}</AppText>
             </View>
-          </View>
 
-          {/* Performance Breakdown Card */}
-          <View style={styles.sectionCard}>
-            <AppText style={styles.sectionTitle}>{t('progress.performanceBreakdown')}</AppText>
-            <View style={styles.breakdownGrid}>
-              <View style={[styles.breakdownBox, styles.againBg]}>
-                <AppText style={styles.breakdownValue}>{progress.performance_breakdown.again || 0}</AppText>
-                <AppText style={styles.breakdownLabel}>{t('reviews.ratingAgain')}</AppText>
-              </View>
-
-              <View style={[styles.breakdownBox, styles.hardBg]}>
-                <AppText style={styles.breakdownValue}>{progress.performance_breakdown.hard || 0}</AppText>
-                <AppText style={styles.breakdownLabel}>{t('reviews.ratingHard')}</AppText>
-              </View>
-
-              <View style={[styles.breakdownBox, styles.goodBg]}>
-                <AppText style={styles.breakdownValue}>{progress.performance_breakdown.good || 0}</AppText>
-                <AppText style={styles.breakdownLabel}>{t('reviews.ratingGood')}</AppText>
-              </View>
-
-              <View style={[styles.breakdownBox, styles.easyBg]}>
-                <AppText style={styles.breakdownValue}>{progress.performance_breakdown.easy || 0}</AppText>
-                <AppText style={styles.breakdownLabel}>{t('reviews.ratingEasy')}</AppText>
-              </View>
-            </View>
-          </View>
-
-          {/* Recent Activity List */}
-          <View style={styles.sectionCard}>
-            <AppText style={styles.sectionTitle}>{t('progress.recentActivity')}</AppText>
-            {progress.recent_activity.length === 0 ? (
-              <AppText style={styles.emptyText} testID="empty-activity-notice">
-                {t('progress.noActivity')}
+            <View style={styles.metricCard}>
+              <AppText style={[styles.metricNumber, styles.correctNumber]} testID="correct-attempts-stat">
+                {progress.correct_attempts}
               </AppText>
-            ) : (
-              <View testID="recent-activity-list">
-                {progress.recent_activity.map((item) => (
-                  <View key={item.attempt_id} style={styles.activityItem}>
-                    <View style={styles.activityMain}>
-                      <AppText style={styles.activityTerm}>{item.term}</AppText>
-                      <AppText style={styles.activityTime}>
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </AppText>
-                    </View>
-                    <View
-                      style={[
-                        styles.ratingBadge,
-                        item.performance_rating === 'easy'
-                          ? styles.easyBadge
-                          : item.performance_rating === 'good'
-                          ? styles.goodBadge
-                          : item.performance_rating === 'hard'
-                          ? styles.hardBadge
-                          : styles.againBadge,
-                      ]}
-                    >
-                      <AppText style={styles.ratingBadgeText}>
-                        {item.performance_rating || (item.correct ? 'correct' : 'again')}
-                      </AppText>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
+              <AppText style={styles.metricLabel}>{t('progress.correctAttempts')}</AppText>
+            </View>
+
+            <View style={styles.metricCard}>
+              <AppText style={[styles.metricNumber, styles.accuracyNumber]} testID="accuracy-rate-stat">
+                {accuracyPercent}
+              </AppText>
+              <AppText style={styles.metricLabel}>{t('progress.accuracyRate')}</AppText>
+            </View>
           </View>
         </ScrollView>
       )}
@@ -212,135 +158,43 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
-  metricsRow: {
+  grid: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    flexWrap: 'wrap',
+    gap: 12,
   },
   metricCard: {
-    flex: 1,
+    width: '48%',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 14,
+    padding: 18,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e2e8f0',
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   metricNumber: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '800',
     color: '#0f172a',
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  streakNumber: {
-    color: '#ea580c',
+  correctNumber: {
+    color: '#16a34a',
+  },
+  accuracyNumber: {
+    color: '#2563eb',
   },
   metricLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748b',
     fontWeight: '600',
     textAlign: 'center',
-  },
-  sectionCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 14,
-  },
-  breakdownGrid: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  breakdownBox: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  againBg: {
-    backgroundColor: '#fef2f2',
-  },
-  hardBg: {
-    backgroundColor: '#fffbeb',
-  },
-  goodBg: {
-    backgroundColor: '#f0fdf4',
-  },
-  easyBg: {
-    backgroundColor: '#eff6ff',
-  },
-  breakdownValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0f172a',
-  },
-  breakdownLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748b',
-    marginTop: 2,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#94a3b8',
-    textAlign: 'center',
-    paddingVertical: 12,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  activityMain: {
-    flex: 1,
-  },
-  activityTerm: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1e293b',
-  },
-  activityTime: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  ratingBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  ratingBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  againBadge: {
-    backgroundColor: '#fee2e2',
-  },
-  hardBadge: {
-    backgroundColor: '#fef3c7',
-  },
-  goodBadge: {
-    backgroundColor: '#dcfce7',
-  },
-  easyBadge: {
-    backgroundColor: '#dbeafe',
+    lineHeight: 16,
   },
   centered: {
     flex: 1,

@@ -27,7 +27,8 @@ describe('useSyncStatus hook', () => {
       session_id: 'session-1',
       vocabulary_item_id: 'vocab-1',
       response_time_ms: 1000,
-      performance_rating: 'good',
+      correct: true,
+      submitted_answer: 'correct',
     });
 
     global.fetch = jest.fn().mockImplementation((url: string) => {
