@@ -64,3 +64,22 @@ pgdata/
 *.sqlite
 *.sqlite3
 *.db
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Expo / React Native generated files
+.expo/
+.expo-shared/
+coverage/
+
+# Local environment overrides
+.env.*
+!.env.example
+!*.env.example
