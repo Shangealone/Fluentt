@@ -8,7 +8,9 @@ export default function AppLayout() {
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="lessons" />
-      <Stack.Screen name="review" />
+      <Stack.Screen name="lessons/[lessonId]" />
+      <Stack.Screen name="review/[lessonId]" />
+      <Stack.Screen name="review/result" />
       <Stack.Screen name="sync-status" />
       <Stack.Screen name="progress" />
     </Stack>

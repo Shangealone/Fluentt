@@ -4,6 +4,7 @@ import { render } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { NavigationGuard } from '../../../app/_layout';
 import AuthLayout from '../../../app/(auth)/_layout';
+import AppLayout from '../../../app/(app)/_layout';
 
 // Mock expo-router
 const mockReplace = jest.fn();
@@ -66,6 +67,35 @@ describe('NavigationGuard & AuthLayout Route Configuration', () => {
 
     it('does not produce any Layout children warnings', async () => {
       await render(<AuthLayout />);
+      const layoutWarnings = warnSpy.mock.calls.filter((call) =>
+        call.some((arg: unknown) => typeof arg === 'string' && arg.includes('[Layout children]'))
+      );
+      expect(layoutWarnings).toHaveLength(0);
+    });
+  });
+
+  describe('AppLayout', () => {
+    it('renders app layout stack with all registered screens including review and lessons leaf routes', async () => {
+      const screen = await render(<AppLayout />);
+      expect(screen.getByTestId('mock-stack')).toBeTruthy();
+      expect(screen.getByTestId('mock-screen-home')).toBeTruthy();
+      expect(screen.getByTestId('mock-screen-onboarding')).toBeTruthy();
+      expect(screen.getByTestId('mock-screen-settings')).toBeTruthy();
+      expect(screen.getByTestId('mock-screen-lessons')).toBeTruthy();
+      expect(screen.getByTestId('mock-screen-lessons/[lessonId]')).toBeTruthy();
+      expect(screen.getByTestId('mock-screen-review/[lessonId]')).toBeTruthy();
+      expect(screen.getByTestId('mock-screen-review/result')).toBeTruthy();
+      expect(screen.getByTestId('mock-screen-sync-status')).toBeTruthy();
+      expect(screen.getByTestId('mock-screen-progress')).toBeTruthy();
+    });
+
+    it('does not declare invalid parent route name "review"', async () => {
+      const screen = await render(<AppLayout />);
+      expect(screen.queryByTestId('mock-screen-review')).toBeNull();
+    });
+
+    it('does not produce any Layout children warnings', async () => {
+      await render(<AppLayout />);
       const layoutWarnings = warnSpy.mock.calls.filter((call) =>
         call.some((arg: unknown) => typeof arg === 'string' && arg.includes('[Layout children]'))
       );
