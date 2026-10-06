@@ -36,6 +36,8 @@ def test_get_profile_returns_initial_preferences() -> None:
     )
     assert response.status_code == 200
     data = response.json()
+    assert data["user_id"] == str(user.id)
+    assert data["id"] != data["user_id"]
     assert data["participant_code"] == "P_PROF_01"
     assert data["email"] == "learner_profile@example.test"
     assert data["interface_language"] is None
@@ -68,6 +70,8 @@ def test_update_valid_preferences_success() -> None:
     )
     assert patch_resp.status_code == 200
     data = patch_resp.json()
+    assert data["user_id"] == str(user.id)
+    assert data["id"] != data["user_id"]
     assert data["interface_language"] == "fil"
     assert data["target_learning_language"] == "en"
 

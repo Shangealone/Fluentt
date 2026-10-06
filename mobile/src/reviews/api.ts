@@ -8,7 +8,8 @@ import {
 
 export async function createReviewSession(
   clientSessionId: string,
-  lessonId?: string | null
+  lessonId?: string | null,
+  ownerUserId?: string
 ): Promise<ReviewSession> {
   const payload: ReviewSessionCreate = {
     client_session_id: clientSessionId,
@@ -17,14 +18,17 @@ export async function createReviewSession(
   return apiClient<ReviewSession>('/reviews/sessions', {
     method: 'POST',
     body: JSON.stringify(payload),
+    expectedUserId: ownerUserId,
   });
 }
 
 export async function submitReviewAttempt(
-  attempt: ReviewAttemptCreate
+  attempt: ReviewAttemptCreate,
+  ownerUserId: string
 ): Promise<ReviewAttemptResponse> {
   return apiClient<ReviewAttemptResponse>('/reviews/attempts', {
     method: 'POST',
     body: JSON.stringify(attempt),
+    expectedUserId: ownerUserId,
   });
 }

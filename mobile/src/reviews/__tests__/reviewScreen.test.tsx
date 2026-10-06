@@ -5,6 +5,7 @@ import { createTestClock } from '../clock';
 import { resetDatabaseForTesting } from '../../offline/db';
 import { getPendingReviews } from '../../offline/reviewQueue';
 import { setInterfaceLanguage } from '../../i18n';
+import { loadAuthenticatedAccount } from '../../auth/tokenStore';
 
 const mockPush = jest.fn();
 const mockBack = jest.fn();
@@ -36,6 +37,11 @@ jest.mock('../../auth/tokenStore', () => ({
   loadTokens: jest.fn().mockResolvedValue({ accessToken: 'fake-token', refreshToken: 'fake-refresh' }),
   saveTokens: jest.fn().mockResolvedValue(undefined),
   clearTokens: jest.fn().mockResolvedValue(undefined),
+  clearTokensIfCurrent: jest.fn().mockResolvedValue(true),
+  rotateTokens: jest.fn().mockResolvedValue(true),
+  sameTokens: (a: any, b: any) => Boolean(a && b && a.accessToken === b.accessToken && a.refreshToken === b.refreshToken),
+  loadAuthenticatedAccount: jest.fn().mockResolvedValue({ userId: 'test-user-id', tokens: { accessToken: 'fake-token', refreshToken: 'fake-refresh' }, generation: 0 }),
+  isAccountCurrent: () => true,
 }));
 
 // @ts-ignore
@@ -80,6 +86,25 @@ describe('Vocabulary Review Flow', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+  });
+
+  it('does not create or queue an answer when the displayed account is no longer authenticated', async () => {
+    global.fetch = jest.fn(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1' } : mockLessonResponse,
+    })) as any;
+    const rendered = await render(<ReviewScreen />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    jest.mocked(loadAuthenticatedAccount).mockResolvedValueOnce(null);
+    await act(async () => {
+      fireEvent.press(rendered.getByTestId('reveal-answer-btn'));
+    });
+    await act(async () => {
+      fireEvent.press(rendered.getByTestId('rating-again-btn'));
+    });
+    expect(await getPendingReviews()).toHaveLength(0);
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it('renders flashcard with term, progress, and reveal button', async () => {
@@ -308,6 +333,7 @@ describe('Vocabulary Review Flow', () => {
     const pending = await getPendingReviews();
     expect(pending).toHaveLength(1);
     expect(pending[0].payload.response_time_ms).toBe(1300);
+    expect(pending[0].owner_user_id).toBe('test-user-id');
     expect(pending[0].payload.correct).toBe(false);
     expect(pending[0].payload.submitted_answer).toBe('incorrect');
     expect(pending[0].status).toBe('pending');

@@ -6,6 +6,7 @@ import { setInterfaceLanguage } from '../i18n';
 export type AuthStatus = 'loading' | 'signedOut' | 'mustChangePassword' | 'signedIn';
 
 export interface AuthUser {
+  /** Backend users.id from /users/me.user_id, never the learner profile UUID. */
   id?: string;
   email?: string;
   participantCode?: string;
@@ -47,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const data = await apiClient('/users/me', { requiresAuth: true });
         if (isMounted) {
           const authUser: AuthUser = {
-            id: data.id,
+            id: data.user_id,
             email: data.email,
             participantCode: data.participant_code,
             mustChangePassword: data.must_change_password ?? false,
@@ -118,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const profile = await apiClient('/users/me');
         setUser({
-          id: profile.id,
+          id: profile.user_id,
           email: profile.email,
           participantCode: profile.participant_code,
           mustChangePassword: false,
@@ -156,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const profile = await apiClient('/users/me');
       setUser({
-        id: profile.id,
+        id: profile.user_id,
         email: profile.email,
         participantCode: profile.participant_code,
         mustChangePassword: false,
@@ -193,7 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profile = await apiClient('/users/me');
       setUser((prev) => ({
         ...prev,
-        id: profile.id,
+        id: profile.user_id,
         email: profile.email,
         participantCode: profile.participant_code,
         mustChangePassword: profile.must_change_password ?? false,

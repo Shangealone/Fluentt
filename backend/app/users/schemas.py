@@ -10,6 +10,7 @@ class LearnerProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    user_id: uuid.UUID
     participant_code: str
     email: str
     interface_language: SupportedLanguage | None

@@ -9,6 +9,13 @@ jest.mock('../../auth/tokenStore', () => ({
   loadTokens: jest.fn().mockResolvedValue({ accessToken: 'test-token', refreshToken: 'test-refresh' }),
   saveTokens: jest.fn().mockResolvedValue(undefined),
   clearTokens: jest.fn().mockResolvedValue(undefined),
+  clearTokensIfCurrent: jest.fn().mockResolvedValue(true),
+  rotateTokens: jest.fn().mockResolvedValue(true),
+  sameTokens: (a: any, b: any) => Boolean(a && b && a.accessToken === b.accessToken && a.refreshToken === b.refreshToken),
+  loadAuthenticatedAccount: jest.fn().mockResolvedValue({ userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', tokens: { accessToken: 'test-token', refreshToken: 'test-refresh' }, generation: 0 }),
+  isAccountCurrent: () => true,
+  getVerifiedAccountId: () => 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  subscribeToAuthenticatedAccount: () => () => {},
 }));
 
 // @ts-ignore
@@ -29,7 +36,7 @@ describe('useSyncStatus hook', () => {
       response_time_ms: 1000,
       correct: true,
       submitted_answer: 'correct',
-    });
+    }, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
 
     global.fetch = jest.fn().mockImplementation((url: string) => {
       if (url.includes('/sync/review-events')) {

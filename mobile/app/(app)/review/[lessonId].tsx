@@ -17,6 +17,8 @@ import { createReviewSession, submitReviewAttempt } from '../../../src/reviews/a
 import { enqueuePendingReview } from '../../../src/offline/reviewQueue';
 import { generateUUID } from '../../../src/utils/uuid';
 import { ReviewAttemptCreate } from '../../../src/reviews/types';
+import { useAuth } from '../../../src/auth/AuthProvider';
+import { isAccountCurrent, loadAuthenticatedAccount } from '../../../src/auth/tokenStore';
 
 interface ReviewScreenProps {
   customClock?: MonotonicClock;
@@ -24,6 +26,8 @@ interface ReviewScreenProps {
 
 export default function ReviewScreen({ customClock }: ReviewScreenProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const ownerUserId = user?.id;
   const router = useRouter();
   const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
 
@@ -42,7 +46,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
 
   // Initialize session & load vocabulary
   const initializeReview = useCallback(async () => {
-    if (!lessonId) return;
+    if (!lessonId || !ownerUserId) return;
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -53,7 +57,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
 
       // Try creating backend session online
       try {
-        const session = await createReviewSession(clientSessionId, lessonId);
+        const session = await createReviewSession(clientSessionId, lessonId, ownerUserId);
         sessionIdRef.current = session.id;
       } catch {
         // Fallback to clientSessionId if offline
@@ -72,10 +76,10 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [lessonId, clock, t]);
+  }, [lessonId, clock, t, ownerUserId]);
 
   useEffect(() => {
-    if (!lessonId) return;
+    if (!lessonId || !ownerUserId) return;
     let isMounted = true;
 
     async function loadData() {
@@ -85,7 +89,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
         sessionIdRef.current = clientSessionId;
 
         try {
-          const session = await createReviewSession(clientSessionId, lessonId);
+          const session = await createReviewSession(clientSessionId, lessonId, ownerUserId);
           if (isMounted) {
             sessionIdRef.current = session.id;
           }
@@ -118,17 +122,26 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     return () => {
       isMounted = false;
     };
-  }, [lessonId, clock, t]);
+  }, [lessonId, clock, t, ownerUserId]);
 
   const handleReveal = () => {
     setIsRevealed(true);
   };
 
   const handleResponse = async (isCorrect: boolean) => {
-    if (isSubmitting || currentIndex >= items.length) return;
+    if (!ownerUserId || isSubmitting || currentIndex >= items.length) return;
     setIsSubmitting(true);
 
     const finishTick = clock.now();
+    const account = await loadAuthenticatedAccount().catch(() => null);
+    if (!account || account.userId !== ownerUserId || !isAccountCurrent(account)) {
+      setIsSubmitting(false);
+      setErrorMessage(t('content.error'));
+      return;
+    }
+    // Capture before any submission await. Logout/login must never relabel an
+    // already-created event when its network request falls back to the queue.
+    const capturedOwner = account.userId;
     const durationMs = clock.elapsedMs(startTickRef.current, finishTick);
     const currentItem = items[currentIndex];
     const clientEventId = generateUUID();
@@ -148,11 +161,11 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     };
 
     try {
-      await submitReviewAttempt(attemptPayload);
+      await submitReviewAttempt(attemptPayload, capturedOwner);
       statsRef.current.synced += 1;
     } catch {
       // Offline fallback: enqueue to SQLite queue
-      await enqueuePendingReview(attemptPayload);
+      await enqueuePendingReview(attemptPayload, capturedOwner);
       statsRef.current.queued += 1;
     }
 

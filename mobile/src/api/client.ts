@@ -1,4 +1,7 @@
-import { clearTokens, loadTokens, saveTokens, TokenPair } from '../auth/tokenStore';
+import {
+  bindAuthenticatedAccount, clearTokensIfCurrent, isAccountCurrent,
+  loadAuthenticatedAccount, loadTokens, rotateTokens, sameTokens, TokenPair,
+} from '../auth/tokenStore';
 
 export function getApiBaseUrl(): string {
   return process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8000';
@@ -111,6 +114,7 @@ type TokenCallback = (tokens: TokenPair) => void;
 let onAuthFailureCallback: AuthCallback | null = null;
 let onTokenRotatedCallback: TokenCallback | null = null;
 let refreshPromise: Promise<TokenPair | null> | null = null;
+let refreshingTokens: TokenPair | null = null;
 
 export function registerAuthFailureHandler(callback: AuthCallback | null): void {
   onAuthFailureCallback = callback;
@@ -122,6 +126,7 @@ export function registerTokenRotatedHandler(callback: TokenCallback | null): voi
 
 interface RequestOptions extends RequestInit {
   requiresAuth?: boolean;
+  expectedUserId?: string;
   _retry?: boolean;
 }
 
@@ -134,7 +139,7 @@ export async function apiClient<T = any>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { requiresAuth = true, _retry = false, headers, ...rest } = options;
+  const { requiresAuth = true, expectedUserId, _retry = false, headers, ...rest } = options;
 
   const baseUrl = getApiBaseUrl();
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
@@ -144,8 +149,12 @@ export async function apiClient<T = any>(
   };
 
   let tokens: TokenPair | null = null;
+  const account = expectedUserId ? await loadAuthenticatedAccount() : null;
+  if (expectedUserId && (!requiresAuth || !account || account.userId !== expectedUserId || !isAccountCurrent(account))) {
+    throw new AuthenticationError(401, null, 'Review account changed or is not verified.');
+  }
   if (requiresAuth) {
-    tokens = await loadTokens();
+    tokens = account ? account.tokens : await loadTokens();
     if (tokens?.accessToken) {
       requestHeaders['Authorization'] = `Bearer ${tokens.accessToken}`;
     }
@@ -165,7 +174,8 @@ export async function apiClient<T = any>(
 
     // Refresh tokens once
     try {
-      const newTokens = await refreshTokensOnce();
+      if (!tokens) throw new Error('No authenticated session');
+      const newTokens = await refreshTokensOnce(tokens);
       if (newTokens) {
         return apiClient<T>(endpoint, {
           ...options,
@@ -173,8 +183,8 @@ export async function apiClient<T = any>(
         });
       }
     } catch {
-      await clearTokens();
-      if (onAuthFailureCallback) {
+      const cleared = tokens ? await clearTokensIfCurrent(tokens) : false;
+      if (cleared && onAuthFailureCallback) {
         onAuthFailureCallback();
       }
       throw new AuthenticationError(401, null, 'Session expired. Please log in again.');
@@ -193,20 +203,31 @@ export async function apiClient<T = any>(
     return {} as T;
   }
 
-  return response.json();
+  const data = await response.json();
+  if (endpoint === '/users/me' && requiresAuth && tokens && typeof data.user_id === 'string') {
+    await bindAuthenticatedAccount(data.user_id, tokens);
+  }
+  return data;
 }
 
 /**
  * Handle concurrent token refresh with a single shared promise to prevent multiple refresh calls.
  */
-async function refreshTokensOnce(): Promise<TokenPair | null> {
+async function refreshTokensOnce(originalTokens: TokenPair): Promise<TokenPair | null> {
+  if (!sameTokens(await loadTokens(), originalTokens)) {
+    throw new AuthenticationError(401, null, 'Authenticated account changed.');
+  }
   if (refreshPromise) {
+    if (!sameTokens(refreshingTokens, originalTokens)) {
+      throw new AuthenticationError(401, null, 'Authenticated account changed.');
+    }
     return refreshPromise;
   }
 
+  refreshingTokens = originalTokens;
   refreshPromise = (async () => {
     try {
-      const currentTokens = await loadTokens();
+      const currentTokens = originalTokens;
       if (!currentTokens?.refreshToken) {
         throw new Error('No refresh token available');
       }
@@ -227,13 +248,16 @@ async function refreshTokensOnce(): Promise<TokenPair | null> {
         refreshToken: data.refresh_token,
       };
 
-      await saveTokens(rotated);
+      if (!await rotateTokens(currentTokens, rotated)) {
+        throw new AuthenticationError(401, null, 'Authenticated account changed.');
+      }
       if (onTokenRotatedCallback) {
         onTokenRotatedCallback(rotated);
       }
       return rotated;
     } finally {
       refreshPromise = null;
+      refreshingTokens = null;
     }
   })();
 

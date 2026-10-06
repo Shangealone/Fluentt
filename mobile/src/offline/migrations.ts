@@ -45,9 +45,35 @@ CREATE TABLE IF NOT EXISTS pending_review_events (
 CREATE INDEX IF NOT EXISTS idx_pending_reviews_status ON pending_review_events (status);
 `;
 
-export async function runMigrations(db: { execAsync: (sql: string) => Promise<void> }): Promise<void> {
+interface MigrationDatabase {
+  execAsync(sql: string): Promise<void>;
+  getAllAsync<T>(sql: string): Promise<T[]>;
+}
+
+const migrations = new WeakMap<MigrationDatabase, Promise<void>>();
+
+export async function runMigrations(db: MigrationDatabase): Promise<void> {
+  let migration = migrations.get(db);
+  if (!migration) {
+    migration = migrate(db).catch((error) => {
+      migrations.delete(db);
+      throw error;
+    });
+    migrations.set(db, migration);
+  }
+  await migration;
+}
+
+async function migrate(db: MigrationDatabase): Promise<void> {
   await db.execAsync(CREATE_CACHED_LESSONS_TABLE);
   await db.execAsync(CREATE_CACHED_VOCABULARY_ITEMS_TABLE);
   await db.execAsync(CREATE_PENDING_REVIEW_EVENTS_TABLE);
+  const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(pending_review_events)');
+  if (!columns.some((column) => column.name === 'owner_user_id')) {
+    // NULL is deliberately retained for deployed ownerless rows. Never backfill
+    // from the current login: there is no reliable evidence of their creator.
+    await db.execAsync('ALTER TABLE pending_review_events ADD COLUMN owner_user_id TEXT;');
+  }
+  await db.execAsync('CREATE INDEX IF NOT EXISTS idx_pending_reviews_owner_status ON pending_review_events (owner_user_id, status);');
 }
 

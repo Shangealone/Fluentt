@@ -7,7 +7,7 @@ import {
 import {
   enqueuePendingReview,
   getPendingReviews,
-  getPendingCount,
+  getTotalPendingCount,
   PendingReviewPayload,
 } from '../reviewQueue';
 import { resetDatabaseForTesting } from '../db';
@@ -17,6 +17,11 @@ jest.mock('../../auth/tokenStore', () => ({
   loadTokens: jest.fn().mockResolvedValue({ accessToken: 'valid-token', refreshToken: 'valid-refresh' }),
   saveTokens: jest.fn().mockResolvedValue(undefined),
   clearTokens: jest.fn().mockResolvedValue(undefined),
+  clearTokensIfCurrent: jest.fn().mockResolvedValue(true),
+  rotateTokens: jest.fn().mockResolvedValue(true),
+  sameTokens: (a: any, b: any) => Boolean(a && b && a.accessToken === b.accessToken && a.refreshToken === b.refreshToken),
+  loadAuthenticatedAccount: jest.fn().mockResolvedValue({ userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', tokens: { accessToken: 'valid-token', refreshToken: 'valid-refresh' }, generation: 0 }),
+  isAccountCurrent: () => true,
 }));
 
 describe('Offline Review Sync Worker', () => {
@@ -54,8 +59,8 @@ describe('Offline Review Sync Worker', () => {
   };
 
   it('drains pending reviews to /sync/review-events and deletes them from SQLite queue on success', async () => {
-    await enqueuePendingReview(event1);
-    expect(await getPendingCount()).toBe(1);
+    await enqueuePendingReview(event1, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    expect(await getTotalPendingCount()).toBe(1);
 
     let syncRequestBody: any = null;
 
@@ -90,15 +95,15 @@ describe('Offline Review Sync Worker', () => {
     expect(syncRequestBody.events[0].client_event_id).toBe(event1.client_event_id);
 
     // Queue is drained
-    expect(await getPendingCount()).toBe(0);
+    expect(await getTotalPendingCount()).toBe(0);
     const remaining = await getPendingReviews();
     expect(remaining).toHaveLength(0);
   });
 
   it('preserves distinct attempts for same vocabulary item with distinct client_event_id (Clarification 4.B)', async () => {
-    await enqueuePendingReview(event1);
-    await enqueuePendingReview(event2);
-    expect(await getPendingCount()).toBe(2);
+    await enqueuePendingReview(event1, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    await enqueuePendingReview(event2, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    expect(await getTotalPendingCount()).toBe(2);
 
     let syncRequestBody: any = null;
 
@@ -137,12 +142,12 @@ describe('Offline Review Sync Worker', () => {
     expect(syncRequestBody.events[0].client_event_id).toBe(event1.client_event_id);
     expect(syncRequestBody.events[1].client_event_id).toBe(event2.client_event_id);
 
-    expect(await getPendingCount()).toBe(0);
+    expect(await getTotalPendingCount()).toBe(0);
   });
 
   it('handles 401/session expiry: queue is NOT deleted, draining pauses for auth handling (Clarification 4.A)', async () => {
-    await enqueuePendingReview(event1);
-    expect(await getPendingCount()).toBe(1);
+    await enqueuePendingReview(event1, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    expect(await getTotalPendingCount()).toBe(1);
 
     // Backend returns 401 Unauthorized
     global.fetch = jest.fn().mockImplementation((url: string) => {
@@ -162,7 +167,7 @@ describe('Offline Review Sync Worker', () => {
     expect(result.syncedCount).toBe(0);
 
     // Critical check: Queue is NOT deleted, pending event remains stored
-    expect(await getPendingCount()).toBe(1);
+    expect(await getTotalPendingCount()).toBe(1);
     const items = await getPendingReviews();
     expect(items).toHaveLength(1);
     expect(items[0].status).toBe('pending');
@@ -170,7 +175,7 @@ describe('Offline Review Sync Worker', () => {
   });
 
   it('handles network failure: retains pending events in queue, marks last_error and resets status to pending', async () => {
-    await enqueuePendingReview(event1);
+    await enqueuePendingReview(event1, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
     global.fetch = jest.fn().mockRejectedValue(new Error('Network timeout'));
 
@@ -180,7 +185,7 @@ describe('Offline Review Sync Worker', () => {
     expect(result.error).toBe('Network timeout');
 
     // Retained in SQLite queue
-    expect(await getPendingCount()).toBe(1);
+    expect(await getTotalPendingCount()).toBe(1);
     const items = await getPendingReviews();
     expect(items).toHaveLength(1);
     expect(items[0].last_error).toBe('Network timeout');
@@ -188,7 +193,7 @@ describe('Offline Review Sync Worker', () => {
   });
 
   it('does not attempt sync when offline', async () => {
-    await enqueuePendingReview(event1);
+    await enqueuePendingReview(event1, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
     setSyncOnlineStatus(false);
 
     global.fetch = jest.fn();
@@ -197,7 +202,7 @@ describe('Offline Review Sync Worker', () => {
 
     expect(result.skipped).toBe(true);
     expect(global.fetch).not.toHaveBeenCalled();
-    expect(await getPendingCount()).toBe(1);
+    expect(await getTotalPendingCount()).toBe(1);
   });
 
   it('checks server reachability via /health and updates reachability state', async () => {
@@ -230,9 +235,9 @@ describe('Offline Review Sync Worker', () => {
   });
 
   it('ensures failed Sync Now attempts never delete pending items from SQLite', async () => {
-    await enqueuePendingReview(event1);
-    await enqueuePendingReview(event2);
-    expect(await getPendingCount()).toBe(2);
+    await enqueuePendingReview(event1, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    await enqueuePendingReview(event2, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    expect(await getTotalPendingCount()).toBe(2);
 
     // Backend is down / connection refused
     global.fetch = jest.fn().mockRejectedValue(new TypeError('Network request failed'));
@@ -240,12 +245,12 @@ describe('Offline Review Sync Worker', () => {
     // Attempt 1: Failed sync
     const result1 = await drainReviewQueue();
     expect(result1.syncedCount).toBe(0);
-    expect(await getPendingCount()).toBe(2);
+    expect(await getTotalPendingCount()).toBe(2);
 
     // Attempt 2: Another failed sync
     const result2 = await drainReviewQueue();
     expect(result2.syncedCount).toBe(0);
-    expect(await getPendingCount()).toBe(2);
+    expect(await getTotalPendingCount()).toBe(2);
 
     // Verify all payloads remain intact in SQLite
     const remaining = await getPendingReviews();

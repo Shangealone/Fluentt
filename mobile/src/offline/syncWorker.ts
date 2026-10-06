@@ -1,4 +1,5 @@
 import { apiClient, AuthenticationError, getApiBaseUrl, getApiErrorMessage } from '../api/client';
+import { loadAuthenticatedAccount } from '../auth/tokenStore';
 import {
   deletePendingReview,
   getPendingReviews,
@@ -147,18 +148,22 @@ export async function drainReviewQueue(): Promise<SyncResult> {
   let totalFailed = 0;
 
   try {
-    const pendingItems = await getPendingReviews('pending');
+    const account = await loadAuthenticatedAccount();
+    if (!account) return { syncedCount: 0, failedCount: 0, authPaused: true };
+    const owner = account.userId;
+    const pendingItems = await getPendingReviews('pending', owner);
     if (pendingItems.length === 0) {
       return { syncedCount: 0, failedCount: 0 };
     }
 
     const batchSize = 50;
     for (let i = 0; i < pendingItems.length; i += batchSize) {
-      const batch = pendingItems.slice(i, i + batchSize);
+      const batch = pendingItems.slice(i, i + batchSize).filter((item) => item.owner_user_id === owner);
+      if (!batch.length) continue;
 
       // Mark batch as syncing
       for (const item of batch) {
-        await markReviewStatus(item.client_event_id, 'syncing');
+        await markReviewStatus(item.client_event_id, 'syncing', undefined, owner);
       }
 
       const payload = {
@@ -177,6 +182,7 @@ export async function drainReviewQueue(): Promise<SyncResult> {
         const response = await apiClient<SyncReviewEventsResponse>('/sync/review-events', {
           method: 'POST',
           body: JSON.stringify(payload),
+          expectedUserId: owner,
         });
 
         const results: ServerEventResult[] =
@@ -188,11 +194,12 @@ export async function drainReviewQueue(): Promise<SyncResult> {
           }));
 
         for (const res of results) {
+          if (!batch.some((item) => item.client_event_id === res.client_event_id)) continue;
           if (res.status === 'accepted') {
-            await deletePendingReview(res.client_event_id);
+            await deletePendingReview(res.client_event_id, owner);
             totalSynced++;
           } else {
-            await markReviewStatus(res.client_event_id, 'failed', res.error_detail);
+            await markReviewStatus(res.client_event_id, 'failed', res.error_detail, owner);
             totalFailed++;
           }
         }
@@ -204,7 +211,7 @@ export async function drainReviewQueue(): Promise<SyncResult> {
         if (err instanceof AuthenticationError || err?.status === 401 || err?.status === 403) {
           // Reset syncing items back to pending, DO NOT delete queue
           for (const item of batch) {
-            await markReviewStatus(item.client_event_id, 'pending');
+            await markReviewStatus(item.client_event_id, 'pending', undefined, owner);
           }
           return {
             syncedCount: totalSynced,
@@ -217,7 +224,7 @@ export async function drainReviewQueue(): Promise<SyncResult> {
         isServerReachable = false;
         const errorMsg = getApiErrorMessage(err, 'Network failure during sync');
         for (const item of batch) {
-          await markReviewStatus(item.client_event_id, 'pending', errorMsg);
+          await markReviewStatus(item.client_event_id, 'pending', errorMsg, owner);
         }
 
         return {

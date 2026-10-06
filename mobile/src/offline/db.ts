@@ -64,13 +64,14 @@ class InMemoryDatabase implements DatabaseInterface {
     }
 
     if (upper.includes('INSERT OR REPLACE INTO PENDING_REVIEW_EVENTS') || upper.includes('INSERT OR IGNORE INTO PENDING_REVIEW_EVENTS') || upper.includes('INSERT INTO PENDING_REVIEW_EVENTS')) {
-      const [client_event_id, payload_json, status, attempt_count, last_error, created_at, updated_at] = flatParams;
+      const [client_event_id, payload_json, status, attempt_count, last_error, created_at, updated_at, owner_user_id] = flatParams;
       if (upper.includes('INSERT OR IGNORE') && this.pendingReviews.has(client_event_id)) {
         return { lastInsertRowId: 0, changes: 0 };
       }
       const existing = this.pendingReviews.get(client_event_id);
       this.pendingReviews.set(client_event_id, {
         client_event_id,
+        owner_user_id: owner_user_id ?? null,
         payload_json,
         status: status ?? 'pending',
         attempt_count: attempt_count !== undefined ? attempt_count : (existing?.attempt_count ?? 0),
@@ -85,7 +86,7 @@ class InMemoryDatabase implements DatabaseInterface {
       if (upper.includes('SET STATUS = ?') && upper.includes('ATTEMPT_COUNT = ATTEMPT_COUNT + 1')) {
         const [status, last_error, updated_at, client_event_id] = flatParams;
         const item = this.pendingReviews.get(client_event_id);
-        if (item) {
+        if (item && (!upper.includes('AND OWNER_USER_ID = ?') || item.owner_user_id === flatParams[4])) {
           item.status = status;
           item.attempt_count = (item.attempt_count || 0) + 1;
           item.last_error = last_error;
@@ -95,7 +96,7 @@ class InMemoryDatabase implements DatabaseInterface {
       } else if (upper.includes('SET STATUS = ?') && upper.includes('LAST_ERROR = ?')) {
         const [status, last_error, updated_at, client_event_id] = flatParams;
         const item = this.pendingReviews.get(client_event_id);
-        if (item) {
+        if (item && (!upper.includes('AND OWNER_USER_ID = ?') || item.owner_user_id === flatParams[4])) {
           item.status = status;
           item.last_error = last_error;
           item.updated_at = updated_at;
@@ -115,6 +116,9 @@ class InMemoryDatabase implements DatabaseInterface {
 
     if (upper.includes('DELETE FROM PENDING_REVIEW_EVENTS WHERE CLIENT_EVENT_ID = ?')) {
       const client_event_id = flatParams[0];
+      if (upper.includes('AND OWNER_USER_ID = ?') && this.pendingReviews.get(client_event_id)?.owner_user_id !== flatParams[1]) {
+        return { lastInsertRowId: 0, changes: 0 };
+      }
       const deleted = this.pendingReviews.delete(client_event_id);
       return { lastInsertRowId: 0, changes: deleted ? 1 : 0 };
     }
@@ -152,7 +156,10 @@ class InMemoryDatabase implements DatabaseInterface {
 
     if (upper.includes('FROM PENDING_REVIEW_EVENTS')) {
       let results: any[] = Array.from(this.pendingReviews.values());
-      if (upper.includes('WHERE STATUS = ?')) {
+      if (upper.includes('WHERE OWNER_USER_ID = ?')) {
+        results = results.filter((r) => r.owner_user_id === flatParams[0]);
+        if (upper.includes('AND STATUS = ?')) results = results.filter((r) => r.status === flatParams[1]);
+      } else if (upper.includes('WHERE STATUS = ?')) {
         const targetStatus = flatParams[0];
         results = results.filter((r) => r.status === targetStatus);
       }
@@ -193,7 +200,11 @@ class InMemoryDatabase implements DatabaseInterface {
 
     if (upper.includes('COUNT(*)') && upper.includes('FROM PENDING_REVIEW_EVENTS')) {
       let count = this.pendingReviews.size;
-      if (upper.includes('WHERE STATUS = ?')) {
+      if (upper.includes('WHERE OWNER_USER_ID = ?')) {
+        count = Array.from(this.pendingReviews.values()).filter((r) =>
+          r.owner_user_id === flatParams[0] && ['pending', 'syncing', 'failed'].includes(r.status)
+        ).length;
+      } else if (upper.includes('WHERE STATUS = ?')) {
         const targetStatus = flatParams[0];
         count = Array.from(this.pendingReviews.values()).filter((r) => r.status === targetStatus).length;
       } else if (upper.includes("WHERE STATUS = 'PENDING'")) {

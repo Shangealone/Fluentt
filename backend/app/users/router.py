@@ -20,6 +20,7 @@ def get_me(
     profile = get_or_create_profile(db, current_user)
     return LearnerProfileResponse(
         id=profile.id,
+        user_id=current_user.id,
         participant_code=current_user.participant_code,
         email=current_user.email,
         interface_language=profile.interface_language,  # type: ignore[arg-type]
@@ -47,6 +48,7 @@ def update_preferences(
     )
     return LearnerProfileResponse(
         id=profile.id,
+        user_id=current_user.id,
         participant_code=current_user.participant_code,
         email=current_user.email,
         interface_language=profile.interface_language,  # type: ignore[arg-type]
