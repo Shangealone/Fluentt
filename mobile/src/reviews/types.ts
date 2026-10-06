@@ -14,16 +14,15 @@ export interface ReviewSession {
 
 export interface ReviewAttemptCreate {
   client_event_id: string;
-  session_id: string;
-  client_session_id?: string;
+  session_id?: string | null;
+  client_session_id: string;
   vocabulary_item_id: string;
   response_time_ms: number;
   correct: boolean;
   submitted_answer?: string;
-  client_interaction_at?: string;
-  device_platform?: string;
-  application_version?: string;
-  created_at?: string;
+  client_interaction_at: string;
+  device_platform: string;
+  application_version: string;
 }
 
 export interface SchedulingResult {

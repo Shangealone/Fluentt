@@ -318,7 +318,7 @@ def test_submit_review_attempt_idempotent_replay_same_client_event_id(
     assert len(matching_research) == 1
 
 
-def test_submit_review_attempt_accepts_mobile_payload_with_derived_fields(
+def test_submit_review_attempt_rejects_incomplete_legacy_payload(
     client: TestClient,
     auth_headers: dict[str, str],
     sample_vocab_item: VocabularyItem,
@@ -332,7 +332,4 @@ def test_submit_review_attempt_accepts_mobile_payload_with_derived_fields(
         "created_at": datetime.now(UTC).isoformat(),
     }
     res = client.post("/reviews/attempts", json=payload, headers=auth_headers)
-    assert res.status_code == 200
-    data = res.json()
-    assert data["correct"] is True
-    assert data["response_time_ms"] == 1200
+    assert res.status_code == 422

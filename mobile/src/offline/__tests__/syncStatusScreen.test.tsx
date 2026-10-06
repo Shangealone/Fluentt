@@ -73,7 +73,13 @@ describe('SyncStatusScreen', () => {
   });
 
   it.each([400, 403])('shows preserved rejection/auth pause for HTTP %s instead of success', async (status) => {
-    await enqueuePendingReview({ client_event_id: 'status-event', session_id: 'session',
+    await enqueuePendingReview({
+      client_event_id: 'status-event',
+      client_session_id: '99999999-9999-4999-8999-999999999999',
+      client_interaction_at: '2025-01-01T11:22:33.456Z',
+      device_platform: 'ios',
+      application_version: '1.0.0',
+      session_id: 'session',
       vocabulary_item_id: 'vocab', response_time_ms: 1000, correct: true }, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     global.fetch = jest.fn(async (url: string) => ({ ok: url.endsWith('/health'),
       status: url.endsWith('/health') ? 200 : status, json: async () => ({ detail: 'Rejected' }) })) as any;
@@ -142,6 +148,10 @@ describe('SyncStatusScreen', () => {
   it('renders pending count and triggers syncNow when pressed', async () => {
     await enqueuePendingReview({
       client_event_id: '11111111-1111-4111-8111-111111111111',
+      client_session_id: '99999999-9999-4999-8999-999999999999',
+      client_interaction_at: '2025-01-01T11:22:33.456Z',
+      device_platform: 'ios',
+      application_version: '1.0.0',
       session_id: 'sess-1',
       vocabulary_item_id: 'vocab-1',
       response_time_ms: 1000,
@@ -201,6 +211,10 @@ describe('SyncStatusScreen', () => {
     // Simulate an offline review being saved while this screen was backgrounded
     await enqueuePendingReview({
       client_event_id: '22222222-2222-4222-8222-222222222222',
+      client_session_id: '99999999-9999-4999-8999-999999999999',
+      client_interaction_at: '2025-01-01T11:22:33.456Z',
+      device_platform: 'ios',
+      application_version: '1.0.0',
       session_id: 'sess-2',
       vocabulary_item_id: 'vocab-2',
       response_time_ms: 800,

@@ -1,10 +1,10 @@
+import { ReviewAttemptCreate } from '../../reviews/types';
 import {
   enqueuePendingReview,
   getPendingReviews,
   markReviewStatus,
   deletePendingReview,
   getTotalPendingCount,
-  PendingReviewPayload,
 } from '../reviewQueue';
 import { resetDatabaseForTesting, closeDatabaseForTesting } from '../db';
 
@@ -13,14 +13,17 @@ describe('Review Queue SQLite Storage', () => {
     await resetDatabaseForTesting();
   });
 
-  const samplePayload: PendingReviewPayload = {
+  const samplePayload: ReviewAttemptCreate = {
     client_event_id: '11111111-1111-4111-8111-111111111111',
+    client_session_id: '99999999-9999-4999-8999-999999999999',
+    client_interaction_at: '2025-01-01T11:22:33.456Z',
+    device_platform: 'ios',
+    application_version: '1.0.0',
     session_id: '22222222-2222-4222-8222-222222222222',
     vocabulary_item_id: '33333333-3333-4333-8333-333333333333',
     response_time_ms: 1250,
     correct: true,
     submitted_answer: 'correct',
-    created_at: '2026-09-22T08:00:00Z',
   };
 
   it('enqueues a review event and retrieves it in pending status', async () => {
@@ -44,6 +47,22 @@ describe('Review Queue SQLite Storage', () => {
     expect(pending).toHaveLength(1);
     expect(await getTotalPendingCount()).toBe(1);
   });
+
+  it('preserves supplied D4 research facts exactly rather than reducing or defaulting them', async () => {
+    const captured = { ...samplePayload, client_session_id: '44444444-4444-4444-8444-444444444444',
+      client_interaction_at: '2025-01-01T11:22:33.456Z', device_platform: 'ios', application_version: '1.0.0' };
+    await enqueuePendingReview(captured, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect((await getPendingReviews())[0].payload).toEqual(captured);
+  });
+
+  it.each(['client_session_id', 'client_interaction_at', 'device_platform', 'application_version', 'correct'])(
+    'rejects a new incomplete payload without fabricating %s', async (field) => {
+      const incomplete: any = { ...samplePayload, created_at: '2020-01-01T00:00:00Z' };
+      delete incomplete[field];
+      await expect(enqueuePendingReview(incomplete, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')).rejects.toThrow();
+      expect(await getPendingReviews()).toHaveLength(0);
+    }
+  );
 
   it('updates review status and increments attempt count', async () => {
     await enqueuePendingReview(samplePayload, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");

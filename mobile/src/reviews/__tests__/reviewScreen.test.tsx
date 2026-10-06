@@ -7,6 +7,13 @@ import { getPendingReviews } from '../../offline/reviewQueue';
 import { setInterfaceLanguage } from '../../i18n';
 import { loadAuthenticatedAccount } from '../../auth/tokenStore';
 import * as queue from '../../offline/reviewQueue';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
+jest.mock('expo-constants', () => {
+  const configuration = require('../../../app.json');
+  return { __esModule: true, default: { expoConfig: { ...configuration.expo } } };
+});
 
 const mockPush = jest.fn();
 const mockBack = jest.fn();
@@ -107,11 +114,92 @@ describe('Vocabulary Review Flow', () => {
     expect(rendered.getByTestId('unsaved-review-error')).toBeTruthy();
     expect(mockReplace).not.toHaveBeenCalled();
     expect(await getPendingReviews()).toHaveLength(0);
+    jest.replaceProperty(Constants.expoConfig!, 'version', '2.0.0');
     await act(async () => { fireEvent.press(rendered.getByTestId('retry-save-btn')); });
     expect(submitted).toHaveLength(2);
     expect(submitted[1]).toEqual(submitted[0]);
+    expect(submitted[1].application_version).toBe('1.0.0');
     expect((await getPendingReviews())[0].client_event_id).toBe(submitted[0].client_event_id);
     expect(mockReplace).toHaveBeenCalled();
+  });
+
+  it('captures interaction time before delayed account verification and preserves it in the online and queued payloads', async () => {
+    let online: any;
+    global.fetch = jest.fn(async (url: string, options: any) => {
+      if (url.includes('/reviews/attempts')) {
+        online = JSON.parse(options.body);
+        throw new Error('Acknowledgement lost');
+      }
+      return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions')
+        ? { id: 'server-session' } : mockLessonResponse };
+    }) as any;
+    const rendered = await render(<ReviewScreen customClock={createTestClock([100, 100, 1500])} />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    jest.useFakeTimers().setSystemTime(new Date('2025-01-01T11:22:33.456Z'));
+    try {
+      jest.mocked(loadAuthenticatedAccount).mockImplementationOnce(async () => {
+        await Promise.resolve();
+        jest.setSystemTime(new Date('2025-01-01T12:22:33.456Z'));
+        return { userId: 'test-user-id', tokens: { accessToken: 'fake-token', refreshToken: 'fake-refresh' }, generation: 0 };
+      });
+      await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+      await act(async () => { fireEvent.press(rendered.getByTestId('rating-again-btn')); });
+      expect(online.client_interaction_at).toBe('2025-01-01T11:22:33.456Z');
+      expect(online.response_time_ms).toBe(1400);
+      const retained = (await getPendingReviews())[0];
+      expect(retained.payload).toEqual(online);
+      expect(retained.created_at).toBe('2025-01-01T12:22:33.456Z');
+      expect(retained.payload.created_at).toBeUndefined();
+    } finally { jest.useRealTimers(); }
+  });
+
+  it('keeps one original client session across offline load retry and multiple cards', async () => {
+    const sessions: string[] = [];
+    let contentCalls = 0;
+    global.fetch = jest.fn(async (url: string, options: any) => {
+      if (url.includes('/reviews/sessions')) {
+        sessions.push(JSON.parse(options.body).client_session_id);
+        throw new TypeError('Offline');
+      }
+      if (url.includes('/content/lessons')) {
+        if (++contentCalls === 1) throw new TypeError('Content unavailable');
+        return { ok: true, status: 200, json: async () => ({ ...mockLessonResponse,
+          vocabulary_items: [...mockLessonResponse.vocabulary_items,
+            { ...mockLessonResponse.vocabulary_items[0], id: 'vocab-2' }] }) };
+      }
+      throw new TypeError('Offline');
+    }) as any;
+    const rendered = await render(<ReviewScreen />);
+    await waitFor(() => expect(rendered.getByTestId('retry-btn')).toBeTruthy());
+    await act(async () => { fireEvent.press(rendered.getByTestId('retry-btn')); });
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    for (let i = 0; i < 2; i++) {
+      await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+      await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    }
+    expect(sessions).toHaveLength(2);
+    expect(sessions[1]).toBe(sessions[0]);
+    const retained = await getPendingReviews();
+    expect(retained).toHaveLength(2);
+    expect(retained[0].payload.client_event_id).not.toBe(retained[1].payload.client_event_id);
+    for (const row of retained) {
+      expect(row.payload.client_session_id).toBe(sessions[0]);
+      expect(row.payload.session_id).toBeUndefined();
+    }
+  });
+
+  it('shows an explicit save failure and sends no answer when app version is unavailable', async () => {
+    global.fetch = jest.fn(async (url: string) => ({ ok: true, status: 200,
+      json: async () => url.includes('/reviews/sessions') ? { id: 'server-session' } : mockLessonResponse })) as any;
+    const rendered = await render(<ReviewScreen />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    jest.replaceProperty(Constants.expoConfig!, 'version', undefined);
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    expect(rendered.getByTestId('error-container')).toBeTruthy();
+    expect(await getPendingReviews()).toHaveLength(0);
+    expect((global.fetch as jest.Mock).mock.calls.some(([url]) => url.includes('/reviews/attempts'))).toBe(false);
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it('does not create or queue an answer when the displayed account is no longer authenticated', async () => {
@@ -220,6 +308,8 @@ describe('Vocabulary Review Flow', () => {
   it('submits review interaction online and records measured monotonic response time', async () => {
     const testClock = createTestClock([1000, 1000, 3250]); // 2250 ms elapsed
     let attemptBody: any = null;
+    let originalClientSession: string | undefined;
+    jest.replaceProperty(Platform, 'OS', 'ios');
 
     global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
       if (url.includes('/content/lessons/lesson-uuid-1')) {
@@ -230,6 +320,7 @@ describe('Vocabulary Review Flow', () => {
         });
       }
       if (url.includes('/reviews/sessions')) {
+        originalClientSession = JSON.parse(opts.body).client_session_id;
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -307,6 +398,11 @@ describe('Vocabulary Review Flow', () => {
     expect(attemptBody.correct).toBe(true);
     expect(attemptBody.submitted_answer).toBe('correct');
     expect(attemptBody.client_event_id).toBeDefined();
+    expect(attemptBody.client_session_id).toBe(originalClientSession);
+    expect(attemptBody.session_id).toBe('session-uuid-1');
+    expect(attemptBody.client_session_id).not.toBe(attemptBody.session_id);
+    expect(attemptBody.device_platform).toBe('ios');
+    expect(attemptBody.application_version).toBe(Constants.expoConfig?.version);
   });
 
   it('enqueues review to SQLite pending queue when network is offline', async () => {
@@ -419,7 +515,8 @@ describe('Vocabulary Review Flow', () => {
     expect(pending[0].payload.submitted_answer).toBe('incorrect');
     expect(pending[0].payload.response_time_ms).toBe(1400);
     expect(pending[0].payload.client_event_id).toBeDefined();
-    expect(pending[0].payload.session_id).toBeDefined();
+    expect(pending[0].payload.session_id).toBeUndefined();
+    expect(pending[0].payload.client_session_id).toBeDefined();
     expect((pending[0].payload as any).password).toBeUndefined();
     expect((pending[0].payload as any).access_token).toBeUndefined();
   });

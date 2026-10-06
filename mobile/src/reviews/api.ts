@@ -1,4 +1,5 @@
 import { apiClient } from '../api/client';
+import { sanitizeReviewAttempt } from './payload';
 import {
   ReviewAttemptCreate,
   ReviewAttemptResponse,
@@ -28,7 +29,7 @@ export async function submitReviewAttempt(
 ): Promise<ReviewAttemptResponse> {
   return apiClient<ReviewAttemptResponse>('/reviews/attempts', {
     method: 'POST',
-    body: JSON.stringify(attempt),
+    body: JSON.stringify(sanitizeReviewAttempt(attempt)),
     expectedUserId: ownerUserId,
   });
 }

@@ -17,6 +17,7 @@ import { createReviewSession, submitReviewAttempt } from '../../../src/reviews/a
 import { enqueuePendingReview } from '../../../src/offline/reviewQueue';
 import { generateUUID } from '../../../src/utils/uuid';
 import { ReviewAttemptCreate } from '../../../src/reviews/types';
+import { captureReviewAttempt } from '../../../src/reviews/metadata';
 import { useAuth } from '../../../src/auth/AuthProvider';
 import { isAccountCurrent, loadAuthenticatedAccount } from '../../../src/auth/tokenStore';
 
@@ -41,10 +42,26 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
   const [storageError, setStorageError] = useState(false);
   const unsavedAttemptRef = useRef<{ owner: string; payload: ReviewAttemptCreate } | null>(null);
 
-  const sessionIdRef = useRef<string>('');
-  const clientSessionIdRef = useRef<string>('');
+  const sessionRef = useRef<{
+    owner: string; lesson: string; clientId: string; serverId?: string;
+  } | null>(null);
   const startTickRef = useRef<number>(clock.now());
   const statsRef = useRef<{ synced: number; queued: number }>({ synced: 0, queued: 0 });
+
+  const resolveSession = useCallback(async (owner: string, lesson: string) => {
+    if (!sessionRef.current || sessionRef.current.owner !== owner || sessionRef.current.lesson !== lesson) {
+      sessionRef.current = { owner, lesson, clientId: generateUUID() };
+    }
+    const capturedSession = sessionRef.current;
+    if (!capturedSession.serverId) {
+      try {
+        const session = await createReviewSession(capturedSession.clientId, lesson, owner);
+        capturedSession.serverId = session.id;
+      } catch {
+        // An unresolved backend session stays absent; the client UUID is unchanged.
+      }
+    }
+  }, []);
 
   // Initialize session & load vocabulary
   const initializeReview = useCallback(async () => {
@@ -53,18 +70,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     setErrorMessage(null);
 
     try {
-      const clientSessionId = generateUUID();
-      clientSessionIdRef.current = clientSessionId;
-      sessionIdRef.current = clientSessionId;
-
-      // Try creating backend session online
-      try {
-        const session = await createReviewSession(clientSessionId, lessonId, ownerUserId);
-        sessionIdRef.current = session.id;
-      } catch {
-        // Fallback to clientSessionId if offline
-        sessionIdRef.current = clientSessionId;
-      }
+      await resolveSession(ownerUserId, lessonId);
 
       const result = await fetchLessonDetail(lessonId);
       const activeItems = (result.lesson?.vocabularyItems || []).filter((item) => item.isActive !== false);
@@ -78,28 +84,16 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [lessonId, clock, t, ownerUserId]);
+  }, [lessonId, clock, t, ownerUserId, resolveSession]);
 
   useEffect(() => {
     if (!lessonId || !ownerUserId) return;
+    const owner = ownerUserId;
     let isMounted = true;
 
     async function loadData() {
       try {
-        const clientSessionId = generateUUID();
-        clientSessionIdRef.current = clientSessionId;
-        sessionIdRef.current = clientSessionId;
-
-        try {
-          const session = await createReviewSession(clientSessionId, lessonId, ownerUserId);
-          if (isMounted) {
-            sessionIdRef.current = session.id;
-          }
-        } catch {
-          if (isMounted) {
-            sessionIdRef.current = clientSessionId;
-          }
-        }
+        await resolveSession(owner, lessonId);
 
         const result = await fetchLessonDetail(lessonId);
         const activeItems = (result.lesson?.vocabularyItems || []).filter((item) => item.isActive !== false);
@@ -124,7 +118,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     return () => {
       isMounted = false;
     };
-  }, [lessonId, clock, t, ownerUserId]);
+  }, [lessonId, clock, t, ownerUserId, resolveSession]);
 
   const handleReveal = () => {
     setIsRevealed(true);
@@ -135,38 +129,35 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     setIsSubmitting(true);
 
     const finishTick = clock.now();
+    const capturedOwner = ownerUserId;
+    const session = sessionRef.current;
+    if (!session || session.owner !== capturedOwner ||
+      (unsavedAttemptRef.current && unsavedAttemptRef.current.owner !== capturedOwner)) {
+      setIsSubmitting(false);
+      return;
+    }
+    let attemptPayload: ReviewAttemptCreate;
+    try {
+      attemptPayload = unsavedAttemptRef.current?.payload ?? captureReviewAttempt({
+        client_session_id: session.clientId,
+        session_id: session.serverId,
+        vocabulary_item_id: items[currentIndex].id,
+        response_time_ms: clock.elapsedMs(startTickRef.current, finishTick),
+        correct: isCorrect,
+        submitted_answer: isCorrect ? 'correct' : 'incorrect',
+      });
+    } catch {
+      setIsSubmitting(false);
+      setErrorMessage(t('reviews.saveFailed'));
+      return;
+    }
+    unsavedAttemptRef.current = { owner: capturedOwner, payload: attemptPayload };
     const account = await loadAuthenticatedAccount().catch(() => null);
     if (!account || account.userId !== ownerUserId || !isAccountCurrent(account)) {
       setIsSubmitting(false);
       setErrorMessage(t('content.error'));
       return;
     }
-    // Capture before any submission await. Logout/login must never relabel an
-    // already-created event when its network request falls back to the queue.
-    const capturedOwner = account.userId;
-    const durationMs = clock.elapsedMs(startTickRef.current, finishTick);
-    const currentItem = items[currentIndex];
-    const clientEventId = unsavedAttemptRef.current?.payload.client_event_id ?? generateUUID();
-
-    if (unsavedAttemptRef.current && unsavedAttemptRef.current.owner !== capturedOwner) {
-      setIsSubmitting(false);
-      return;
-    }
-    const attemptPayload: ReviewAttemptCreate = unsavedAttemptRef.current?.payload ?? {
-      client_event_id: clientEventId,
-      session_id: sessionIdRef.current,
-      client_session_id: sessionIdRef.current,
-      vocabulary_item_id: currentItem.id,
-      response_time_ms: durationMs,
-      correct: isCorrect,
-      submitted_answer: isCorrect ? 'correct' : 'incorrect',
-      client_interaction_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      device_platform: 'android',
-      application_version: 'v0.1',
-    };
-    unsavedAttemptRef.current = { owner: capturedOwner, payload: attemptPayload };
-
     try {
       await submitReviewAttempt(attemptPayload, capturedOwner);
       statsRef.current.synced += 1;

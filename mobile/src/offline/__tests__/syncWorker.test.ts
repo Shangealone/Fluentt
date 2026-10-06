@@ -1,3 +1,4 @@
+import { ReviewAttemptCreate } from '../../reviews/types';
 import {
   checkServerReachability,
   drainReviewQueue,
@@ -8,7 +9,6 @@ import {
   enqueuePendingReview,
   getPendingReviews,
   getTotalPendingCount,
-  PendingReviewPayload,
 } from '../reviewQueue';
 import { resetDatabaseForTesting } from '../db';
 
@@ -38,24 +38,30 @@ describe('Offline Review Sync Worker', () => {
     global.fetch = originalFetch;
   });
 
-  const event1: PendingReviewPayload = {
+  const event1: ReviewAttemptCreate = {
     client_event_id: '11111111-1111-4111-8111-111111111111',
+    client_session_id: '99999999-9999-4999-8999-999999999999',
+    client_interaction_at: '2025-01-01T11:22:33.456Z',
+    device_platform: 'ios',
+    application_version: '1.0.0',
     session_id: 'session-1',
     vocabulary_item_id: 'vocab-1',
     response_time_ms: 1200,
     correct: true,
     submitted_answer: 'correct',
-    created_at: '2026-09-22T08:00:00Z',
   };
 
-  const event2: PendingReviewPayload = {
+  const event2: ReviewAttemptCreate = {
     client_event_id: '22222222-2222-4222-8222-222222222222',
+    client_session_id: '99999999-9999-4999-8999-999999999999',
+    client_interaction_at: '2025-01-01T11:22:33.456Z',
+    device_platform: 'ios',
+    application_version: '1.0.0',
     session_id: 'session-1',
     vocabulary_item_id: 'vocab-1', // same vocabulary item, distinct client_event_id
     response_time_ms: 950,
     correct: true,
     submitted_answer: 'correct',
-    created_at: '2026-09-22T08:01:00Z',
   };
 
   it('drains pending reviews to /sync/review-events and deletes them from SQLite queue on success', async () => {

@@ -31,6 +31,10 @@ describe('useSyncStatus hook', () => {
   it('provides pending count, online status, and syncNow execution', async () => {
     await enqueuePendingReview({
       client_event_id: '11111111-1111-4111-8111-111111111111',
+      client_session_id: '99999999-9999-4999-8999-999999999999',
+      client_interaction_at: '2025-01-01T11:22:33.456Z',
+      device_platform: 'ios',
+      application_version: '1.0.0',
       session_id: 'session-1',
       vocabulary_item_id: 'vocab-1',
       response_time_ms: 1000,

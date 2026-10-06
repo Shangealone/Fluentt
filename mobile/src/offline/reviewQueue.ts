@@ -1,14 +1,21 @@
 import { getDatabase } from './db';
 import { notifySyncStatusListeners } from './syncWorker';
 import { isAccountCurrent, loadAuthenticatedAccount } from '../auth/tokenStore';
+import { ReviewAttemptCreate } from '../reviews/types';
+import { sanitizeReviewAttempt } from '../reviews/payload';
 
+/** Stored historical payloads may be incomplete; reads never repair them. */
 export interface PendingReviewPayload {
   client_event_id: string;
-  session_id: string;
+  session_id?: string | null;
+  client_session_id?: string;
   vocabulary_item_id: string;
   response_time_ms: number;
   correct: boolean;
   submitted_answer?: string;
+  client_interaction_at?: string;
+  device_platform?: string;
+  application_version?: string;
   created_at?: string;
 }
 
@@ -26,18 +33,9 @@ export interface PendingReviewItem {
   lease_id: string | null;
 }
 
-export async function enqueuePendingReview(payload: PendingReviewPayload, ownerUserId: string): Promise<void> {
+export async function enqueuePendingReview(payload: ReviewAttemptCreate, ownerUserId: string): Promise<void> {
   if (!ownerUserId) throw new Error('A verified review owner is required.');
-  // Strip any accidental sensitive credentials
-  const sanitized: PendingReviewPayload = {
-    client_event_id: payload.client_event_id,
-    session_id: payload.session_id,
-    vocabulary_item_id: payload.vocabulary_item_id,
-    response_time_ms: payload.response_time_ms,
-    correct: Boolean(payload.correct),
-    submitted_answer: payload.submitted_answer,
-    created_at: payload.created_at ?? new Date().toISOString(),
-  };
+  const sanitized = sanitizeReviewAttempt(payload);
 
   const db = await getDatabase();
   const now = new Date().toISOString();
@@ -52,7 +50,7 @@ export async function enqueuePendingReview(payload: PendingReviewPayload, ownerU
       updated_at,
       owner_user_id
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [sanitized.client_event_id, JSON.stringify(sanitized), 'pending', 0, null, sanitized.created_at, now, ownerUserId]
+    [sanitized.client_event_id, JSON.stringify(sanitized), 'pending', 0, null, now, now, ownerUserId]
   );
   notifySyncStatusListeners();
 }

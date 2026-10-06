@@ -29,9 +29,13 @@ const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const event = {
   client_event_id: '11111111-1111-4111-8111-111111111111',
+  client_session_id: '99999999-9999-4999-8999-999999999999',
+  client_interaction_at: '2025-01-01T11:22:33.456Z',
+  device_platform: 'ios',
+  application_version: '1.0.0',
   session_id: '22222222-2222-4222-8222-222222222222',
   vocabulary_item_id: '33333333-3333-4333-8333-333333333333',
-  response_time_ms: 1000, correct: true, created_at: '2026-10-06T00:00:00Z',
+  response_time_ms: 1000, correct: true,
 };
 const second = { ...event, client_event_id: '44444444-4444-4444-8444-444444444444' };
 const legacy = { ...event, client_event_id: '55555555-5555-4555-8555-555555555555' };
@@ -45,7 +49,7 @@ async function login(account: string) {
 async function insertLegacy() {
   await (await database.getDatabase()).runAsync(`INSERT INTO pending_review_events
     (client_event_id, payload_json, status, attempt_count, last_error, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`, [legacy.client_event_id, JSON.stringify(legacy), 'pending', 0, null, legacy.created_at, legacy.created_at]);
+    VALUES (?, ?, ?, ?, ?, ?, ?)`, [legacy.client_event_id, JSON.stringify(legacy), 'pending', 0, null, '2026-10-06T00:00:00Z', '2026-10-06T00:00:00Z']);
 }
 
 describe('D2 participant queue status', () => {
@@ -79,7 +83,7 @@ describe('D2 participant queue status', () => {
     await saveTokens({ accessToken: 'unverified', refreshToken: 'unverified-refresh' });
     expect(await getPendingCount()).toBe(0);
     expect(await getTotalPendingCount()).toBe(3);
-    expect((await getPendingReviews()).map((row) => row.owner_user_id)).toEqual([A, null, B]);
+    expect((await getPendingReviews()).map((row) => row.owner_user_id)).toEqual([null, A, B]);
   });
 
   it('refreshes an already-mounted hook when the verified account changes', async () => {

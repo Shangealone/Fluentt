@@ -17,9 +17,13 @@ const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const event = {
   client_event_id: '11111111-1111-4111-8111-111111111111',
+  client_session_id: '99999999-9999-4999-8999-999999999999',
+  client_interaction_at: '2025-01-01T11:22:33.456Z',
+  device_platform: 'ios',
+  application_version: '1.0.0',
   session_id: '22222222-2222-4222-8222-222222222222',
   vocabulary_item_id: '33333333-3333-4333-8333-333333333333',
-  response_time_ms: 1000, correct: true, created_at: '2026-10-06T00:00:00Z',
+  response_time_ms: 1000, correct: true,
 };
 const second = { ...event, client_event_id: '44444444-4444-4444-8444-444444444444' };
 const response = (data: unknown, status = 200) => ({ ok: status === 200, status, json: async () => data });
@@ -81,7 +85,7 @@ describe('D2 account isolation', () => {
     const db = await getDatabase();
     await db.runAsync(`INSERT INTO pending_review_events
       (client_event_id, payload_json, status, attempt_count, last_error, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`, [event.client_event_id, JSON.stringify(event), 'pending', 0, null, event.created_at, event.created_at]);
+      VALUES (?, ?, ?, ?, ?, ?, ?)`, [event.client_event_id, JSON.stringify(event), 'pending', 0, null, '2026-10-06T00:00:00Z', '2026-10-06T00:00:00Z']);
     global.fetch = jest.fn();
     expect((await drainReviewQueue()).syncedCount).toBe(0);
     expect(global.fetch).not.toHaveBeenCalled();

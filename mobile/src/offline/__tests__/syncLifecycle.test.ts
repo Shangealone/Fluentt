@@ -16,8 +16,14 @@ jest.mock('expo-secure-store', () => {
 });
 const A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-const event = { client_event_id: '11111111-1111-4111-8111-111111111111', session_id: 'session',
-  vocabulary_item_id: 'vocab', response_time_ms: 1000, correct: true, created_at: '2026-10-06T00:00:00Z' };
+const event = {
+  client_event_id: '11111111-1111-4111-8111-111111111111',
+  client_session_id: '99999999-9999-4999-8999-999999999999',
+  client_interaction_at: '2025-01-01T11:22:33.456Z',
+  device_platform: 'ios',
+  application_version: '1.0.0',
+  session_id: 'session',
+  vocabulary_item_id: 'vocab', response_time_ms: 1000, correct: true };
 const response = (data: unknown, status = 200) => ({ ok: status === 200, status, json: async () => data });
 const flush = async () => { for (let i = 0; i < 8; i++) await new Promise((resolve) => setImmediate(resolve)); };
 

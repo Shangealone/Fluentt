@@ -9,7 +9,7 @@ from app.auth.models import User
 from app.auth.security import create_access_token
 from app.content.models import Language, Lesson, VocabularyItem
 from app.research_logging.models import ResearchEvent
-from app.reviews.models import ReviewAttempt, ReviewSchedule
+from app.reviews.models import ReviewAttempt, ReviewSchedule, ReviewSession
 from app.sync.models import AcceptedClientEvent
 
 
@@ -311,6 +311,119 @@ def test_partial_batch_commits_early_event_and_single_event_replay_is_idempotent
         )
 
 
+@pytest.mark.parametrize("endpoint", ["/reviews/attempts", "/sync/review-events"])
+@pytest.mark.parametrize(
+    "missing", ["client_session_id", "client_interaction_at", "device_platform", "application_version", "correct"]
+)
+def test_research_metadata_is_required_without_alias_or_default(
+    client: TestClient,
+    learner_a: tuple[User, dict[str, str]],
+    sample_vocab: VocabularyItem,
+    db_session: Session,
+    endpoint: str,
+    missing: str,
+) -> None:
+    user, headers = learner_a
+    session = ReviewSession(user_id=user.id, client_session_id=uuid.uuid4())
+    db_session.add(session)
+    db_session.commit()
+    payload = {
+        "client_event_id": str(uuid.uuid4()),
+        "client_session_id": str(session.client_session_id),
+        "session_id": str(session.id),
+        "vocabulary_item_id": str(sample_vocab.id),
+        "correct": False,
+        "submitted_answer": "incorrect",
+        "response_time_ms": 1234,
+        "client_interaction_at": "2025-01-01T11:22:33.456Z",
+        "device_platform": "ios",
+        "application_version": "1.0.0",
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+    del payload[missing]
+    body = {"events": [payload]} if endpoint.startswith("/sync") else payload
+    result = client.post(endpoint, json=body, headers=headers)
+    assert result.status_code == 422
+    assert db_session.query(ReviewAttempt).filter_by(user_id=user.id).count() == 0
+    assert db_session.query(AcceptedClientEvent).filter_by(user_id=user.id).count() == 0
+    assert db_session.query(ResearchEvent).filter_by(user_id=user.id).count() == 0
+
+
+@pytest.mark.parametrize("endpoint", ["/reviews/attempts", "/sync/review-events"])
+@pytest.mark.parametrize("resolved_session", [False, True])
+def test_canonical_metadata_persists_across_online_sync_and_replay(
+    client: TestClient,
+    learner_a: tuple[User, dict[str, str]],
+    sample_vocab: VocabularyItem,
+    db_session: Session,
+    endpoint: str,
+    resolved_session: bool,
+) -> None:
+    user, headers = learner_a
+    client_session_id = uuid.uuid4()
+    payload = {
+        "client_event_id": str(uuid.uuid4()),
+        "client_session_id": str(client_session_id),
+        "vocabulary_item_id": str(sample_vocab.id),
+        "correct": False,
+        "submitted_answer": "incorrect",
+        "response_time_ms": 2345,
+        "client_interaction_at": "2025-01-01T11:22:33.456Z",
+        "device_platform": "ios",
+        "application_version": "1.0.0",
+    }
+    if resolved_session:
+        session_response = client.post(
+            "/reviews/sessions",
+            json={"client_session_id": str(client_session_id)},
+            headers=headers,
+        )
+        assert session_response.status_code == 200
+        payload["session_id"] = session_response.json()["id"]
+        assert payload["session_id"] != payload["client_session_id"]
+
+    def post_attempt(path: str, facts: dict) -> dict:
+        body = {"events": [facts]} if path.startswith("/sync") else facts
+        result = client.post(path, json=body, headers=headers)
+        assert result.status_code == 200
+        return result.json()["accepted_events"][0] if path.startswith("/sync") else result.json()
+
+    first = post_attempt(endpoint, payload)
+    replay_endpoint = "/sync/review-events" if endpoint == "/reviews/attempts" else "/reviews/attempts"
+    replay = post_attempt(replay_endpoint, payload)
+    assert replay == first
+    # Even an updated caller cannot replace already accepted historical facts.
+    altered_replay = post_attempt(replay_endpoint, {
+        **payload, "application_version": "2.0.0", "device_platform": "android",
+        "client_interaction_at": datetime.now(UTC).isoformat(), "correct": True,
+    })
+    assert altered_replay == first
+    attempt = db_session.query(ReviewAttempt).filter_by(user_id=user.id).one()
+    assert str(attempt.client_event_id) == payload["client_event_id"]
+    assert attempt.vocabulary_item_id == sample_vocab.id
+    assert attempt.correct is False
+    assert attempt.submitted_answer == "incorrect"
+    assert attempt.response_time_ms == 2345
+    assert attempt.device_platform == "ios"
+    assert attempt.application_version == "1.0.0"
+    expected_time = datetime.fromisoformat(payload["client_interaction_at"])
+    assert attempt.client_interaction_at == expected_time
+    assert attempt.server_acceptance_at > expected_time
+    assert attempt.session.client_session_id == client_session_id
+    assert attempt.session_id != client_session_id
+    if resolved_session:
+        assert str(attempt.session_id) == payload["session_id"]
+    assert db_session.query(ReviewSession).filter_by(user_id=user.id).count() == 1
+    assert db_session.query(ReviewSchedule).filter_by(user_id=user.id).count() == 1
+    assert db_session.query(AcceptedClientEvent).filter_by(user_id=user.id).count() == 1
+    answered = db_session.query(ResearchEvent).filter_by(user_id=user.id, event_type="REVIEW_ANSWERED").one()
+    for field in ["client_event_id", "vocabulary_item_id", "correct", "response_time_ms",
+                  "device_platform", "application_version"]:
+        assert answered.payload[field] == payload[field]
+    assert datetime.fromisoformat(answered.payload["client_interaction_at"]) == expected_time
+    assert db_session.query(ResearchEvent).filter_by(user_id=user.id, event_type="REVIEW_COMPLETED").count() == 1
+
+
 def test_cross_user_client_event_id_isolation(
     client: TestClient,
     learner_a: tuple[User, dict[str, str]],
@@ -423,7 +536,7 @@ def test_sync_inactive_or_unknown_vocabulary_fails_without_accepted_event(
     assert len(accepted) == 0
 
 
-def test_sync_review_events_accepts_mobile_payload(
+def test_sync_review_events_rejects_incomplete_legacy_payload(
     client: TestClient,
     learner_a: tuple[User, dict[str, str]],
     sample_vocab: VocabularyItem,
@@ -443,7 +556,4 @@ def test_sync_review_events_accepts_mobile_payload(
         ]
     }
     response = client.post("/sync/review-events", json=payload, headers=headers)
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["accepted_events"]) == 1
-    assert data["accepted_events"][0]["client_event_id"] == client_event_id
+    assert response.status_code == 422
