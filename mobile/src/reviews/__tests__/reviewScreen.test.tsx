@@ -6,6 +6,7 @@ import { resetDatabaseForTesting } from '../../offline/db';
 import { getPendingReviews } from '../../offline/reviewQueue';
 import { setInterfaceLanguage } from '../../i18n';
 import { loadAuthenticatedAccount } from '../../auth/tokenStore';
+import * as queue from '../../offline/reviewQueue';
 
 const mockPush = jest.fn();
 const mockBack = jest.fn();
@@ -85,7 +86,32 @@ describe('Vocabulary Review Flow', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     global.fetch = originalFetch;
+  });
+
+  it('shows an unsaved review when SQLite fails and retries the same UUID and original facts', async () => {
+    const submitted: any[] = [];
+    global.fetch = jest.fn(async (url: string, options: any) => {
+      if (url.includes('/reviews/attempts')) {
+        submitted.push(JSON.parse(options.body));
+        throw new Error('Lost acknowledgement');
+      }
+      return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1' } : mockLessonResponse };
+    }) as any;
+    jest.spyOn(queue, 'enqueuePendingReview').mockRejectedValueOnce(new Error('Disk unavailable'));
+    const rendered = await render(<ReviewScreen />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-again-btn')); });
+    expect(rendered.getByTestId('unsaved-review-error')).toBeTruthy();
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(await getPendingReviews()).toHaveLength(0);
+    await act(async () => { fireEvent.press(rendered.getByTestId('retry-save-btn')); });
+    expect(submitted).toHaveLength(2);
+    expect(submitted[1]).toEqual(submitted[0]);
+    expect((await getPendingReviews())[0].client_event_id).toBe(submitted[0].client_event_id);
+    expect(mockReplace).toHaveBeenCalled();
   });
 
   it('does not create or queue an answer when the displayed account is no longer authenticated', async () => {

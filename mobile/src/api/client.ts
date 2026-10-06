@@ -174,7 +174,7 @@ export async function apiClient<T = any>(
 
     // Refresh tokens once
     try {
-      if (!tokens) throw new Error('No authenticated session');
+      if (!tokens) throw new AuthenticationError(401, null, 'No authenticated session');
       const newTokens = await refreshTokensOnce(tokens);
       if (newTokens) {
         return apiClient<T>(endpoint, {
@@ -182,7 +182,10 @@ export async function apiClient<T = any>(
           _retry: true,
         });
       }
-    } catch {
+    } catch (error) {
+      // Transport/service failures during refresh are retryable, not evidence
+      // that these credentials were rejected. Preserve the verified session.
+      if (!(error instanceof AuthenticationError)) throw error;
       const cleared = tokens ? await clearTokensIfCurrent(tokens) : false;
       if (cleared && onAuthFailureCallback) {
         onAuthFailureCallback();
@@ -226,36 +229,54 @@ async function refreshTokensOnce(originalTokens: TokenPair): Promise<TokenPair |
 
   refreshingTokens = originalTokens;
   refreshPromise = (async () => {
+    const controller = new AbortController();
+    let rejectDeadline!: (error: Error) => void;
+    const deadline = new Promise<never>((_resolve, reject) => { rejectDeadline = reject; });
+    const timer = setTimeout(() => {
+      controller.abort();
+      rejectDeadline(new Error('Token refresh timed out.'));
+    }, 30_000);
+    timer.unref?.();
     try {
-      const currentTokens = originalTokens;
-      if (!currentTokens?.refreshToken) {
-        throw new Error('No refresh token available');
-      }
+      return await Promise.race([(async () => {
+        const currentTokens = originalTokens;
+        if (!currentTokens?.refreshToken) {
+          throw new AuthenticationError(401, null, 'No refresh token available');
+        }
 
-      const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: currentTokens.refreshToken }),
-      });
+        const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: currentTokens.refreshToken }),
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        throw new Error('Refresh token rejected');
-      }
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          if (response.status === 401 || response.status === 403) {
+            throw new AuthenticationError(response.status, data, 'Refresh token rejected');
+          }
+          // This response rejects the refresh service call, not the review data.
+          throw new Error(normalizeApiErrorMessage(data, response.status));
+        }
 
-      const data = await response.json();
-      const rotated: TokenPair = {
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-      };
+        const data = await response.json();
+        if (controller.signal.aborted) throw new Error('Token refresh timed out.');
+        const rotated: TokenPair = {
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+        };
 
-      if (!await rotateTokens(currentTokens, rotated)) {
-        throw new AuthenticationError(401, null, 'Authenticated account changed.');
-      }
-      if (onTokenRotatedCallback) {
-        onTokenRotatedCallback(rotated);
-      }
-      return rotated;
+        if (!await rotateTokens(currentTokens, rotated)) {
+          throw new AuthenticationError(401, null, 'Authenticated account changed.');
+        }
+        if (onTokenRotatedCallback) {
+          onTokenRotatedCallback(rotated);
+        }
+        return rotated;
+      })(), deadline]);
     } finally {
+      clearTimeout(timer);
       refreshPromise = null;
       refreshingTokens = null;
     }

@@ -105,11 +105,11 @@ describe('Offline Review Sync Worker', () => {
     await enqueuePendingReview(event2, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
     expect(await getTotalPendingCount()).toBe(2);
 
-    let syncRequestBody: any = null;
+    const syncRequestBodies: any[] = [];
 
     global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
       if (url.includes('/sync/review-events')) {
-        syncRequestBody = JSON.parse(opts.body);
+        syncRequestBodies.push(JSON.parse(opts.body));
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -138,9 +138,8 @@ describe('Offline Review Sync Worker', () => {
     const result = await drainReviewQueue();
 
     expect(result.syncedCount).toBe(2);
-    expect(syncRequestBody.events).toHaveLength(2);
-    expect(syncRequestBody.events[0].client_event_id).toBe(event1.client_event_id);
-    expect(syncRequestBody.events[1].client_event_id).toBe(event2.client_event_id);
+    expect(syncRequestBodies).toHaveLength(2);
+    expect(syncRequestBodies.map((body) => body.events)).toEqual([[event1], [event2]]);
 
     expect(await getTotalPendingCount()).toBe(0);
   });

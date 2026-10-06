@@ -2,6 +2,7 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import SyncStatusScreen from '../../../app/(app)/sync-status';
 import { resetDatabaseForTesting } from '../db';
+import * as storage from '../db';
 import { enqueuePendingReview } from '../reviewQueue';
 import { setSyncOnlineStatus, setServerReachability } from '../syncWorker';
 import { setInterfaceLanguage } from '../../i18n';
@@ -67,7 +68,29 @@ describe('SyncStatusScreen', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     global.fetch = originalFetch;
+  });
+
+  it.each([400, 403])('shows preserved rejection/auth pause for HTTP %s instead of success', async (status) => {
+    await enqueuePendingReview({ client_event_id: 'status-event', session_id: 'session',
+      vocabulary_item_id: 'vocab', response_time_ms: 1000, correct: true }, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    global.fetch = jest.fn(async (url: string) => ({ ok: url.endsWith('/health'),
+      status: url.endsWith('/health') ? 200 : status, json: async () => ({ detail: 'Rejected' }) })) as any;
+    const screen = await render(<SyncStatusScreen />);
+    await waitFor(() => expect(screen.getByTestId('pending-count-badge').props.children).toBe(1));
+    await act(async () => { fireEvent.press(screen.getByTestId('sync-now-btn')); });
+    await waitFor(() => expect(screen.getByTestId(status === 400 ? 'rejected-reviews-notice' : 'auth-paused-notice')).toBeTruthy());
+    expect(screen.getByTestId('pending-count-badge').props.children).toBe(1);
+    expect(screen.queryByTestId('all-synced-banner')).toBeNull();
+    if (status === 403) expect(screen.getByTestId('sync-now-btn').props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('shows storage read failure without claiming all reviews were synchronized', async () => {
+    jest.spyOn(storage, 'getDatabase').mockRejectedValue(new Error('Disk unavailable'));
+    const screen = await render(<SyncStatusScreen />);
+    await waitFor(() => expect(screen.getByTestId('sync-error-banner')).toBeTruthy());
+    expect(screen.queryByTestId('all-synced-banner')).toBeNull();
   });
 
   it('renders all-synced state when queue is empty and server is reachable', async () => {

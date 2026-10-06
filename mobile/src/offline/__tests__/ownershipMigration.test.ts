@@ -16,8 +16,10 @@ it('migrates legacy SQLite without assigning or deleting rows, and can run again
     await runMigrations(db);
     const columns = sqlite.prepare('PRAGMA table_info(pending_review_events)').all();
     expect(columns.map((column) => column.name)).toContain('owner_user_id');
+    expect(columns.map((column) => column.name)).toEqual(expect.arrayContaining(['failure_kind', 'next_retry_at', 'lease_id']));
     expect(sqlite.prepare('SELECT * FROM pending_review_events').all()).toEqual([
-      expect.objectContaining({ client_event_id: 'legacy-event', owner_user_id: null, attempt_count: 0 }),
+      expect.objectContaining({ client_event_id: 'legacy-event', owner_user_id: null, attempt_count: 0,
+        failure_kind: null, next_retry_at: null, lease_id: null }),
     ]);
     await runMigrations({ ...db });
     expect(sqlite.prepare('SELECT COUNT(*) AS count FROM pending_review_events').get()?.count).toBe(1);

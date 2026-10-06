@@ -38,6 +38,8 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [storageError, setStorageError] = useState(false);
+  const unsavedAttemptRef = useRef<{ owner: string; payload: ReviewAttemptCreate } | null>(null);
 
   const sessionIdRef = useRef<string>('');
   const clientSessionIdRef = useRef<string>('');
@@ -144,9 +146,13 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     const capturedOwner = account.userId;
     const durationMs = clock.elapsedMs(startTickRef.current, finishTick);
     const currentItem = items[currentIndex];
-    const clientEventId = generateUUID();
+    const clientEventId = unsavedAttemptRef.current?.payload.client_event_id ?? generateUUID();
 
-    const attemptPayload: ReviewAttemptCreate = {
+    if (unsavedAttemptRef.current && unsavedAttemptRef.current.owner !== capturedOwner) {
+      setIsSubmitting(false);
+      return;
+    }
+    const attemptPayload: ReviewAttemptCreate = unsavedAttemptRef.current?.payload ?? {
       client_event_id: clientEventId,
       session_id: sessionIdRef.current,
       client_session_id: sessionIdRef.current,
@@ -159,15 +165,24 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
       device_platform: 'android',
       application_version: 'v0.1',
     };
+    unsavedAttemptRef.current = { owner: capturedOwner, payload: attemptPayload };
 
     try {
       await submitReviewAttempt(attemptPayload, capturedOwner);
       statsRef.current.synced += 1;
     } catch {
       // Offline fallback: enqueue to SQLite queue
-      await enqueuePendingReview(attemptPayload, capturedOwner);
+      try {
+        await enqueuePendingReview(attemptPayload, capturedOwner);
+      } catch {
+        setStorageError(true);
+        setIsSubmitting(false);
+        return; // Do not advance or claim that this interaction was saved.
+      }
       statsRef.current.queued += 1;
     }
+    unsavedAttemptRef.current = null;
+    setStorageError(false);
 
     const nextIndex = currentIndex + 1;
     if (nextIndex < items.length) {
@@ -238,6 +253,15 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {storageError ? (
+          <View testID="unsaved-review-error">
+            <AppText style={styles.errorText}>{t('reviews.saveFailed')}</AppText>
+            <Pressable testID="retry-save-btn" style={styles.actionButton} disabled={isSubmitting}
+              onPress={() => handleResponse(unsavedAttemptRef.current?.payload.correct ?? false)}>
+              <AppText style={styles.actionButtonText}>{t('common.retry')}</AppText>
+            </Pressable>
+          </View>
+        ) : null}
         {/* Flashcard */}
         <View style={styles.card} testID="review-card">
           <View style={styles.badgeRow}>
@@ -301,7 +325,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
               <Pressable
                 testID="rating-again-btn"
                 style={[styles.ratingBtn, styles.againBtn]}
-                disabled={isSubmitting}
+                disabled={isSubmitting || storageError}
                 onPress={() => handleResponse(false)}
               >
                 <AppText style={styles.ratingBtnText}>{t('reviews.incorrect')}</AppText>
@@ -310,7 +334,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
               <Pressable
                 testID="rating-good-btn"
                 style={[styles.ratingBtn, styles.goodBtn]}
-                disabled={isSubmitting}
+                disabled={isSubmitting || storageError}
                 onPress={() => handleResponse(true)}
               >
                 <AppText style={styles.ratingBtnText}>{t('reviews.correct')}</AppText>

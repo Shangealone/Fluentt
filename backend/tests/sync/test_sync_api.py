@@ -9,7 +9,7 @@ from app.auth.models import User
 from app.auth.security import create_access_token
 from app.content.models import Language, Lesson, VocabularyItem
 from app.research_logging.models import ResearchEvent
-from app.reviews.models import ReviewAttempt
+from app.reviews.models import ReviewAttempt, ReviewSchedule
 from app.sync.models import AcceptedClientEvent
 
 
@@ -252,6 +252,63 @@ def test_lost_acknowledgement_online_then_sync_retry(
         if e.payload.get("client_event_id") == client_event_id
     ]
     assert len(matching_events) == 1
+
+
+def test_partial_batch_commits_early_event_and_single_event_replay_is_idempotent(
+    client: TestClient,
+    learner_a: tuple[User, dict[str, str]],
+    sample_vocab: VocabularyItem,
+    inactive_vocab: VocabularyItem,
+    db_session: Session,
+) -> None:
+    user, headers = learner_a
+    session_id = str(uuid.uuid4())
+
+    def event(vocabulary_id: uuid.UUID) -> dict:
+        return {
+            "client_event_id": str(uuid.uuid4()),
+            "client_session_id": session_id,
+            "vocabulary_item_id": str(vocabulary_id),
+            "correct": True,
+            "response_time_ms": 1234,
+            "client_interaction_at": datetime.now(UTC).isoformat(),
+            "device_platform": "android",
+            "application_version": "1.0.0",
+        }
+
+    first, invalid, later = (
+        event(sample_vocab.id),
+        event(inactive_vocab.id),
+        event(sample_vocab.id),
+    )
+    batch = client.post(
+        "/sync/review-events", json={"events": [first, invalid, later]}, headers=headers
+    )
+    assert batch.status_code == 400
+    early_attempt = db_session.query(ReviewAttempt).filter_by(user_id=user.id).one()
+    early_id = str(early_attempt.id)
+    assert str(early_attempt.client_event_id) == first["client_event_id"]
+
+    # An interrupted client's unknown acknowledgement is reconciled with the
+    # same UUID. The permanent event is isolated; later valid work gets a turn.
+    for payload, expected_status in [(first, 200), (invalid, 400), (later, 200)]:
+        result = client.post(
+            "/sync/review-events", json={"events": [payload]}, headers=headers
+        )
+        assert result.status_code == expected_status
+        if payload is first:
+            assert result.json()["accepted_events"][0]["id"] == early_id
+
+    assert db_session.query(ReviewAttempt).filter_by(user_id=user.id).count() == 2
+    assert db_session.query(ReviewSchedule).filter_by(user_id=user.id).count() == 2
+    assert db_session.query(AcceptedClientEvent).filter_by(user_id=user.id).count() == 2
+    for event_type in ["REVIEW_ANSWERED", "REVIEW_COMPLETED"]:
+        assert (
+            db_session.query(ResearchEvent)
+            .filter_by(user_id=user.id, event_type=event_type)
+            .count()
+            == 2
+        )
 
 
 def test_cross_user_client_event_id_isolation(

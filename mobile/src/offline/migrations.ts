@@ -75,5 +75,11 @@ async function migrate(db: MigrationDatabase): Promise<void> {
     await db.execAsync('ALTER TABLE pending_review_events ADD COLUMN owner_user_id TEXT;');
   }
   await db.execAsync('CREATE INDEX IF NOT EXISTS idx_pending_reviews_owner_status ON pending_review_events (owner_user_id, status);');
+  // Operational synchronization fields only; payload_json is never rewritten.
+  for (const [name, type] of [['failure_kind', 'TEXT'], ['next_retry_at', 'INTEGER'], ['lease_id', 'TEXT']]) {
+    if (!columns.some((column) => column.name === name)) {
+      await db.execAsync(`ALTER TABLE pending_review_events ADD COLUMN ${name} ${type};`);
+    }
+  }
 }
 

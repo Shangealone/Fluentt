@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
 import '../src/i18n';
+import { startSyncLifecycle } from '../src/offline/syncLifecycle';
 
 export function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { status, user } = useAuth();
@@ -42,6 +43,7 @@ export function NavigationGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  useEffect(() => startSyncLifecycle(), []);
   return (
     <AuthProvider>
       <NavigationGuard>

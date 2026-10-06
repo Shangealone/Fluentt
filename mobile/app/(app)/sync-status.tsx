@@ -17,6 +17,8 @@ export default function SyncStatusScreen() {
   const router = useRouter();
   const {
     pendingCount,
+    failedCount,
+    authPaused,
     hasVerifiedAccount,
     isSyncing,
     isOnline,
@@ -52,7 +54,7 @@ export default function SyncStatusScreen() {
     connectionLabel = t('sync.serverUnreachable');
   }
 
-  const isSyncDisabled = !hasVerifiedAccount || !isOnline || !isServerReachable || isSyncing;
+  const isSyncDisabled = !hasVerifiedAccount || authPaused || !isOnline || !isServerReachable || isSyncing;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -98,12 +100,21 @@ export default function SyncStatusScreen() {
             </AppText>
           </View>
 
-          {hasVerifiedAccount && pendingCount === 0 ? (
+          {hasVerifiedAccount && pendingCount === 0 && !syncError ? (
             <View style={styles.syncedBanner} testID="all-synced-banner">
               <AppText style={styles.syncedBannerText}>
                 ✓ {t('sync.allSynced')}
               </AppText>
             </View>
+          ) : null}
+
+          {failedCount > 0 ? (
+            <AppText testID="rejected-reviews-notice" style={styles.errorBannerText}>
+              {t('sync.rejectedEvents', { count: failedCount })}
+            </AppText>
+          ) : null}
+          {authPaused ? (
+            <AppText testID="auth-paused-notice" style={styles.errorBannerText}>{t('sync.authErrorNotice')}</AppText>
           ) : null}
 
           {syncError ? (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { getPendingCount } from './reviewQueue';
-import { getVerifiedAccountId, subscribeToAuthenticatedAccount } from '../auth/tokenStore';
+import { useTranslation } from 'react-i18next';
+import { getPendingCount, getQueueProblems } from './reviewQueue';
+import { getVerifiedAccountId, loadAuthenticatedAccount, subscribeToAuthenticatedAccount } from '../auth/tokenStore';
 import {
   checkServerReachability,
   drainReviewQueue,
@@ -14,6 +15,8 @@ import {
 
 export interface SyncStatusState {
   pendingCount: number;
+  failedCount: number;
+  authPaused: boolean;
   hasVerifiedAccount: boolean;
   isSyncing: boolean;
   isOnline: boolean;
@@ -26,24 +29,30 @@ export interface SyncStatusState {
 }
 
 export function useSyncStatus(): SyncStatusState {
+  const { t } = useTranslation();
   const accountId = useSyncExternalStore(subscribeToAuthenticatedAccount, getVerifiedAccountId, getVerifiedAccountId);
-  const [queueCount, setQueueCount] = useState<{ owner: string | null; count: number }>({ owner: null, count: 0 });
+  const [queueCount, setQueueCount] = useState<{
+    owner: string | null; count: number; failedCount: number; authPaused: boolean; storageError: boolean;
+  }>({ owner: null, count: 0, failedCount: 0, authPaused: false, storageError: false });
   const countRequestId = useRef({ id: 0 });
   const [isSyncing, setIsSyncing] = useState<boolean>(isSyncInProgress());
   const [isOnline, setIsOnline] = useState<boolean>(getSyncOnlineStatus());
   const [isServerReachable, setIsServerReachable] = useState<boolean>(getServerReachability());
-  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(getLastSyncedAt());
-  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<{ owner: string | null; message: string } | null>(null);
 
   const readCount = useCallback(async () => {
     const requestId = ++countRequestId.current.id;
-    const count = await getPendingCount().catch(() => 0);
-    return { owner: accountId, count, requestId };
+    try {
+      const [count, problems] = await Promise.all([getPendingCount(), getQueueProblems()]);
+      return { owner: accountId, count, requestId, ...problems, storageError: false };
+    } catch {
+      return { owner: accountId, count: 0, requestId, failedCount: 0, authPaused: false, storageError: true };
+    }
   }, [accountId]);
 
-  const applyCount = useCallback((result: { owner: string | null; count: number; requestId: number }) => {
+  const applyCount = useCallback((result: { owner: string | null; count: number; requestId: number; failedCount: number; authPaused: boolean; storageError: boolean }) => {
     if (result.requestId === countRequestId.current.id && result.owner === getVerifiedAccountId()) {
-      setQueueCount({ owner: result.owner, count: result.count });
+      setQueueCount(result);
     }
   }, []);
 
@@ -75,7 +84,6 @@ export function useSyncStatus(): SyncStatusState {
       setIsSyncing(isSyncInProgress());
       setIsOnline(getSyncOnlineStatus());
       setIsServerReachable(getServerReachability());
-      setLastSyncedAt(getLastSyncedAt());
       refreshCount();
     });
 
@@ -84,27 +92,32 @@ export function useSyncStatus(): SyncStatusState {
       countRequests.id++;
       unsubscribe();
     };
-  }, [refreshCount, readCount, applyCount]);
+  }, [refreshCount, readCount, applyCount, accountId]);
 
   const syncNow = useCallback(async (): Promise<SyncResult> => {
     setSyncError(null);
-    const result = await drainReviewQueue();
+    const account = await loadAuthenticatedAccount();
+    const result = account && account.userId === accountId
+      ? await drainReviewQueue(account) : { syncedCount: 0, failedCount: 0, authPaused: true };
     if (result.error) {
-      setSyncError(result.error);
+      setSyncError({ owner: accountId, message: result.error });
     }
     await refreshCount();
     return result;
-  }, [refreshCount]);
+  }, [refreshCount, accountId]);
 
   return {
     // Never render a cached count from the account displayed on the last render.
     pendingCount: accountId && queueCount.owner === accountId ? queueCount.count : 0,
+    failedCount: accountId && queueCount.owner === accountId ? queueCount.failedCount : 0,
+    authPaused: Boolean(accountId && queueCount.owner === accountId && queueCount.authPaused),
     hasVerifiedAccount: Boolean(accountId),
     isSyncing,
     isOnline,
     isServerReachable,
-    lastSyncedAt,
-    syncError,
+    lastSyncedAt: accountId ? getLastSyncedAt(accountId) ?? null : null,
+    syncError: accountId && queueCount.owner === accountId && queueCount.storageError
+      ? t('sync.storageError') : accountId && syncError?.owner === accountId ? syncError.message : null,
     syncNow,
     refreshCount,
     refreshReachability,

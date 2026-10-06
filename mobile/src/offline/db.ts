@@ -8,7 +8,7 @@ export interface DatabaseInterface {
   closeAsync?(): Promise<void>;
 }
 
-// In-memory fallback mock for testing / non-native environments
+// Jest-only adapter. Production must use durable native SQLite.
 class InMemoryDatabase implements DatabaseInterface {
   private lessons = new Map<string, any>();
   private vocabItems = new Map<string, any>();
@@ -83,9 +83,27 @@ class InMemoryDatabase implements DatabaseInterface {
     }
 
     if (upper.includes('UPDATE PENDING_REVIEW_EVENTS')) {
+      if (upper.includes('SET UPDATED_AT = ?') && upper.includes('LEASE_ID = ?')) {
+        const [updated, id, owner, lease] = flatParams;
+        const item = this.pendingReviews.get(id);
+        if (!item || item.owner_user_id !== owner || item.status !== 'syncing' || item.lease_id !== lease) return { lastInsertRowId: 0, changes: 0 };
+        item.updated_at = updated;
+        return { lastInsertRowId: 0, changes: 1 };
+      }
+      if (upper.includes('FAILURE_KIND = ?')) {
+        const [status, error, updated, kind, retry, lease, id, owner, priorStatus, priorLease] = flatParams;
+        const item = this.pendingReviews.get(id);
+        if (!item || item.owner_user_id !== owner || item.status !== priorStatus || (item.lease_id ?? null) !== priorLease) return { lastInsertRowId: 0, changes: 0 };
+        if (upper.includes('AND UPDATED_AT = ?') && item.updated_at !== flatParams[10]) return { lastInsertRowId: 0, changes: 0 };
+        if (upper.includes('NEXT_RETRY_AT <= ?') && (item.failure_kind === 'auth' || item.failure_kind === 'permanent' || (item.next_retry_at ?? 0) > flatParams[10])) return { lastInsertRowId: 0, changes: 0 };
+        Object.assign(item, { status, last_error: error, updated_at: updated, failure_kind: kind, next_retry_at: retry, lease_id: lease });
+        if (upper.includes('ATTEMPT_COUNT = ATTEMPT_COUNT + 1')) item.attempt_count++;
+        return { lastInsertRowId: 0, changes: 1 };
+      }
       if (upper.includes('SET STATUS = ?') && upper.includes('ATTEMPT_COUNT = ATTEMPT_COUNT + 1')) {
         const [status, last_error, updated_at, client_event_id] = flatParams;
         const item = this.pendingReviews.get(client_event_id);
+        if (upper.includes("AND STATUS <> 'SYNCING'") && item?.status === 'syncing') return { lastInsertRowId: 0, changes: 0 };
         if (item && (!upper.includes('AND OWNER_USER_ID = ?') || item.owner_user_id === flatParams[4])) {
           item.status = status;
           item.attempt_count = (item.attempt_count || 0) + 1;
@@ -119,6 +137,7 @@ class InMemoryDatabase implements DatabaseInterface {
       if (upper.includes('AND OWNER_USER_ID = ?') && this.pendingReviews.get(client_event_id)?.owner_user_id !== flatParams[1]) {
         return { lastInsertRowId: 0, changes: 0 };
       }
+      if (upper.includes("AND STATUS = 'SYNCING'") && (this.pendingReviews.get(client_event_id)?.status !== 'syncing' || this.pendingReviews.get(client_event_id)?.lease_id !== flatParams[2])) return { lastInsertRowId: 0, changes: 0 };
       const deleted = this.pendingReviews.delete(client_event_id);
       return { lastInsertRowId: 0, changes: deleted ? 1 : 0 };
     }
@@ -271,21 +290,21 @@ export async function getDatabase(): Promise<DatabaseInterface> {
 
   if (!dbPromise) {
     dbPromise = (async () => {
-      try {
-        if (SQLiteModule && typeof SQLiteModule.openDatabaseAsync === 'function') {
-          const db = await SQLiteModule.openDatabaseAsync('fluentt.db');
+      if (SQLiteModule && typeof SQLiteModule.openDatabaseAsync === 'function') {
+        const db = await SQLiteModule.openDatabaseAsync('fluentt.db');
+        try {
           await runMigrations(db);
           return db;
+        } catch (error) {
+          await db.closeAsync().catch(() => {});
+          throw error;
         }
-        throw new Error('Native SQLiteModule unavailable');
-      } catch (err) {
-        console.warn('Native SQLite unavailable, falling back to in-memory store:', err);
-        if (!inMemoryInstance) {
-          inMemoryInstance = new InMemoryDatabase();
-        }
-        return inMemoryInstance;
       }
-    })();
+      throw new Error('Native SQLiteModule unavailable');
+    })().catch((error) => {
+      dbPromise = null;
+      throw new Error('Durable SQLite storage is unavailable. Review was not saved.', { cause: error });
+    });
   }
   return dbPromise;
 }

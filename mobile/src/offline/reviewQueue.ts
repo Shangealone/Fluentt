@@ -21,6 +21,9 @@ export interface PendingReviewItem {
   last_error: string | null;
   created_at: string;
   updated_at: string;
+  failure_kind: 'transient' | 'auth' | 'permanent' | null;
+  next_retry_at: number | null;
+  lease_id: string | null;
 }
 
 export async function enqueuePendingReview(payload: PendingReviewPayload, ownerUserId: string): Promise<void> {
@@ -74,6 +77,9 @@ export async function getPendingReviews(status?: 'pending' | 'syncing' | 'failed
     last_error: r.last_error,
     created_at: r.created_at,
     updated_at: r.updated_at,
+    failure_kind: r.failure_kind ?? null,
+    next_retry_at: r.next_retry_at ?? null,
+    lease_id: r.lease_id ?? null,
   }));
 }
 
@@ -86,9 +92,9 @@ export async function markReviewStatus(
   requireOwner(ownerUserId);
   const db = await getDatabase();
   const now = new Date().toISOString();
-  if (status === 'syncing' || status === 'failed') {
+  if (status === 'syncing') {
     await db.runAsync(
-      `UPDATE pending_review_events SET status = ?, attempt_count = attempt_count + 1, last_error = ?, updated_at = ? WHERE client_event_id = ? AND owner_user_id = ?`,
+      `UPDATE pending_review_events SET status = ?, attempt_count = attempt_count + 1, last_error = ?, updated_at = ? WHERE client_event_id = ? AND owner_user_id = ? AND status <> 'syncing'`,
       [status, error ?? null, now, client_event_id, ownerUserId]
     );
   } else {
@@ -120,6 +126,17 @@ export async function getPendingCount(): Promise<number> {
     [account.userId]
   );
   return isAccountCurrent(account) ? row?.count ?? 0 : 0;
+}
+
+export async function getQueueProblems(): Promise<{ failedCount: number; authPaused: boolean }> {
+  const account = await loadAuthenticatedAccount();
+  const empty = { failedCount: 0, authPaused: false };
+  if (!account || !isAccountCurrent(account)) return empty;
+  const rows = await getPendingReviews(undefined, account.userId);
+  return isAccountCurrent(account) ? {
+    failedCount: rows.filter((row) => row.status === 'failed').length,
+    authPaused: rows.some((row) => row.failure_kind === 'auth'),
+  } : empty;
 }
 
 /** Device-wide diagnostic count for storage tests; never participant-facing. */
