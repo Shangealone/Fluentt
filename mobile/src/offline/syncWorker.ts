@@ -6,6 +6,7 @@ import {
   renewReviewLease, SYNC_HEARTBEAT_MS,
 } from './queueTransitions';
 import { generateUUID } from '../utils/uuid';
+import { parseSyncReviewEventsResponse } from './syncContract';
 
 export interface SyncResult {
   syncedCount: number;
@@ -13,10 +14,6 @@ export interface SyncResult {
   authPaused?: boolean;
   skipped?: boolean;
   error?: string | null;
-}
-interface SyncReviewEventsResponse {
-  results?: { client_event_id: string; status: 'accepted' | 'error'; error_detail?: string }[];
-  accepted_events?: { client_event_id: string; id: string }[];
 }
 let isSyncing = false;
 let isOnline = true;
@@ -111,24 +108,15 @@ export async function drainReviewQueue(expectedAccount?: AuthenticatedAccount, s
       }, SYNC_HEARTBEAT_MS);
       heartbeat.unref?.();
       try {
-        const response = await Promise.race([apiClient<SyncReviewEventsResponse>('/sync/review-events', {
+        const response = await Promise.race([apiClient<unknown>('/sync/review-events', {
           method: 'POST', body: JSON.stringify({ events: [item.payload] }),
           expectedUserId: owner, signal: controller.signal,
         }), deadline]);
-        const acknowledgements = response.results ?? (response.accepted_events ?? []).map((entry) => ({
-          client_event_id: entry.client_event_id, status: 'accepted' as const,
-        }));
-        const result = acknowledgements.find((entry) => entry.client_event_id === item.client_event_id);
+        const result = parseSyncReviewEventsResponse(response).acceptedEvents.find((entry) => entry.clientEventId === item.client_event_id);
         if (!result) throw new Error('Server did not acknowledge the queued event.');
-        if (result.status !== 'accepted' && result.status !== 'error') throw new Error('Server acknowledgement has an unknown status.');
-        if (result.status === 'accepted') {
-          if (await acknowledgeReview(item.client_event_id, owner, lease)) syncedCount++;
-          lastSyncedOwner = owner;
-          lastSyncedAt = new Date();
-        } else {
-          await finishReview(item, owner, lease, 'permanent', result.error_detail ?? 'Server rejected the queued event.');
-          failedCount++;
-        }
+        if (await acknowledgeReview(item.client_event_id, owner, lease)) syncedCount++;
+        lastSyncedOwner = owner;
+        lastSyncedAt = new Date();
         isServerReachable = true;
       } catch (error) {
         const kind = classifySyncFailure(error);

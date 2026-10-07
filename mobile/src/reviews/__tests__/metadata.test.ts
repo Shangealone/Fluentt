@@ -8,6 +8,8 @@ jest.mock('expo-constants', () => {
 });
 
 const facts = {
+  content_revision_id: '77777777-7777-4777-8777-777777777777',
+  content_release_id: '88888888-8888-4888-8888-888888888888',
   client_session_id: '11111111-1111-4111-8111-111111111111',
   session_id: '22222222-2222-4222-8222-222222222222',
   vocabulary_item_id: '33333333-3333-4333-8333-333333333333',

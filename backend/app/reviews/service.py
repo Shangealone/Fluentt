@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
-from app.content.models import VocabularyItem
+from app.content.provenance import resolve_review_content
 from app.research_logging.service import record_research_event
 from app.reviews.models import ReviewAttempt, ReviewSchedule, ReviewSession
 from app.reviews.schemas import ReviewAttemptCreate
@@ -94,20 +94,18 @@ def record_review_attempt(
         if existing_attempt and existing_schedule:
             return existing_attempt, existing_schedule
 
-    # 1. Validate vocabulary item
-    vocab_item = (
-        db.query(VocabularyItem)
-        .filter(
-            VocabularyItem.id == attempt_in.vocabulary_item_id,
-            VocabularyItem.is_active.is_(True),
-        )
-        .first()
-    )
-    if not vocab_item:
+    # Validate what was displayed, even if today's mutable item is now inactive.
+    if not attempt_in.content_revision_id or not attempt_in.content_release_id:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Vocabulary item not found or inactive",
+            status_code=400,
+            detail="An immutable content revision and release are required for a new review",
         )
+    vocab_item = resolve_review_content(
+        db,
+        attempt_in.vocabulary_item_id,
+        attempt_in.content_revision_id,
+        attempt_in.content_release_id,
+    )
 
     # 2. Resolve review session
     session = None
@@ -153,7 +151,9 @@ def record_review_attempt(
     try:
         attempt = ReviewAttempt(
             user_id=user.id,
-            vocabulary_item_id=vocab_item.id,
+            vocabulary_item_id=vocab_item.vocabulary_item_id,
+            content_revision_id=vocab_item.id,
+            content_release_id=attempt_in.content_release_id,
             session_id=session.id,
             client_event_id=attempt_in.client_event_id,
             correct=attempt_in.correct,
@@ -171,7 +171,7 @@ def record_review_attempt(
 
         schedule = ReviewSchedule(
             user_id=user.id,
-            vocabulary_item_id=vocab_item.id,
+            vocabulary_item_id=vocab_item.vocabulary_item_id,
             attempt_id=attempt.id,
             scheduler_type=sched_result.scheduler_type,
             algorithm_version=sched_result.algorithm_version,
@@ -193,6 +193,8 @@ def record_review_attempt(
                 "client_event_id": str(attempt.client_event_id),
                 "session_id": str(attempt.session_id),
                 "vocabulary_item_id": str(attempt.vocabulary_item_id),
+                "content_revision_id": str(attempt.content_revision_id),
+                "content_release_id": str(attempt.content_release_id),
                 "correct": attempt.correct,
                 "response_time_ms": attempt.response_time_ms,
                 "scheduler_type": attempt.scheduler_type,
@@ -212,7 +214,7 @@ def record_review_attempt(
             payload={
                 "client_event_id": str(attempt_in.client_event_id),
                 "participant_code": user.participant_code,
-                "vocabulary_item_id": str(vocab_item.id),
+                "vocabulary_item_id": str(vocab_item.vocabulary_item_id),
                 "correct": attempt_in.correct,
                 "response_time_ms": attempt_in.response_time_ms,
                 "device_platform": attempt_in.device_platform,

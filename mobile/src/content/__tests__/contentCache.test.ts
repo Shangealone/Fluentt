@@ -74,7 +74,7 @@ describe('ContentCache (Expo SQLite)', () => {
     expect(cached[0].contentVersion).toBe('sample-en-v0.2');
   });
 
-  it('an older server response never downgrades a newer cached version', async () => {
+  it('a successful server response replaces the cache regardless of its version label', async () => {
     const v2: LessonSummary[] = [
       {
         id: '11111111-1111-1111-1111-111111111111',
@@ -89,7 +89,7 @@ describe('ContentCache (Expo SQLite)', () => {
     ];
     await cacheLessons('en', v2);
 
-    // Stale v1 response attempts to overwrite v2
+    // A current server publication may use a lower label; labels do not order releases.
     const v1Stale: LessonSummary[] = [
       {
         id: '11111111-1111-1111-1111-111111111111',
@@ -105,8 +105,8 @@ describe('ContentCache (Expo SQLite)', () => {
     await cacheLessons('en', v1Stale);
 
     const cached = await getCachedLessons('en');
-    expect(cached[0].contentVersion).toBe('sample-en-v0.2');
-    expect(cached[0].title).toBe('Lesson 1 Newer');
+    expect(cached[0].contentVersion).toBe('sample-en-v0.1');
+    expect(cached[0].title).toBe('Lesson 1 Stale');
   });
 
   it('caches and retrieves detailed lesson with vocabulary items', async () => {

@@ -1,3 +1,4 @@
+import { reviewWire } from '../../testUtils/contracts';
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import ReviewScreen from '../../../app/(app)/review/[lessonId]';
@@ -59,8 +60,10 @@ describe('Vocabulary Review Flow', () => {
   let originalFetch: typeof global.fetch;
 
   const mockLessonResponse = {
+    content_release_id: '88888888-8888-4888-8888-888888888888',
     id: 'lesson-uuid-1',
     language_code: 'en',
+              is_active: true,
     title: 'Reviewable Lesson',
     description: 'Lesson description',
     content_version: 'v0.1',
@@ -68,6 +71,8 @@ describe('Vocabulary Review Flow', () => {
     vocabulary_items: [
       {
         id: 'vocab-1',
+        content_revision_id: '77777777-7777-4777-8777-777777777777',
+        content_release_id: '88888888-8888-4888-8888-888888888888',
         lesson_id: 'lesson-uuid-1',
         term: 'ephemeral',
         definition: 'lasting for a very short time',
@@ -104,7 +109,7 @@ describe('Vocabulary Review Flow', () => {
         submitted.push(JSON.parse(options.body));
         throw new Error('Lost acknowledgement');
       }
-      return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1' } : mockLessonResponse };
+      return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : mockLessonResponse };
     }) as any;
     jest.spyOn(queue, 'enqueuePendingReview').mockRejectedValueOnce(new Error('Disk unavailable'));
     const rendered = await render(<ReviewScreen />);
@@ -131,7 +136,7 @@ describe('Vocabulary Review Flow', () => {
         throw new Error('Acknowledgement lost');
       }
       return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions')
-        ? { id: 'server-session' } : mockLessonResponse };
+        ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : mockLessonResponse };
     }) as any;
     const rendered = await render(<ReviewScreen customClock={createTestClock([100, 100, 1500])} />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
@@ -189,8 +194,8 @@ describe('Vocabulary Review Flow', () => {
   });
 
   it('shows an explicit save failure and sends no answer when app version is unavailable', async () => {
-    global.fetch = jest.fn(async (url: string) => ({ ok: true, status: 200,
-      json: async () => url.includes('/reviews/sessions') ? { id: 'server-session' } : mockLessonResponse })) as any;
+    global.fetch = jest.fn(async (url: string, options: any) => ({ ok: true, status: 200,
+      json: async () => url.includes('/reviews/sessions') ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : mockLessonResponse })) as any;
     const rendered = await render(<ReviewScreen />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
     jest.replaceProperty(Constants.expoConfig!, 'version', undefined);
@@ -202,11 +207,24 @@ describe('Vocabulary Review Flow', () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
+  it.each(['content_revision_id', 'content_release_id'])('blocks unversioned content without guessing %s', async (missing) => {
+    const legacy = JSON.parse(JSON.stringify(mockLessonResponse));
+    delete legacy.vocabulary_items[0][missing];
+    global.fetch = jest.fn(async (url: string, options: any) => ({ ok: true, status: 200,
+      json: async () => url.includes('/reviews/sessions') ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : legacy })) as any;
+    const rendered = await render(<ReviewScreen />);
+    await waitFor(() => expect(rendered.getByTestId('error-container')).toBeTruthy());
+    expect(rendered.queryByTestId('card-term')).toBeNull();
+    expect(await getPendingReviews()).toHaveLength(0);
+    expect((global.fetch as jest.Mock).mock.calls.some(([url]) => url.includes('/reviews/attempts'))).toBe(false);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
   it('does not create or queue an answer when the displayed account is no longer authenticated', async () => {
-    global.fetch = jest.fn(async (url: string) => ({
+    global.fetch = jest.fn(async (url: string, options: any) => ({
       ok: true,
       status: 200,
-      json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1' } : mockLessonResponse,
+      json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : mockLessonResponse,
     })) as any;
     const rendered = await render(<ReviewScreen />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
@@ -222,7 +240,7 @@ describe('Vocabulary Review Flow', () => {
   });
 
   it('renders flashcard with term, progress, and reveal button', async () => {
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
       if (url.includes('/content/lessons/lesson-uuid-1')) {
         return Promise.resolve({
           ok: true,
@@ -234,14 +252,7 @@ describe('Vocabulary Review Flow', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({
-            id: 'session-uuid-1',
-            user_id: 'test-user-id',
-            client_session_id: 'client-sess-1',
-            lesson_id: 'lesson-uuid-1',
-            started_at: new Date().toISOString(),
-            ended_at: null,
-          }),
+          json: async () => ({ id: 'session-uuid-1', client_session_id: JSON.parse(opts.body).client_session_id, created_at: '2025-01-01T00:00:00Z' }),
         });
       }
       return Promise.reject(new Error('Unknown URL: ' + url));
@@ -261,7 +272,7 @@ describe('Vocabulary Review Flow', () => {
   });
 
   it('reveals definition and rating buttons when reveal clicked', async () => {
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
       if (url.includes('/content/lessons/lesson-uuid-1')) {
         return Promise.resolve({
           ok: true,
@@ -273,14 +284,7 @@ describe('Vocabulary Review Flow', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({
-            id: 'session-uuid-1',
-            user_id: 'test-user-id',
-            client_session_id: 'client-sess-1',
-            lesson_id: 'lesson-uuid-1',
-            started_at: new Date().toISOString(),
-            ended_at: null,
-          }),
+          json: async () => ({ id: 'session-uuid-1', client_session_id: JSON.parse(opts.body).client_session_id, created_at: '2025-01-01T00:00:00Z' }),
         });
       }
       return Promise.reject(new Error('Unknown URL: ' + url));
@@ -324,14 +328,7 @@ describe('Vocabulary Review Flow', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({
-            id: 'session-uuid-1',
-            user_id: 'test-user-id',
-            client_session_id: 'client-sess-1',
-            lesson_id: 'lesson-uuid-1',
-            started_at: new Date().toISOString(),
-            ended_at: null,
-          }),
+          json: async () => ({ id: 'session-uuid-1', client_session_id: JSON.parse(opts.body).client_session_id, created_at: '2025-01-01T00:00:00Z' }),
         });
       }
       if (url.includes('/reviews/attempts')) {
@@ -339,24 +336,7 @@ describe('Vocabulary Review Flow', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({
-            attempt_id: 'attempt-uuid-1',
-            client_event_id: attemptBody.client_event_id,
-            session_id: attemptBody.session_id,
-            vocabulary_item_id: attemptBody.vocabulary_item_id,
-            response_time_ms: attemptBody.response_time_ms,
-            correct: attemptBody.correct,
-            submitted_answer: attemptBody.submitted_answer,
-            created_at: new Date().toISOString(),
-            schedule: {
-              vocabulary_item_id: attemptBody.vocabulary_item_id,
-              interval_minutes: 1440,
-              due_date: new Date().toISOString(),
-              repetition_number: 1,
-              scheduler_type: 'development',
-              algorithm_version: 'dev-0.1',
-            },
-          }),
+          json: async () => ({ ...reviewWire(attemptBody.client_event_id), session_id: attemptBody.session_id, vocabulary_item_id: attemptBody.vocabulary_item_id, correct: attemptBody.correct, response_time_ms: attemptBody.response_time_ms, next_interval_seconds: 86400, next_due_at: '2099-01-01T00:00:00Z' }),
         });
       }
       return Promise.reject(new Error('Unknown URL: ' + url));
@@ -408,7 +388,7 @@ describe('Vocabulary Review Flow', () => {
   it('enqueues review to SQLite pending queue when network is offline', async () => {
     const testClock = createTestClock([500, 500, 1800]); // 1300 ms elapsed
 
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
       if (url.includes('/content/lessons/lesson-uuid-1')) {
         return Promise.resolve({
           ok: true,
@@ -464,7 +444,7 @@ describe('Vocabulary Review Flow', () => {
   it('reproduces exact offline network failure (TypeError: Network request failed) and creates exactly one SQLite pending event', async () => {
     const testClock = createTestClock([100, 100, 1500]); // 1400 ms elapsed
 
-    global.fetch = jest.fn().mockImplementation((url: string) => {
+    global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
       if (url.includes('/content/lessons/lesson-uuid-1')) {
         return Promise.resolve({
           ok: true,

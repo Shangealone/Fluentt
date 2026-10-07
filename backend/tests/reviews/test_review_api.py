@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import User
 from app.auth.security import create_access_token
 from app.content.models import Language, Lesson, VocabularyItem
+from tests.content_helpers import provenance_refs, publish_fixture_item
 
 
 @pytest.fixture
@@ -62,6 +63,7 @@ def sample_vocab_item(db_session: Session) -> VocabularyItem:
     db_session.add(item)
     db_session.commit()
     db_session.refresh(item)
+    publish_fixture_item(db_session, item)
     return item
 
 
@@ -83,6 +85,7 @@ def inactive_vocab_item(
     db_session.add(item)
     db_session.commit()
     db_session.refresh(item)
+    publish_fixture_item(db_session, item)
     return item
 
 
@@ -141,6 +144,7 @@ def test_response_time_ms_validation_rejects_invalid_values(
         "client_event_id": str(uuid.uuid4()),
         "client_session_id": str(uuid.uuid4()),
         "vocabulary_item_id": str(sample_vocab_item.id),
+        **provenance_refs(sample_vocab_item),
         "correct": True,
         "response_time_ms": -100,
         "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -181,6 +185,7 @@ def test_submit_review_attempt_persists_attempt_schedule_and_research_events(
         "client_event_id": client_event_id,
         "client_session_id": client_session_id,
         "vocabulary_item_id": str(sample_vocab_item.id),
+        **provenance_refs(sample_vocab_item),
         "correct": True,
         "response_time_ms": 1420,
         "client_interaction_at": interaction_at,
@@ -249,6 +254,7 @@ def test_submit_review_attempt_for_inactive_item_fails(
         "client_event_id": str(uuid.uuid4()),
         "client_session_id": str(uuid.uuid4()),
         "vocabulary_item_id": str(inactive_vocab_item.id),
+        **provenance_refs(inactive_vocab_item),
         "correct": True,
         "response_time_ms": 1200,
         "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -272,6 +278,7 @@ def test_submit_review_attempt_idempotent_replay_same_client_event_id(
         "client_event_id": client_event_id,
         "client_session_id": client_session_id,
         "vocabulary_item_id": str(sample_vocab_item.id),
+        **provenance_refs(sample_vocab_item),
         "correct": True,
         "response_time_ms": 1500,
         "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -327,6 +334,7 @@ def test_submit_review_attempt_rejects_incomplete_legacy_payload(
         "client_event_id": str(uuid.uuid4()),
         "session_id": str(uuid.uuid4()),
         "vocabulary_item_id": str(sample_vocab_item.id),
+        **provenance_refs(sample_vocab_item),
         "response_time_ms": 1200,
         "performance_rating": "good",
         "created_at": datetime.now(UTC).isoformat(),

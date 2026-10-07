@@ -11,6 +11,7 @@ from app.content.models import Language, Lesson, VocabularyItem
 from app.research_logging.models import ResearchEvent
 from app.reviews.models import ReviewAttempt, ReviewSchedule, ReviewSession
 from app.sync.models import AcceptedClientEvent
+from tests.content_helpers import provenance_refs, publish_fixture_item
 
 
 @pytest.fixture
@@ -74,6 +75,7 @@ def sample_vocab(db_session: Session) -> VocabularyItem:
     db_session.add(item)
     db_session.commit()
     db_session.refresh(item)
+    publish_fixture_item(db_session, item)
     return item
 
 
@@ -92,6 +94,7 @@ def inactive_vocab(db_session: Session, sample_vocab: VocabularyItem) -> Vocabul
     db_session.add(item)
     db_session.commit()
     db_session.refresh(item)
+    publish_fixture_item(db_session, item)
     return item
 
 
@@ -110,6 +113,7 @@ def test_sync_review_events_success(
                 "client_event_id": client_event_id,
                 "client_session_id": client_session_id,
                 "vocabulary_item_id": str(sample_vocab.id),
+                **provenance_refs(sample_vocab),
                 "correct": True,
                 "response_time_ms": 1100,
                 "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -125,6 +129,13 @@ def test_sync_review_events_success(
     assert "accepted_events" in data
     assert len(data["accepted_events"]) == 1
     assert data["accepted_events"][0]["client_event_id"] == client_event_id
+    assert set(data) == {"accepted_events", "processed_count"}
+    assert data["processed_count"] == 1
+    accepted = data["accepted_events"][0]
+    assert accepted["next_interval_seconds"] == 86400
+    assert accepted["next_due_at"] is not None
+    assert accepted["scheduler_type"] == "development"
+    assert accepted["algorithm_version"] == "dev-0.1"
 
 
 def test_sync_idempotent_replay_same_client_event_id(
@@ -143,6 +154,7 @@ def test_sync_idempotent_replay_same_client_event_id(
                 "client_event_id": client_event_id,
                 "client_session_id": client_session_id,
                 "vocabulary_item_id": str(sample_vocab.id),
+                **provenance_refs(sample_vocab),
                 "correct": True,
                 "response_time_ms": 2000,
                 "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -207,6 +219,7 @@ def test_lost_acknowledgement_online_then_sync_retry(
         "client_event_id": client_event_id,
         "client_session_id": client_session_id,
         "vocabulary_item_id": str(sample_vocab.id),
+        **provenance_refs(sample_vocab),
         "correct": True,
         "response_time_ms": 1350,
         "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -269,6 +282,9 @@ def test_partial_batch_commits_early_event_and_single_event_replay_is_idempotent
             "client_event_id": str(uuid.uuid4()),
             "client_session_id": session_id,
             "vocabulary_item_id": str(vocabulary_id),
+            **provenance_refs(
+                sample_vocab if vocabulary_id == sample_vocab.id else inactive_vocab
+            ),
             "correct": True,
             "response_time_ms": 1234,
             "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -313,7 +329,14 @@ def test_partial_batch_commits_early_event_and_single_event_replay_is_idempotent
 
 @pytest.mark.parametrize("endpoint", ["/reviews/attempts", "/sync/review-events"])
 @pytest.mark.parametrize(
-    "missing", ["client_session_id", "client_interaction_at", "device_platform", "application_version", "correct"]
+    "missing",
+    [
+        "client_session_id",
+        "client_interaction_at",
+        "device_platform",
+        "application_version",
+        "correct",
+    ],
 )
 def test_research_metadata_is_required_without_alias_or_default(
     client: TestClient,
@@ -332,6 +355,7 @@ def test_research_metadata_is_required_without_alias_or_default(
         "client_session_id": str(session.client_session_id),
         "session_id": str(session.id),
         "vocabulary_item_id": str(sample_vocab.id),
+        **provenance_refs(sample_vocab),
         "correct": False,
         "submitted_answer": "incorrect",
         "response_time_ms": 1234,
@@ -365,6 +389,7 @@ def test_canonical_metadata_persists_across_online_sync_and_replay(
         "client_event_id": str(uuid.uuid4()),
         "client_session_id": str(client_session_id),
         "vocabulary_item_id": str(sample_vocab.id),
+        **provenance_refs(sample_vocab),
         "correct": False,
         "submitted_answer": "incorrect",
         "response_time_ms": 2345,
@@ -386,17 +411,31 @@ def test_canonical_metadata_persists_across_online_sync_and_replay(
         body = {"events": [facts]} if path.startswith("/sync") else facts
         result = client.post(path, json=body, headers=headers)
         assert result.status_code == 200
-        return result.json()["accepted_events"][0] if path.startswith("/sync") else result.json()
+        return (
+            result.json()["accepted_events"][0]
+            if path.startswith("/sync")
+            else result.json()
+        )
 
     first = post_attempt(endpoint, payload)
-    replay_endpoint = "/sync/review-events" if endpoint == "/reviews/attempts" else "/reviews/attempts"
+    replay_endpoint = (
+        "/sync/review-events"
+        if endpoint == "/reviews/attempts"
+        else "/reviews/attempts"
+    )
     replay = post_attempt(replay_endpoint, payload)
     assert replay == first
     # Even an updated caller cannot replace already accepted historical facts.
-    altered_replay = post_attempt(replay_endpoint, {
-        **payload, "application_version": "2.0.0", "device_platform": "android",
-        "client_interaction_at": datetime.now(UTC).isoformat(), "correct": True,
-    })
+    altered_replay = post_attempt(
+        replay_endpoint,
+        {
+            **payload,
+            "application_version": "2.0.0",
+            "device_platform": "android",
+            "client_interaction_at": datetime.now(UTC).isoformat(),
+            "correct": True,
+        },
+    )
     assert altered_replay == first
     attempt = db_session.query(ReviewAttempt).filter_by(user_id=user.id).one()
     assert str(attempt.client_event_id) == payload["client_event_id"]
@@ -416,12 +455,30 @@ def test_canonical_metadata_persists_across_online_sync_and_replay(
     assert db_session.query(ReviewSession).filter_by(user_id=user.id).count() == 1
     assert db_session.query(ReviewSchedule).filter_by(user_id=user.id).count() == 1
     assert db_session.query(AcceptedClientEvent).filter_by(user_id=user.id).count() == 1
-    answered = db_session.query(ResearchEvent).filter_by(user_id=user.id, event_type="REVIEW_ANSWERED").one()
-    for field in ["client_event_id", "vocabulary_item_id", "correct", "response_time_ms",
-                  "device_platform", "application_version"]:
+    answered = (
+        db_session.query(ResearchEvent)
+        .filter_by(user_id=user.id, event_type="REVIEW_ANSWERED")
+        .one()
+    )
+    for field in [
+        "client_event_id",
+        "vocabulary_item_id",
+        "correct",
+        "response_time_ms",
+        "device_platform",
+        "application_version",
+    ]:
         assert answered.payload[field] == payload[field]
-    assert datetime.fromisoformat(answered.payload["client_interaction_at"]) == expected_time
-    assert db_session.query(ResearchEvent).filter_by(user_id=user.id, event_type="REVIEW_COMPLETED").count() == 1
+    assert (
+        datetime.fromisoformat(answered.payload["client_interaction_at"])
+        == expected_time
+    )
+    assert (
+        db_session.query(ResearchEvent)
+        .filter_by(user_id=user.id, event_type="REVIEW_COMPLETED")
+        .count()
+        == 1
+    )
 
 
 def test_cross_user_client_event_id_isolation(
@@ -449,6 +506,7 @@ def test_cross_user_client_event_id_isolation(
                 "client_event_id": shared_uuid_str,
                 "client_session_id": session_a,
                 "vocabulary_item_id": str(sample_vocab.id),
+                **provenance_refs(sample_vocab),
                 "correct": True,
                 "response_time_ms": 1000,
                 "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -464,6 +522,7 @@ def test_cross_user_client_event_id_isolation(
                 "client_event_id": shared_uuid_str,
                 "client_session_id": session_b,
                 "vocabulary_item_id": str(sample_vocab.id),
+                **provenance_refs(sample_vocab),
                 "correct": False,
                 "response_time_ms": 2500,
                 "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -515,6 +574,7 @@ def test_sync_inactive_or_unknown_vocabulary_fails_without_accepted_event(
                 "client_event_id": client_event_id,
                 "client_session_id": str(uuid.uuid4()),
                 "vocabulary_item_id": str(inactive_vocab.id),
+                **provenance_refs(inactive_vocab),
                 "correct": True,
                 "response_time_ms": 1200,
                 "client_interaction_at": datetime.now(UTC).isoformat(),
@@ -549,6 +609,7 @@ def test_sync_review_events_rejects_incomplete_legacy_payload(
                 "client_event_id": client_event_id,
                 "session_id": str(uuid.uuid4()),
                 "vocabulary_item_id": str(sample_vocab.id),
+                **provenance_refs(sample_vocab),
                 "response_time_ms": 1200,
                 "performance_rating": "good",
                 "created_at": datetime.now(UTC).isoformat(),

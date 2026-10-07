@@ -54,8 +54,12 @@ def get_lesson_detail(
     lesson_id: uuid.UUID,
     _: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    content_release_id: Annotated[
+        uuid.UUID | None,
+        Query(description="Exact immutable released context, if requested"),
+    ] = None,
 ) -> LessonDetailResponse:
-    lesson = get_active_lesson_by_id(db, lesson_id)
+    lesson = get_active_lesson_by_id(db, lesson_id, content_release_id)
     if not lesson:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

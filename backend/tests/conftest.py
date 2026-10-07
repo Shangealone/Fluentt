@@ -3,7 +3,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
 # 1. Force testing environment variables before importing settings or app
@@ -51,6 +51,26 @@ def setup_test_environment() -> None:
     import app.sync.models
     import app.users.models  # noqa: F401
 
+    # Earlier test runs used create_all on this persistent, isolated database.
+    # Exercise the real D5 upgrade on that existing pre-D5 schema before create_all.
+    with test_engine.begin() as connection:
+        inspector = inspect(connection)
+        if inspector.has_table("review_attempts") and not any(
+            column["name"] == "content_revision_id"
+            for column in inspector.get_columns("review_attempts")
+        ):
+            from alembic.config import Config
+            from alembic.migration import MigrationContext
+            from alembic.operations import Operations
+            from alembic.script import ScriptDirectory
+
+            migration = (
+                ScriptDirectory.from_config(Config("alembic.ini"))
+                .get_revision("d5a1c0de0001")
+                .module
+            )
+            with Operations.context(MigrationContext.configure(connection)):
+                migration.upgrade()
     Base.metadata.create_all(bind=test_engine)
 
 

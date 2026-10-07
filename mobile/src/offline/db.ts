@@ -28,11 +28,28 @@ class InMemoryDatabase implements DatabaseInterface {
     const flatParams = params.flat();
     const upper = sql.toUpperCase();
 
+    if (upper.includes('UPDATE CACHED_LESSONS SET IS_ACTIVE = 0 WHERE LANGUAGE_CODE = ?')) {
+      let changes = 0;
+      for (const lesson of this.lessons.values()) {
+        if (lesson.language_code === flatParams[0]) { lesson.is_active = 0; changes++; }
+      }
+      return { lastInsertRowId: 0, changes };
+    }
+
+    if (upper.includes('UPDATE CACHED_LESSONS SET LANGUAGE_CODE = ?')) {
+      const [language_code, title, description, content_version, sort_order, item_count, updated_at, id, release] = flatParams;
+      const lesson = this.lessons.get(id);
+      if (!lesson || lesson.content_release_id !== release || lesson.is_active !== 1) return { lastInsertRowId: 0, changes: 0 };
+      Object.assign(lesson, { language_code, title, description, content_version, sort_order, item_count, updated_at });
+      return { lastInsertRowId: 0, changes: 1 };
+    }
+
     if (upper.includes('INSERT OR REPLACE INTO CACHED_LESSONS') || upper.includes('INSERT INTO CACHED_LESSONS')) {
-      const [id, language_code, title, description, content_version, sort_order, item_count, is_active, updated_at] = flatParams;
+      const [id, language_code, title, description, content_version, sort_order, item_count, is_active, updated_at, content_release_id] = flatParams;
       this.lessons.set(id, {
         id,
         language_code,
+        content_release_id: content_release_id ?? null,
         title,
         description,
         content_version,
@@ -45,10 +62,12 @@ class InMemoryDatabase implements DatabaseInterface {
     }
 
     if (upper.includes('INSERT OR REPLACE INTO CACHED_VOCABULARY_ITEMS') || upper.includes('INSERT INTO CACHED_VOCABULARY_ITEMS')) {
-      const [id, lesson_id, term, definition, example_sentence, difficulty, category, translation, content_version, sort_order, is_active, updated_at] = flatParams;
+      const [id, lesson_id, term, definition, example_sentence, difficulty, category, translation, content_version, sort_order, is_active, updated_at, content_revision_id, content_release_id] = flatParams;
       this.vocabItems.set(id, {
         id,
         lesson_id,
+        content_revision_id: content_revision_id ?? null,
+        content_release_id: content_release_id ?? null,
         term,
         definition,
         example_sentence,

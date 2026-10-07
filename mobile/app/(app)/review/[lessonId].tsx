@@ -30,7 +30,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
   const { user } = useAuth();
   const ownerUserId = user?.id;
   const router = useRouter();
-  const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
+  const { lessonId, contentReleaseId } = useLocalSearchParams<{ lessonId: string; contentReleaseId?: string }>();
 
   const clock = useMemo(() => customClock ?? createMonotonicClock(), [customClock]);
   const [items, setItems] = useState<VocabularyItem[]>([]);
@@ -55,7 +55,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     const capturedSession = sessionRef.current;
     if (!capturedSession.serverId) {
       try {
-        const session = await createReviewSession(capturedSession.clientId, lesson, owner);
+        const session = await createReviewSession(capturedSession.clientId, owner);
         capturedSession.serverId = session.id;
       } catch {
         // An unresolved backend session stays absent; the client UUID is unchanged.
@@ -72,7 +72,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     try {
       await resolveSession(ownerUserId, lessonId);
 
-      const result = await fetchLessonDetail(lessonId);
+      const result = await fetchLessonDetail(lessonId, contentReleaseId);
       const activeItems = (result.lesson?.vocabularyItems || []).filter((item) => item.isActive !== false);
 
       setItems(activeItems);
@@ -84,7 +84,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [lessonId, clock, t, ownerUserId, resolveSession]);
+  }, [lessonId, contentReleaseId, clock, t, ownerUserId, resolveSession]);
 
   useEffect(() => {
     if (!lessonId || !ownerUserId) return;
@@ -95,7 +95,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
       try {
         await resolveSession(owner, lessonId);
 
-        const result = await fetchLessonDetail(lessonId);
+        const result = await fetchLessonDetail(lessonId, contentReleaseId);
         const activeItems = (result.lesson?.vocabularyItems || []).filter((item) => item.isActive !== false);
 
         if (isMounted) {
@@ -118,7 +118,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     return () => {
       isMounted = false;
     };
-  }, [lessonId, clock, t, ownerUserId, resolveSession]);
+  }, [lessonId, contentReleaseId, clock, t, ownerUserId, resolveSession]);
 
   const handleReveal = () => {
     setIsRevealed(true);
@@ -138,10 +138,16 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     }
     let attemptPayload: ReviewAttemptCreate;
     try {
+      const item = items[currentIndex];
+      if (!unsavedAttemptRef.current && (!item.contentRevisionId || !item.contentReleaseId)) {
+        throw new Error('This cached content has no verified revision provenance.');
+      }
       attemptPayload = unsavedAttemptRef.current?.payload ?? captureReviewAttempt({
         client_session_id: session.clientId,
         session_id: session.serverId,
-        vocabulary_item_id: items[currentIndex].id,
+        vocabulary_item_id: item.id,
+        content_revision_id: item.contentRevisionId!,
+        content_release_id: item.contentReleaseId!,
         response_time_ms: clock.elapsedMs(startTickRef.current, finishTick),
         correct: isCorrect,
         submitted_answer: isCorrect ? 'correct' : 'incorrect',

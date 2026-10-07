@@ -3,7 +3,7 @@ import { ReviewAttemptCreate } from './types';
 /** Copy only captured research facts. Never reconstruct missing legacy facts. */
 export function sanitizeReviewAttempt(payload: ReviewAttemptCreate): ReviewAttemptCreate {
   for (const field of ['client_event_id', 'client_session_id', 'vocabulary_item_id',
-    'client_interaction_at', 'device_platform', 'application_version'] as const) {
+    'client_interaction_at', 'device_platform', 'application_version', 'content_revision_id', 'content_release_id'] as const) {
     if (typeof payload[field] !== 'string' || !payload[field].trim()) {
       throw new Error(`Missing captured review metadata: ${field}`);
     }
@@ -17,6 +17,8 @@ export function sanitizeReviewAttempt(payload: ReviewAttemptCreate): ReviewAttem
     client_session_id: payload.client_session_id,
     session_id: payload.session_id,
     vocabulary_item_id: payload.vocabulary_item_id,
+    content_revision_id: payload.content_revision_id,
+    content_release_id: payload.content_release_id,
     response_time_ms: payload.response_time_ms,
     correct: payload.correct,
     submitted_answer: payload.submitted_answer,

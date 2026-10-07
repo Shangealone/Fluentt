@@ -4,10 +4,19 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.content.models import Language, Lesson, VocabularyItem
+from app.content.models import ContentRelease, Language, Lesson, VocabularyItem
+from app.content.provenance import publish_content_release, released_lesson
 
 
 def import_content_data(db: Session, data: dict[str, Any]) -> None:
+    try:
+        _import_content_data(db, data)
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _import_content_data(db: Session, data: dict[str, Any]) -> None:
     lang_info = data["language"]
     lang_code = lang_info["code"].strip().lower()
     lang_name = lang_info["name"].strip()
@@ -83,6 +92,8 @@ def import_content_data(db: Session, data: dict[str, Any]) -> None:
                 )
                 db.add(new_item)
 
+    db.flush()
+    publish_content_release(db, data)
     db.commit()
 
 
@@ -98,6 +109,29 @@ def get_active_lessons_by_language(
     db: Session, language_code: str, content_version: str | None = None
 ) -> list[dict[str, Any]]:
     norm_lang = language_code.strip().lower()
+    language = db.get(Language, norm_lang)
+    if language and language.current_content_release_id:
+        release = db.get(ContentRelease, language.current_content_release_id)
+        if content_version is not None and content_version != release.content_version:
+            release = db.scalar(
+                select(ContentRelease)
+                .where(
+                    ContentRelease.language_code == norm_lang,
+                    ContentRelease.content_version == content_version,
+                )
+                .order_by(ContentRelease.created_at.desc(), ContentRelease.id)
+                .limit(1)
+            )
+        if not release or not release.manifest["language"]["is_active"]:
+            return []
+        return [
+            released_lesson(db, release, context)
+            for context in sorted(
+                release.manifest["lessons"],
+                key=lambda row: (row["sort_order"], row["id"]),
+            )
+            if context["is_active"]
+        ]
     target_version = content_version
 
     if target_version is None:
@@ -147,12 +181,31 @@ def get_active_lessons_by_language(
                 "content_version": lesson.content_version,
                 "sort_order": lesson.sort_order,
                 "item_count": active_item_count,
+                "is_active": lesson.is_active,
             }
         )
     return results
 
 
-def get_active_lesson_by_id(db: Session, lesson_id: uuid.UUID) -> dict[str, Any] | None:
+def get_active_lesson_by_id(
+    db: Session, lesson_id: uuid.UUID, content_release_id: uuid.UUID | None = None
+) -> dict[str, Any] | None:
+    logical = db.get(Lesson, lesson_id)
+    language = db.get(Language, logical.language_code) if logical else None
+    if content_release_id or (language and language.current_content_release_id):
+        release = db.get(
+            ContentRelease, content_release_id or language.current_content_release_id
+        )
+        if not release:
+            return None
+        for context in release.manifest["lessons"]:
+            if (
+                context["id"] == str(lesson_id)
+                and context["is_active"]
+                and release.manifest["language"]["is_active"]
+            ):
+                return released_lesson(db, release, context)
+        return None
     lesson = db.scalar(
         select(Lesson).where(
             Lesson.id == lesson_id,
@@ -182,4 +235,5 @@ def get_active_lesson_by_id(db: Session, lesson_id: uuid.UUID) -> dict[str, Any]
         "content_version": lesson.content_version,
         "sort_order": lesson.sort_order,
         "vocabulary_items": active_items,
+        "is_active": lesson.is_active,
     }

@@ -1,3 +1,4 @@
+import { syncWire } from '../../testUtils/contracts';
 import { renderHook, act } from '@testing-library/react-native';
 import { useSyncStatus } from '../useSyncStatus';
 import { resetDatabaseForTesting } from '../db';
@@ -35,6 +36,8 @@ describe('useSyncStatus hook', () => {
       client_interaction_at: '2025-01-01T11:22:33.456Z',
       device_platform: 'ios',
       application_version: '1.0.0',
+      content_revision_id: '77777777-7777-4777-8777-777777777777',
+      content_release_id: '88888888-8888-4888-8888-888888888888',
       session_id: 'session-1',
       vocabulary_item_id: 'vocab-1',
       response_time_ms: 1000,
@@ -47,16 +50,7 @@ describe('useSyncStatus hook', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({
-            processed_count: 1,
-            results: [
-              {
-                client_event_id: '11111111-1111-4111-8111-111111111111',
-                status: 'accepted',
-                attempt_id: 'att-1',
-              },
-            ],
-          }),
+          json: async () => syncWire('11111111-1111-4111-8111-111111111111'),
         });
       }
       return Promise.reject(new Error('Unknown'));

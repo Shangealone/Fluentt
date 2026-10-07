@@ -1,3 +1,4 @@
+import { syncWire } from '../../testUtils/contracts';
 import { apiClient, AuthenticationError } from '../../api/client';
 import { saveTokens, clearTokens, loadTokens } from '../../auth/tokenStore';
 import { closeDatabaseForTesting, getDatabase, resetDatabaseForTesting } from '../db';
@@ -21,6 +22,8 @@ const event = {
   client_interaction_at: '2025-01-01T11:22:33.456Z',
   device_platform: 'ios',
   application_version: '1.0.0',
+  content_revision_id: '77777777-7777-4777-8777-777777777777',
+  content_release_id: '88888888-8888-4888-8888-888888888888',
   session_id: '22222222-2222-4222-8222-222222222222',
   vocabulary_item_id: '33333333-3333-4333-8333-333333333333',
   response_time_ms: 1000, correct: true,
@@ -67,7 +70,7 @@ describe('D2 account isolation', () => {
     global.fetch = jest.fn(async (_url: string, options: any) => {
       const events = JSON.parse(options.body).events;
       sent.push({ token: options.headers.Authorization, ids: events.map((e: any) => e.client_event_id), body: options.body });
-      return response({ results: events.map((e: any) => ({ client_event_id: e.client_event_id, status: 'accepted' })) });
+      return response(syncWire(...events.map((e: any) => e.client_event_id)));
     }) as any;
     expect((await drainReviewQueue()).syncedCount).toBe(1);
     expect(sent[0].ids).toEqual([second.client_event_id]);
@@ -76,7 +79,7 @@ describe('D2 account isolation', () => {
     expect((await getPendingReviews())[0]).toMatchObject({ owner_user_id: A, client_event_id: event.client_event_id });
 
     await login(A);
-    global.fetch = jest.fn().mockResolvedValue(response({ results: [{ client_event_id: event.client_event_id, status: 'accepted' }] }));
+    global.fetch = jest.fn().mockResolvedValue(response(syncWire(event.client_event_id)));
     expect((await drainReviewQueue()).syncedCount).toBe(1);
     expect(await getPendingReviews()).toHaveLength(0);
   });
@@ -135,9 +138,7 @@ describe('D2 account isolation', () => {
         return response({ access_token: 'rotated-A', refresh_token: 'rotated-refresh-A' });
       }
       requests.push({ token: options.headers.Authorization, body: JSON.parse(options.body) });
-      return requests.length === 1 ? response({}, 401) : response({
-        results: [{ client_event_id: event.client_event_id, status: 'accepted' }],
-      });
+      return requests.length === 1 ? response({}, 401) : response(syncWire(event.client_event_id));
     }) as any;
     expect((await drainReviewQueue()).syncedCount).toBe(1);
     expect(requests.map((request) => request.token)).toEqual([`Bearer access-${A}`, 'Bearer rotated-A']);

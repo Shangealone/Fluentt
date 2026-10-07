@@ -2,33 +2,6 @@ import { getDatabase, resetDatabaseForTesting } from '../offline/db';
 import { runMigrations } from '../offline/migrations';
 import { LessonDetail, LessonSummary, VocabularyItem } from './types';
 
-/**
- * Compares two content versions.
- * Returns > 0 if vA is newer than vB, < 0 if vA is older than vB, and 0 if equal.
- */
-export function compareContentVersions(vA: string, vB: string): number {
-  if (vA === vB) return 0;
-
-  const extractNumbers = (v: string): number[] => {
-    const matches = v.match(/\d+/g);
-    return matches ? matches.map(Number) : [];
-  };
-
-  const numsA = extractNumbers(vA);
-  const numsB = extractNumbers(vB);
-
-  const maxLen = Math.max(numsA.length, numsB.length);
-  for (let i = 0; i < maxLen; i++) {
-    const numA = numsA[i] ?? 0;
-    const numB = numsB[i] ?? 0;
-    if (numA !== numB) {
-      return numA - numB;
-    }
-  }
-
-  return vA.localeCompare(vB);
-}
-
 export async function initContentDatabase(): Promise<void> {
   const db = await getDatabase();
   await runMigrations(db);
@@ -40,29 +13,23 @@ export async function resetCacheForTesting(): Promise<void> {
 
 /**
  * Cache an array of lesson summaries for a given language.
- * Rule: Newer server version replaces older cached version. Older server response never downgrades newer cache.
+ * A current server response replaces the language feed. Labels are facts, not ordering.
  */
 export async function cacheLessons(languageCode: string, lessons: LessonSummary[]): Promise<void> {
   const db = await getDatabase();
   const now = new Date().toISOString();
 
+  await db.runAsync('UPDATE cached_lessons SET is_active = 0 WHERE language_code = ?', [languageCode]);
+
   for (const lesson of lessons) {
-    const existing = await db.getFirstAsync<{ id: string; content_version: string }>(
-      'SELECT id, content_version FROM cached_lessons WHERE id = ?',
-      [lesson.id]
-    );
-
-    if (existing && existing.content_version) {
-      if (compareContentVersions(lesson.contentVersion, existing.content_version) < 0) {
-        // Stale server response; do not downgrade newer cache
-        continue;
-      }
-    }
-
     await db.runAsync(
-      `INSERT OR REPLACE INTO cached_lessons (
-        id, language_code, title, description, content_version, sort_order, item_count, is_active, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO cached_lessons (
+        id, language_code, title, description, content_version, sort_order, item_count, is_active, updated_at, content_release_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        language_code = excluded.language_code, title = excluded.title, description = excluded.description,
+        content_version = excluded.content_version, sort_order = excluded.sort_order, item_count = excluded.item_count,
+        is_active = excluded.is_active, updated_at = excluded.updated_at, content_release_id = excluded.content_release_id`,
       [
         lesson.id,
         languageCode,
@@ -73,6 +40,7 @@ export async function cacheLessons(languageCode: string, lessons: LessonSummary[
         lesson.itemCount,
         lesson.isActive !== false ? 1 : 0,
         now,
+        lesson.contentReleaseId ?? null,
       ]
     );
   }
@@ -92,6 +60,7 @@ export async function getCachedLessons(languageCode: string): Promise<LessonSumm
     sort_order: number;
     item_count: number;
     is_active: number;
+    content_release_id: string | null;
   }>(
     'SELECT * FROM cached_lessons WHERE language_code = ? AND is_active = 1 ORDER BY sort_order ASC',
     [languageCode]
@@ -99,6 +68,7 @@ export async function getCachedLessons(languageCode: string): Promise<LessonSumm
 
   return rows.map((row) => ({
     id: row.id,
+    contentReleaseId: row.content_release_id ?? null,
     languageCode: row.language_code,
     title: row.title,
     description: row.description,
@@ -112,25 +82,29 @@ export async function getCachedLessons(languageCode: string): Promise<LessonSumm
 /**
  * Cache lesson detail along with its vocabulary items.
  */
-export async function cacheLessonDetail(detail: LessonDetail): Promise<void> {
+export async function cacheLessonDetail(detail: LessonDetail, onlyIfCurrentReleaseId?: string): Promise<void> {
   const db = await getDatabase();
   const now = new Date().toISOString();
 
-  const existingLesson = await db.getFirstAsync<{ id: string; content_version: string }>(
-    'SELECT id, content_version FROM cached_lessons WHERE id = ?',
-    [detail.id]
-  );
-
-  const shouldUpdateLesson =
-    !existingLesson ||
-    !existingLesson.content_version ||
-    compareContentVersions(detail.contentVersion, existingLesson.content_version) >= 0;
-
-  if (shouldUpdateLesson) {
+  if (onlyIfCurrentReleaseId) {
+    // A pinned read may fill the current summary, but cannot establish or replace its release.
+    const result = await db.runAsync(
+      `UPDATE cached_lessons SET language_code = ?, title = ?, description = ?, content_version = ?,
+        sort_order = ?, item_count = ?, updated_at = ?
+       WHERE id = ? AND content_release_id = ? AND is_active = 1`,
+      [detail.languageCode, detail.title, detail.description ?? null, detail.contentVersion,
+        detail.sortOrder, detail.vocabularyItems.length, now, detail.id, onlyIfCurrentReleaseId]
+    );
+    if (result.changes === 0) return;
+  } else {
     await db.runAsync(
-      `INSERT OR REPLACE INTO cached_lessons (
-        id, language_code, title, description, content_version, sort_order, item_count, is_active, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO cached_lessons (
+        id, language_code, title, description, content_version, sort_order, item_count, is_active, updated_at, content_release_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        language_code = excluded.language_code, title = excluded.title, description = excluded.description,
+        content_version = excluded.content_version, sort_order = excluded.sort_order, item_count = excluded.item_count,
+        is_active = excluded.is_active, updated_at = excluded.updated_at, content_release_id = excluded.content_release_id`,
       [
         detail.id,
         detail.languageCode,
@@ -141,26 +115,15 @@ export async function cacheLessonDetail(detail: LessonDetail): Promise<void> {
         detail.vocabularyItems.length,
         detail.isActive !== false ? 1 : 0,
         now,
+        detail.contentReleaseId ?? null,
       ]
     );
   }
-
   for (const item of detail.vocabularyItems) {
-    const existingItem = await db.getFirstAsync<{ id: string; content_version: string }>(
-      'SELECT id, content_version FROM cached_vocabulary_items WHERE id = ?',
-      [item.id]
-    );
-
-    if (existingItem && existingItem.content_version) {
-      if (compareContentVersions(item.contentVersion, existingItem.content_version) < 0) {
-        continue;
-      }
-    }
-
     await db.runAsync(
       `INSERT OR REPLACE INTO cached_vocabulary_items (
-        id, lesson_id, term, definition, example_sentence, difficulty, category, translation, content_version, sort_order, is_active, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, lesson_id, term, definition, example_sentence, difficulty, category, translation, content_version, sort_order, is_active, updated_at, content_revision_id, content_release_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         item.id,
         detail.id,
@@ -174,6 +137,8 @@ export async function cacheLessonDetail(detail: LessonDetail): Promise<void> {
         item.sortOrder,
         item.isActive !== false ? 1 : 0,
         now,
+        item.contentRevisionId ?? null,
+        item.contentReleaseId ?? null,
       ]
     );
   }
@@ -182,7 +147,7 @@ export async function cacheLessonDetail(detail: LessonDetail): Promise<void> {
 /**
  * Retrieve cached lesson detail including vocabulary items.
  */
-export async function getCachedLessonDetail(lessonId: string): Promise<LessonDetail | null> {
+export async function getCachedLessonDetail(lessonId: string, contentReleaseId?: string): Promise<LessonDetail | null> {
   const db = await getDatabase();
   const lessonRow = await db.getFirstAsync<{
     id: string;
@@ -192,9 +157,11 @@ export async function getCachedLessonDetail(lessonId: string): Promise<LessonDet
     content_version: string;
     sort_order: number;
     is_active: number;
+    content_release_id: string | null;
+    item_count: number;
   }>('SELECT * FROM cached_lessons WHERE id = ? AND is_active = 1', [lessonId]);
 
-  if (!lessonRow) {
+  if (!lessonRow || (contentReleaseId && lessonRow.content_release_id !== contentReleaseId)) {
     return null;
   }
 
@@ -210,12 +177,19 @@ export async function getCachedLessonDetail(lessonId: string): Promise<LessonDet
     content_version: string;
     sort_order: number;
     is_active: number;
+    content_revision_id: string | null;
+    content_release_id: string | null;
   }>('SELECT * FROM cached_vocabulary_items WHERE lesson_id = ? AND is_active = 1 ORDER BY sort_order ASC', [
     lessonId,
   ]);
 
-  const vocabularyItems: VocabularyItem[] = vocabRows.map((v) => ({
+  const vocabularyItems: VocabularyItem[] = vocabRows.filter((v) =>
+    (v.content_release_id ?? null) === (lessonRow.content_release_id ?? null) &&
+    (lessonRow.content_release_id != null || v.content_version === lessonRow.content_version)
+  ).map((v) => ({
     id: v.id,
+    contentRevisionId: v.content_revision_id ?? null,
+    contentReleaseId: v.content_release_id ?? null,
     lessonId: v.lesson_id,
     term: v.term,
     definition: v.definition,
@@ -228,8 +202,12 @@ export async function getCachedLessonDetail(lessonId: string): Promise<LessonDet
     isActive: v.is_active === 1,
   }));
 
+  // A summary from a new release is not a complete cached detail until all its members arrive.
+  if (lessonRow.content_release_id && vocabularyItems.length !== lessonRow.item_count) return null;
+
   return {
     id: lessonRow.id,
+    contentReleaseId: lessonRow.content_release_id ?? null,
     languageCode: lessonRow.language_code,
     title: lessonRow.title,
     description: lessonRow.description,

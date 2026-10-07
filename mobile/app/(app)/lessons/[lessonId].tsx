@@ -17,7 +17,7 @@ import { VocabularyCard } from '../../../src/content/components/VocabularyCard';
 export default function LessonDetailScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
+  const { lessonId, contentReleaseId } = useLocalSearchParams<{ lessonId: string; contentReleaseId?: string }>();
 
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -29,7 +29,7 @@ export default function LessonDetailScreen() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const result = await fetchLessonDetail(lessonId);
+      const result = await fetchLessonDetail(lessonId, contentReleaseId);
       setLesson(result.lesson);
       setIsOffline(result.isOffline);
     } catch {
@@ -37,12 +37,12 @@ export default function LessonDetailScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [lessonId, t]);
+  }, [lessonId, contentReleaseId, t]);
 
   useEffect(() => {
     if (!lessonId) return;
     let isMounted = true;
-    fetchLessonDetail(lessonId)
+    fetchLessonDetail(lessonId, contentReleaseId)
       .then((result) => {
         if (isMounted) {
           setLesson(result.lesson);
@@ -60,7 +60,7 @@ export default function LessonDetailScreen() {
     return () => {
       isMounted = false;
     };
-  }, [lessonId, t]);
+  }, [lessonId, contentReleaseId, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -138,7 +138,9 @@ export default function LessonDetailScreen() {
               <Pressable
                 testID="start-review-btn"
                 style={styles.startReviewButton}
-                onPress={() => router.push({ pathname: '/(app)/review/[lessonId]' as any, params: { lessonId: lesson.id } })}
+                onPress={() => router.push({ pathname: '/(app)/review/[lessonId]' as any, params: {
+                  lessonId: lesson.id, ...(lesson.contentReleaseId ? { contentReleaseId: lesson.contentReleaseId } : {}),
+                } })}
               >
                 <AppText style={styles.startReviewButtonText}>📖 {t('reviews.startReview')}</AppText>
               </Pressable>

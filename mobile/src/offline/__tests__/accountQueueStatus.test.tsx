@@ -33,6 +33,8 @@ const event = {
   client_interaction_at: '2025-01-01T11:22:33.456Z',
   device_platform: 'ios',
   application_version: '1.0.0',
+  content_revision_id: '77777777-7777-4777-8777-777777777777',
+  content_release_id: '88888888-8888-4888-8888-888888888888',
   session_id: '22222222-2222-4222-8222-222222222222',
   vocabulary_item_id: '33333333-3333-4333-8333-333333333333',
   response_time_ms: 1000, correct: true,

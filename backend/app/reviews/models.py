@@ -5,8 +5,10 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -62,7 +64,11 @@ class ReviewAttempt(Base):
     )
     vocabulary_item_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("vocabulary_items.id", ondelete="CASCADE"),
+        ForeignKey(
+            "vocabulary_items.id",
+            ondelete="RESTRICT",
+            name="fk_attempt_vocabulary_retained",
+        ),
         nullable=False,
         index=True,
     )
@@ -92,6 +98,33 @@ class ReviewAttempt(Base):
     device_platform: Mapped[str] = mapped_column(String(32), nullable=False)
     application_version: Mapped[str] = mapped_column(String(32), nullable=False)
     submitted_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_revision_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True, index=True
+    )
+    content_release_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "content_releases.id",
+            ondelete="RESTRICT",
+            name="fk_attempt_content_release",
+        ),
+        nullable=True,
+        index=True,
+    )
+    content_revision = relationship("VocabularyRevision", viewonly=True)
+    content_release = relationship("ContentRelease")
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["content_revision_id", "vocabulary_item_id"],
+            ["vocabulary_revisions.id", "vocabulary_revisions.vocabulary_item_id"],
+            ondelete="RESTRICT",
+            name="fk_attempt_content_revision",
+        ),
+        CheckConstraint(
+            "(content_revision_id IS NULL) = (content_release_id IS NULL)",
+            name="ck_attempt_provenance_pair",
+        ),
+    )
 
     session: Mapped[ReviewSession] = relationship("ReviewSession")
 

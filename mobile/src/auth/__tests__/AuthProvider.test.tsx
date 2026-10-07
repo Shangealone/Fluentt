@@ -29,6 +29,7 @@ const AuthConsumer: React.FC = () => {
     <>
       <Text testID="auth-status">{status}</Text>
       <Text testID="user-id">{user?.id ?? "none"}</Text>
+      <Text testID="profile-id">{user?.profileId ?? 'none'}</Text>
       <Text testID="user-email">{user?.email ?? 'none'}</Text>
       <Text testID="must-change">{String(user?.mustChangePassword ?? false)}</Text>
       <Button
@@ -89,6 +90,7 @@ describe('AuthProvider & useAuth', () => {
             user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
             email: 'restored@example.test',
             participant_code: 'P_RESTORED',
+            created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z',
             interface_language: 'en',
             target_learning_language: 'fil',
             must_change_password: false,
@@ -107,6 +109,7 @@ describe('AuthProvider & useAuth', () => {
     expect(screen.getByTestId('auth-status').props.children).toBe('signedIn');
     expect(screen.getByTestId('user-email').props.children).toBe('restored@example.test');
     expect(screen.getByTestId('user-id').props.children).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(screen.getByTestId('profile-id').props.children).toBe('11111111-1111-1111-1111-111111111111');
   });
 
   it('sets mustChangePassword state on first login with temporary password', async () => {
@@ -202,7 +205,11 @@ describe('AuthProvider & useAuth', () => {
             id: '11111111-1111-1111-1111-111111111111',
             user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
             email: 'user@example.test',
-            must_change_password: false,
+            participant_code: 'P-001',
+            interface_language: 'en',
+            target_learning_language: 'fil',
+            created_at: '2025-01-01T00:00:00Z',
+            updated_at: '2025-01-01T00:00:00Z',
           }),
         });
       }

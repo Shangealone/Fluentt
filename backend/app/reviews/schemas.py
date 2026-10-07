@@ -22,6 +22,10 @@ class ReviewAttemptCreate(BaseModel):
     client_session_id: uuid.UUID
     session_id: uuid.UUID | None = None
     vocabulary_item_id: uuid.UUID
+    # Absence is parsed only to reconcile pre-D5 accepted UUIDs. The shared
+    # acceptance service requires both for every new event after its ledger check.
+    content_revision_id: uuid.UUID | None = None
+    content_release_id: uuid.UUID | None = None
     correct: bool
     response_time_ms: int = Field(
         ...,
@@ -42,6 +46,8 @@ class ReviewAttemptResponse(BaseModel):
     client_event_id: uuid.UUID
     session_id: uuid.UUID
     vocabulary_item_id: uuid.UUID
+    content_revision_id: uuid.UUID | None = None
+    content_release_id: uuid.UUID | None = None
     correct: bool
     response_time_ms: int
     scheduler_type: str

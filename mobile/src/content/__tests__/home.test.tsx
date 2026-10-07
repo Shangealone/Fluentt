@@ -52,7 +52,9 @@ describe('HomeScreen', () => {
             {
               id: '11111111-1111-1111-1111-111111111111',
               language_code: 'en',
-              title: 'Lesson 1',
+              content_release_id: '88888888-8888-4888-8888-888888888888',
+              is_active: true,
+              title: 'Lesson 1', description: null,
               content_version: 'sample-en-v0.1',
               sort_order: 1,
               item_count: 5,

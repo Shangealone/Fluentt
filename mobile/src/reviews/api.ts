@@ -5,31 +5,37 @@ import {
   ReviewAttemptResponse,
   ReviewSession,
   ReviewSessionCreate,
+  adaptReviewAttemptFromApi,
+  adaptReviewSessionFromApi,
 } from './types';
 
 export async function createReviewSession(
   clientSessionId: string,
-  lessonId?: string | null,
-  ownerUserId?: string
+  ownerUserId: string
 ): Promise<ReviewSession> {
   const payload: ReviewSessionCreate = {
     client_session_id: clientSessionId,
-    lesson_id: lessonId ?? null,
   };
-  return apiClient<ReviewSession>('/reviews/sessions', {
+  const wire = await apiClient<unknown>('/reviews/sessions', {
     method: 'POST',
     body: JSON.stringify(payload),
     expectedUserId: ownerUserId,
   });
+  const session = adaptReviewSessionFromApi(wire);
+  if (session.clientSessionId !== clientSessionId) throw new Error('Server returned a different client session.');
+  return session;
 }
 
 export async function submitReviewAttempt(
   attempt: ReviewAttemptCreate,
   ownerUserId: string
 ): Promise<ReviewAttemptResponse> {
-  return apiClient<ReviewAttemptResponse>('/reviews/attempts', {
+  const wire = await apiClient<unknown>('/reviews/attempts', {
     method: 'POST',
     body: JSON.stringify(sanitizeReviewAttempt(attempt)),
     expectedUserId: ownerUserId,
   });
+  const response = adaptReviewAttemptFromApi(wire);
+  if (response.clientEventId !== attempt.client_event_id) throw new Error('Server did not acknowledge the submitted event.');
+  return response;
 }

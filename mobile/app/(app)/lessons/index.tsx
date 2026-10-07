@@ -66,7 +66,9 @@ export default function LessonsScreen() {
     <Pressable
       testID={`lesson-card-${item.id}`}
       style={({ pressed }) => [styles.lessonCard, pressed && styles.cardPressed]}
-      onPress={() => router.push(`/(app)/lessons/${item.id}` as any)}
+      onPress={() => router.push({ pathname: '/(app)/lessons/[lessonId]' as any, params: {
+        lessonId: item.id, ...(item.contentReleaseId ? { contentReleaseId: item.contentReleaseId } : {}),
+      } })}
     >
       <View style={styles.cardHeader}>
         <AppText style={styles.lessonTitle}>{item.title}</AppText>

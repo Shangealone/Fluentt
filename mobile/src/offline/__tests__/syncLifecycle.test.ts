@@ -1,3 +1,4 @@
+import { syncWire } from '../../testUtils/contracts';
 import { startSyncLifecycle, SyncLifecycleSources } from '../syncLifecycle';
 import { enqueuePendingReview, getPendingReviews } from '../reviewQueue';
 import { resetDatabaseForTesting } from '../db';
@@ -22,6 +23,8 @@ const event = {
   client_interaction_at: '2025-01-01T11:22:33.456Z',
   device_platform: 'ios',
   application_version: '1.0.0',
+  content_revision_id: '77777777-7777-4777-8777-777777777777',
+  content_release_id: '88888888-8888-4888-8888-888888888888',
   session_id: 'session',
   vocabulary_item_id: 'vocab', response_time_ms: 1000, correct: true };
 const response = (data: unknown, status = 200) => ({ ok: status === 200, status, json: async () => data });
@@ -51,7 +54,7 @@ describe('D3 foreground lifecycle', () => {
       if (url.endsWith('/health')) return response({}, reachable ? 200 : 503);
       const item = JSON.parse(options.body).events[0];
       sent.push({ owner: options.headers.Authorization.slice(7), event: item });
-      return status === 200 ? response({ results: [{ client_event_id: item.client_event_id, status: 'accepted' }] })
+      return status === 200 ? response(syncWire(item.client_event_id))
         : response({ detail: 'Reauthenticate' }, status);
     }) as any;
     sources = {

@@ -1,3 +1,4 @@
+import { syncWire } from '../../testUtils/contracts';
 import { DatabaseSync } from 'node:sqlite';
 import { unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -5,6 +6,9 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import Constants from 'expo-constants';
 import { submitReviewAttempt } from '../../reviews/api';
+import { captureReviewAttempt } from '../../reviews/metadata';
+import { adaptLessonDetailFromApi } from '../../content/types';
+import { cacheLessonDetail, cacheLessons, getCachedLessonDetail } from '../../content/contentCache';
 import * as storage from '../db';
 import { runMigrations } from '../migrations';
 import { enqueuePendingReview, getPendingReviews, markReviewStatus } from '../reviewQueue';
@@ -35,13 +39,15 @@ const event = {
   client_interaction_at: '2025-01-01T11:22:33.456Z',
   device_platform: 'ios',
   application_version: '1.0.0',
+  content_revision_id: '77777777-7777-4777-8777-777777777777',
+  content_release_id: '88888888-8888-4888-8888-888888888888',
   session_id: '22222222-2222-4222-8222-222222222222',
   vocabulary_item_id: '33333333-3333-4333-8333-333333333333',
   response_time_ms: 1234, correct: true, submitted_answer: 'correct',
 };
 const second = { ...event, client_event_id: '44444444-4444-4444-8444-444444444444' };
 const response = (data: unknown, status = 200) => ({ ok: status === 200, status, json: async () => data });
-const accepted = (id: string) => response({ results: [{ client_event_id: id, status: 'accepted' }] });
+const accepted = (id: string) => response(syncWire(id));
 
 describe('D3 worker with real SQLite', () => {
   let sqlite: DatabaseSync;
@@ -69,6 +75,106 @@ describe('D3 worker with real SQLite', () => {
     jest.restoreAllMocks();
     sqlite.close();
     global.fetch = originalFetch;
+  });
+
+  it('keeps a published member with its own version label through cache and queue capture', async () => {
+    const detail = adaptLessonDetailFromApi({ id: 'lesson', language_code: 'en', title: 'Published lesson', description: null, is_active: true,
+      content_version: 'lesson-v2', content_release_id: event.content_release_id, sort_order: 0,
+      vocabulary_items: [{ id: event.vocabulary_item_id, lesson_id: 'lesson', term: 'hello', definition: 'greeting',
+        example_sentence: 'Hello there.', difficulty: 'hard', category: null, translation: null, is_active: true, content_version: 'word-v3', sort_order: 0,
+        content_revision_id: event.content_revision_id, content_release_id: event.content_release_id }] });
+    await cacheLessonDetail(detail);
+    const cached = (await getCachedLessonDetail(detail.id))!;
+    expect(cached.contentVersion).toBe('lesson-v2');
+    expect(cached.vocabularyItems).toHaveLength(1);
+    const shown = cached.vocabularyItems[0];
+    expect(shown).toMatchObject({ contentVersion: 'word-v3', contentRevisionId: event.content_revision_id,
+      contentReleaseId: event.content_release_id });
+    const captured = captureReviewAttempt({ client_session_id: event.client_session_id,
+      vocabulary_item_id: shown.id, content_revision_id: shown.contentRevisionId!, content_release_id: shown.contentReleaseId!,
+      correct: false, response_time_ms: 1234, submitted_answer: 'incorrect' });
+    await enqueuePendingReview(captured, A);
+    expect((await getPendingReviews())[0].payload).toEqual(captured);
+  });
+
+  it('uses a refreshed release member even when its item label sorts below the cached item label', async () => {
+    const detail = adaptLessonDetailFromApi({ id: 'lesson', language_code: 'en', title: 'Published lesson', description: null, is_active: true,
+      content_version: 'lesson-v2', content_release_id: event.content_release_id, sort_order: 0,
+      vocabulary_items: [{ id: event.vocabulary_item_id, lesson_id: 'lesson', term: 'hello', definition: 'greeting',
+        example_sentence: 'Hello there.', difficulty: 'hard', category: null, translation: null, is_active: true, content_version: 'word-v9', sort_order: 0,
+        content_revision_id: event.content_revision_id, content_release_id: event.content_release_id }] });
+    await cacheLessonDetail(detail);
+    const release = '66666666-6666-4666-8666-666666666666';
+    const revision = '55555555-5555-4555-8555-555555555555';
+    await cacheLessonDetail({ ...detail, contentReleaseId: release,
+      vocabularyItems: detail.vocabularyItems.map((item) => ({ ...item, term: 'hi', contentVersion: 'word-v1',
+        contentRevisionId: revision, contentReleaseId: release })) });
+    const cached = (await getCachedLessonDetail(detail.id))!;
+    expect(cached.vocabularyItems).toHaveLength(1);
+    expect(cached.vocabularyItems[0]).toMatchObject({ term: 'hi', contentVersion: 'word-v1',
+      contentRevisionId: revision, contentReleaseId: release });
+    await cacheLessons('en', [{ ...detail, contentReleaseId: '44444444-4444-4444-8444-444444444444', itemCount: 1 }]);
+    expect(await getCachedLessonDetail(detail.id)).toBeNull();
+  });
+
+  it('retains the legacy version-label filter without inventing published membership', async () => {
+    const detail = { id: 'legacy-lesson', languageCode: 'en', title: 'Legacy lesson', contentReleaseId: null,
+      contentVersion: 'lesson-v2', sortOrder: 0,
+      vocabularyItems: [{ id: event.vocabulary_item_id, lessonId: 'legacy-lesson', term: 'hello', definition: 'greeting',
+        exampleSentence: 'Hello there.', difficulty: 'hard', contentVersion: 'word-v3', sortOrder: 0,
+        contentRevisionId: null, contentReleaseId: null }] };
+    await cacheLessonDetail(detail);
+    const cached = (await getCachedLessonDetail(detail.id))!;
+    expect(cached.contentReleaseId).toBeNull();
+    expect(cached.vocabularyItems).toHaveLength(0);
+    expect(sqlite.prepare('SELECT content_version, content_revision_id, content_release_id FROM cached_vocabulary_items').get())
+      .toEqual({ content_version: 'word-v3', content_revision_id: null, content_release_id: null });
+  });
+
+  it('captures the displayed cached revision and syncs it unchanged after a same-version content refresh', async () => {
+    const detail = adaptLessonDetailFromApi({ id: 'lesson', language_code: 'en', title: 'Original lesson', description: null, is_active: true,
+      content_version: 'development-content-1', content_release_id: event.content_release_id, sort_order: 0,
+      vocabulary_items: [{ id: event.vocabulary_item_id, lesson_id: 'lesson', term: 'hello', definition: 'greeting',
+        example_sentence: 'Hello there.', difficulty: 'hard', category: null, translation: null, is_active: true, content_version: 'development-content-1', sort_order: 0,
+        content_revision_id: event.content_revision_id, content_release_id: event.content_release_id }] });
+    await cacheLessonDetail(detail);
+    await cacheLessons('en', [{ ...detail, itemCount: 1 }]);
+    const shown = (await getCachedLessonDetail(detail.id))!.vocabularyItems[0];
+    expect(shown).toBeDefined(); // Updating a summary must not cascade-delete cached detail.
+    const original = captureReviewAttempt({ client_session_id: event.client_session_id, session_id: event.session_id,
+      vocabulary_item_id: shown.id, content_revision_id: shown.contentRevisionId!, content_release_id: shown.contentReleaseId!,
+      correct: false, response_time_ms: 1234, submitted_answer: 'incorrect' });
+    await enqueuePendingReview(original, A);
+    const bytes = sqlite.prepare('SELECT payload_json FROM pending_review_events').get()?.payload_json;
+    const newRelease = '66666666-6666-4666-8666-666666666666';
+    const newRevision = '55555555-5555-4555-8555-555555555555';
+    await cacheLessonDetail({ ...detail, title: 'Corrected lesson', contentReleaseId: newRelease,
+      vocabularyItems: detail.vocabularyItems.map((item) => ({ ...item, term: 'hi',
+        contentRevisionId: newRevision, contentReleaseId: newRelease })) });
+    expect((await getCachedLessonDetail(detail.id))!.vocabularyItems[0]).toMatchObject({ term: 'hi',
+      contentRevisionId: newRevision, contentReleaseId: newRelease });
+    expect(sqlite.prepare('SELECT payload_json FROM pending_review_events').get()?.payload_json).toBe(bytes);
+    global.fetch = jest.fn(async (_url: string, options: any) => {
+      expect(JSON.parse(options.body).events).toEqual([original]);
+      return accepted(original.client_event_id);
+    }) as any;
+    expect((await drainReviewQueue()).syncedCount).toBe(1);
+  });
+
+  it('retains a complete pre-D5 queued interaction without guessing revision or release identity', async () => {
+    const { content_revision_id: _revision, content_release_id: _release, ...legacy } = event;
+    const bytes = JSON.stringify(legacy);
+    sqlite.prepare(`INSERT INTO pending_review_events
+      (client_event_id, payload_json, owner_user_id, status, created_at, updated_at)
+      VALUES (?, ?, ?, 'pending', '2020-01-01', '2020-01-01')`).run(event.client_event_id, bytes, A);
+    await runMigrations({ ...await storage.getDatabase() });
+    global.fetch = jest.fn(async (_url: string, options: any) => {
+      expect(JSON.parse(options.body).events).toEqual([legacy]);
+      return response({ detail: 'Content provenance is required' }, 400);
+    }) as any;
+    expect((await drainReviewQueue()).failedCount).toBe(1);
+    expect(sqlite.prepare('SELECT payload_json FROM pending_review_events').get()?.payload_json).toBe(bytes);
+    expect((await getPendingReviews())[0]).toMatchObject({ payload: legacy, status: 'failed', owner_user_id: A });
   });
 
   it('sends identical canonical facts online, from SQLite, after app update, backoff, auth resume and lost acknowledgement', async () => {
@@ -125,6 +231,25 @@ describe('D3 worker with real SQLite', () => {
     expect(sent).toHaveLength(5);
     for (const body of sent) expect(body).toEqual(canonical);
     expect(await getPendingReviews()).toHaveLength(0);
+  });
+
+  it.each([
+    { accepted_events: [], processed_count: 0 },
+    { ...syncWire(event.client_event_id), processed_count: 2 },
+    { accepted_events: [{ ...syncWire(event.client_event_id).accepted_events[0], correct: 'false' }], processed_count: 1 },
+  ])('retains identical bytes after a malformed or missing acknowledgement and retries safely: %j', async (malformed) => {
+    await enqueuePendingReview(event, A);
+    const bytes = () => sqlite.prepare('SELECT payload_json FROM pending_review_events').get()?.payload_json;
+    const originalBytes = bytes();
+    global.fetch = jest.fn().mockResolvedValue(response(malformed));
+    await drainReviewQueue();
+    expect(bytes()).toBe(originalBytes);
+    expect((await getPendingReviews())[0]).toMatchObject({ owner_user_id: A, status: 'pending', failure_kind: 'transient', attempt_count: 1 });
+    sqlite.exec('UPDATE pending_review_events SET next_retry_at = 0');
+    global.fetch = jest.fn().mockResolvedValue(accepted(event.client_event_id));
+    expect((await drainReviewQueue()).syncedCount).toBe(1);
+    expect(await getPendingReviews()).toHaveLength(0);
+    expect(JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body).events).toEqual([event]);
   });
 
   it('preserves incomplete legacy bytes without fabricated metadata and parks only the rejected row', async () => {

@@ -31,6 +31,8 @@ def sync_review_events(
                 client_event_id=attempt.client_event_id,
                 session_id=attempt.session_id,
                 vocabulary_item_id=attempt.vocabulary_item_id,
+                content_revision_id=attempt.content_revision_id,
+                content_release_id=attempt.content_release_id,
                 correct=attempt.correct,
                 response_time_ms=attempt.response_time_ms,
                 scheduler_type=attempt.scheduler_type,

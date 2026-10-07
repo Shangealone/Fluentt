@@ -18,6 +18,7 @@ jest.mock('expo-router', () => ({
 const mockRefreshProfile = jest.fn().mockResolvedValue(undefined);
 let mockUser: any = {
   id: 'user-1',
+      user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   email: 'learner@example.test',
   participantCode: 'P001',
   interfaceLanguage: null,
@@ -50,6 +51,7 @@ describe('Learner Preferences & Onboarding', () => {
   it('correctly adapts snake_case API profile to camelCase LearnerProfile', () => {
     const apiData: ApiLearnerProfile = {
       id: '12345678-1234-1234-1234-123456789abc',
+      user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       email: 'p01@example.test',
       participant_code: 'P01',
       interface_language: 'fil',
@@ -88,6 +90,7 @@ describe('Learner Preferences & Onboarding', () => {
           status: 200,
           json: async () => ({
             id: 'user-1',
+      user_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
             email: 'learner@example.test',
             participant_code: 'P001',
             interface_language: capturedBody.interface_language,

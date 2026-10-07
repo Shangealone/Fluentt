@@ -68,6 +68,17 @@ async function migrate(db: MigrationDatabase): Promise<void> {
   await db.execAsync(CREATE_CACHED_LESSONS_TABLE);
   await db.execAsync(CREATE_CACHED_VOCABULARY_ITEMS_TABLE);
   await db.execAsync(CREATE_PENDING_REVIEW_EVENTS_TABLE);
+  const lessonColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(cached_lessons)');
+  if (!lessonColumns.some((column) => column.name === 'content_release_id')) {
+    await db.execAsync('ALTER TABLE cached_lessons ADD COLUMN content_release_id TEXT;');
+  }
+  const vocabularyColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(cached_vocabulary_items)');
+  for (const name of ['content_revision_id', 'content_release_id']) {
+    if (!vocabularyColumns.some((column) => column.name === name)) {
+      // NULL distinguishes old caches; never infer a revision from a logical ID.
+      await db.execAsync(`ALTER TABLE cached_vocabulary_items ADD COLUMN ${name} TEXT;`);
+    }
+  }
   const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(pending_review_events)');
   if (!columns.some((column) => column.name === 'owner_user_id')) {
     // NULL is deliberately retained for deployed ownerless rows. Never backfill

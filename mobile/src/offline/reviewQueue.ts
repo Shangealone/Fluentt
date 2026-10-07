@@ -10,6 +10,8 @@ export interface PendingReviewPayload {
   session_id?: string | null;
   client_session_id?: string;
   vocabulary_item_id: string;
+  content_revision_id?: string;
+  content_release_id?: string;
   response_time_ms: number;
   correct: boolean;
   submitted_answer?: string;

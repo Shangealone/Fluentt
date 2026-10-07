@@ -1,3 +1,4 @@
+import { syncWire } from '../../testUtils/contracts';
 import { ReviewAttemptCreate } from '../../reviews/types';
 import {
   checkServerReachability,
@@ -44,6 +45,8 @@ describe('Offline Review Sync Worker', () => {
     client_interaction_at: '2025-01-01T11:22:33.456Z',
     device_platform: 'ios',
     application_version: '1.0.0',
+    content_revision_id: '77777777-7777-4777-8777-777777777777',
+    content_release_id: '88888888-8888-4888-8888-888888888888',
     session_id: 'session-1',
     vocabulary_item_id: 'vocab-1',
     response_time_ms: 1200,
@@ -57,6 +60,8 @@ describe('Offline Review Sync Worker', () => {
     client_interaction_at: '2025-01-01T11:22:33.456Z',
     device_platform: 'ios',
     application_version: '1.0.0',
+    content_revision_id: '77777777-7777-4777-8777-777777777777',
+    content_release_id: '88888888-8888-4888-8888-888888888888',
     session_id: 'session-1',
     vocabulary_item_id: 'vocab-1', // same vocabulary item, distinct client_event_id
     response_time_ms: 950,
@@ -76,17 +81,7 @@ describe('Offline Review Sync Worker', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({
-            processed_count: 1,
-            results: [
-              {
-                client_event_id: event1.client_event_id,
-                status: 'accepted',
-                attempt_id: 'attempt-1',
-                due_date: '2026-09-23T08:00:00Z',
-              },
-            ],
-          }),
+          json: async () => syncWire(...JSON.parse(opts.body).events.map((entry: any) => entry.client_event_id)),
         });
       }
       return Promise.reject(new Error('Unknown URL: ' + url));
@@ -119,23 +114,7 @@ describe('Offline Review Sync Worker', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({
-            processed_count: 2,
-            results: [
-              {
-                client_event_id: event1.client_event_id,
-                status: 'accepted',
-                attempt_id: 'attempt-1',
-                due_date: '2026-09-23T08:00:00Z',
-              },
-              {
-                client_event_id: event2.client_event_id,
-                status: 'accepted',
-                attempt_id: 'attempt-2',
-                due_date: '2026-09-23T08:01:00Z',
-              },
-            ],
-          }),
+          json: async () => syncWire(...JSON.parse(opts.body).events.map((entry: any) => entry.client_event_id)),
         });
       }
       return Promise.reject(new Error('Unknown URL: ' + url));

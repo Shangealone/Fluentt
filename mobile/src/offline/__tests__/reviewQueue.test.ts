@@ -19,6 +19,8 @@ describe('Review Queue SQLite Storage', () => {
     client_interaction_at: '2025-01-01T11:22:33.456Z',
     device_platform: 'ios',
     application_version: '1.0.0',
+    content_revision_id: '77777777-7777-4777-8777-777777777777',
+    content_release_id: '88888888-8888-4888-8888-888888888888',
     session_id: '22222222-2222-4222-8222-222222222222',
     vocabulary_item_id: '33333333-3333-4333-8333-333333333333',
     response_time_ms: 1250,
@@ -55,7 +57,15 @@ describe('Review Queue SQLite Storage', () => {
     expect((await getPendingReviews())[0].payload).toEqual(captured);
   });
 
-  it.each(['client_session_id', 'client_interaction_at', 'device_platform', 'application_version', 'correct'])(
+  it('preserves the exact displayed content revision and release in queue serialization', async () => {
+    const shown = { ...samplePayload, content_revision_id: '55555555-5555-4555-8555-555555555555',
+      content_release_id: '66666666-6666-4666-8666-666666666666' };
+    await enqueuePendingReview(shown, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect((await getPendingReviews())[0].payload).toEqual(shown);
+  });
+
+  it.each(['client_session_id', 'client_interaction_at', 'device_platform', 'application_version', 'correct',
+    'content_revision_id', 'content_release_id'])(
     'rejects a new incomplete payload without fabricating %s', async (field) => {
       const incomplete: any = { ...samplePayload, created_at: '2020-01-01T00:00:00Z' };
       delete incomplete[field];

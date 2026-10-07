@@ -1,23 +1,28 @@
 import { apiClient } from '../api/client';
+import { ContractError, nullableString, object, stringField, timestampField } from '../api/contracts';
 import {
   ApiLearnerProfile,
   ApiUpdatePreferencesRequest,
   LearnerProfile,
   UpdatePreferencesPayload,
+  LanguageCode,
 } from './types';
 
 /**
  * Maps backend snake_case LearnerProfile to mobile camelCase model.
  */
-export function adaptProfileFromApi(api: ApiLearnerProfile): LearnerProfile {
+export function adaptProfileFromApi(value: unknown): LearnerProfile {
+  const api = object(value);
+  const language = (field: string): LanguageCode | null => {
+    const value = nullableString(api, field);
+    if (value !== null && value !== 'en' && value !== 'fil') throw new ContractError(`Invalid ${field}.`);
+    return value;
+  };
   return {
-    id: api.id,
-    email: api.email,
-    participantCode: api.participant_code,
-    interfaceLanguage: api.interface_language,
-    targetLearningLanguage: api.target_learning_language,
-    createdAt: api.created_at,
-    updatedAt: api.updated_at,
+    id: stringField(api, 'id'), userId: stringField(api, 'user_id'),
+    email: stringField(api, 'email'), participantCode: stringField(api, 'participant_code'),
+    interfaceLanguage: language('interface_language'), targetLearningLanguage: language('target_learning_language'),
+    createdAt: timestampField(api, 'created_at'), updatedAt: timestampField(api, 'updated_at'),
   };
 }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, act } from '@testing-library/react-native';
+import { render, act, fireEvent } from '@testing-library/react-native';
 import LessonsScreen from '../../../app/(app)/lessons/index';
 import LessonDetailScreen from '../../../app/(app)/lessons/[lessonId]';
 import { setInterfaceLanguage } from '../../i18n';
@@ -37,6 +37,7 @@ describe('Lesson and Vocabulary Study Flow', () => {
     jest.clearAllMocks();
     originalFetch = global.fetch;
     mockTargetLang = 'en';
+    mockParams = { lessonId: '11111111-1111-1111-1111-111111111111' };
     await initContentDatabase();
     await resetCacheForTesting();
     await act(async () => {
@@ -58,6 +59,8 @@ describe('Lesson and Vocabulary Study Flow', () => {
             {
               id: '11111111-1111-1111-1111-111111111111',
               language_code: 'en',
+              content_release_id: '88888888-8888-4888-8888-888888888888',
+              is_active: true,
               title: 'Lesson Alpha (Order 1)',
               description: 'Alpha description',
               content_version: 'sample-en-v0.1',
@@ -67,6 +70,8 @@ describe('Lesson and Vocabulary Study Flow', () => {
             {
               id: '11111111-1111-1111-1111-111111111112',
               language_code: 'en',
+              content_release_id: '88888888-8888-4888-8888-888888888888',
+              is_active: true,
               title: 'Lesson Beta (Order 2)',
               description: 'Beta description',
               content_version: 'sample-en-v0.1',
@@ -83,6 +88,10 @@ describe('Lesson and Vocabulary Study Flow', () => {
 
     expect(rendered.getByText(/Lesson Alpha/i)).toBeTruthy();
     expect(rendered.getByText(/Lesson Beta/i)).toBeTruthy();
+    fireEvent.press(rendered.getByTestId('lesson-card-11111111-1111-1111-1111-111111111111'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/(app)/lessons/[lessonId]', params: {
+      lessonId: '11111111-1111-1111-1111-111111111111', contentReleaseId: '88888888-8888-4888-8888-888888888888',
+    } });
   });
 
   it('empty feed shows localized empty state with retry option', async () => {
@@ -137,7 +146,7 @@ describe('Lesson and Vocabulary Study Flow', () => {
   });
 
   it('vocabulary term, definition, example, and version render correctly in lesson detail', async () => {
-    mockParams = { lessonId: '11111111-1111-1111-1111-111111111111' };
+    mockParams = { lessonId: '11111111-1111-1111-1111-111111111111', contentReleaseId: '88888888-8888-4888-8888-888888888888' };
 
     global.fetch = jest.fn().mockImplementation((url: string) => {
       if (url.includes('/content/lessons/11111111-1111-1111-1111-111111111111')) {
@@ -147,6 +156,8 @@ describe('Lesson and Vocabulary Study Flow', () => {
           json: async () => ({
             id: '11111111-1111-1111-1111-111111111111',
             language_code: 'en',
+              content_release_id: '88888888-8888-4888-8888-888888888888',
+              is_active: true,
             title: 'Detailed Lesson Title',
             description: 'Detailed description',
             content_version: 'sample-en-v0.1',
@@ -155,6 +166,9 @@ describe('Lesson and Vocabulary Study Flow', () => {
               {
                 id: '22222222-2222-2222-2222-222222222221',
                 lesson_id: '11111111-1111-1111-1111-111111111111',
+                content_revision_id: '77777777-7777-4777-8777-777777777777',
+                content_release_id: '88888888-8888-4888-8888-888888888888',
+                is_active: true,
                 term: 'resilience',
                 definition: 'the capacity to recover quickly from difficulties',
                 example_sentence: 'She demonstrated great resilience under pressure.',
@@ -177,6 +191,9 @@ describe('Lesson and Vocabulary Study Flow', () => {
     expect(rendered.getByText(/the capacity to recover quickly/i)).toBeTruthy();
     expect(rendered.getByText(/She demonstrated great resilience/i)).toBeTruthy();
     expect(rendered.getByText(/tatag/i)).toBeTruthy();
+    expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain('content_release_id=88888888-8888-4888-8888-888888888888');
+    fireEvent.press(rendered.getByTestId('start-review-btn'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/(app)/review/[lessonId]', params: mockParams });
   });
 
   it('authentication failure (401) does not fall back to cached content', async () => {

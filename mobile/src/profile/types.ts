@@ -2,6 +2,7 @@ export type LanguageCode = 'en' | 'fil';
 
 export interface LearnerProfile {
   id: string;
+  userId: string;
   email: string;
   participantCode: string;
   interfaceLanguage: LanguageCode | null;
@@ -18,6 +19,7 @@ export interface UpdatePreferencesPayload {
 // Backend snake_case wire representations
 export interface ApiLearnerProfile {
   id: string;
+  user_id: string;
   email: string;
   participant_code: string;
   interface_language: LanguageCode | null;
@@ -27,6 +29,6 @@ export interface ApiLearnerProfile {
 }
 
 export interface ApiUpdatePreferencesRequest {
-  interface_language?: string | null;
-  target_learning_language?: string | null;
+  interface_language?: LanguageCode | null;
+  target_learning_language?: LanguageCode | null;
 }

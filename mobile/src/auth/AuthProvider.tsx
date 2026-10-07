@@ -2,12 +2,17 @@ import React, { createContext, useContext, useEffect, useState, useMemo } from '
 import { clearTokens, loadTokens, saveTokens } from './tokenStore';
 import { apiClient, registerAuthFailureHandler } from '../api/client';
 import { setInterfaceLanguage } from '../i18n';
+import { getLearnerProfile } from '../profile/api';
+import { LearnerProfile } from '../profile/types';
+
+interface ApiTokenResponse { access_token: string; refresh_token: string; token_type: string; must_change_password: boolean; }
 
 export type AuthStatus = 'loading' | 'signedOut' | 'mustChangePassword' | 'signedIn';
 
 export interface AuthUser {
   /** Backend users.id from /users/me.user_id, never the learner profile UUID. */
   id?: string;
+  profileId?: string;
   email?: string;
   participantCode?: string;
   mustChangePassword?: boolean;
@@ -22,6 +27,12 @@ export interface AuthContextType {
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+}
+
+function authUserFromProfile(profile: LearnerProfile): AuthUser {
+  // /users/me is a normal protected route; temporary-password accounts cannot access it.
+  return { id: profile.userId, profileId: profile.id, email: profile.email, participantCode: profile.participantCode,
+    interfaceLanguage: profile.interfaceLanguage, targetLearningLanguage: profile.targetLearningLanguage, mustChangePassword: false };
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -45,16 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         // Fetch authenticated user profile
-        const data = await apiClient('/users/me', { requiresAuth: true });
+        const data = await getLearnerProfile();
         if (isMounted) {
-          const authUser: AuthUser = {
-            id: data.user_id,
-            email: data.email,
-            participantCode: data.participant_code,
-            mustChangePassword: data.must_change_password ?? false,
-            interfaceLanguage: data.interface_language ?? null,
-            targetLearningLanguage: data.target_learning_language ?? null,
-          };
+          const authUser = authUserFromProfile(data);
           setUser(authUser);
 
           if (authUser.interfaceLanguage) {
@@ -93,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
-    const data = await apiClient('/auth/login', {
+    const data = await apiClient<ApiTokenResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
       requiresAuth: false,
@@ -104,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refreshToken: data.refresh_token,
     });
 
-    const mustChange = Boolean(data.must_change_password);
+    const mustChange = data.must_change_password;
     const authUser: AuthUser = {
       email,
       mustChangePassword: mustChange,
@@ -117,17 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setStatus('signedIn');
       // Fetch full profile in background
       try {
-        const profile = await apiClient('/users/me');
-        setUser({
-          id: profile.user_id,
-          email: profile.email,
-          participantCode: profile.participant_code,
-          mustChangePassword: false,
-          interfaceLanguage: profile.interface_language ?? null,
-          targetLearningLanguage: profile.target_learning_language ?? null,
-        });
-        if (profile.interface_language) {
-          await setInterfaceLanguage(profile.interface_language);
+        const profile = await getLearnerProfile();
+        setUser(authUserFromProfile(profile));
+        if (profile.interfaceLanguage) {
+          await setInterfaceLanguage(profile.interfaceLanguage);
         }
       } catch {
         // ignore background fetch error
@@ -136,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const changePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
-    const data = await apiClient('/auth/change-password', {
+    const data = await apiClient<ApiTokenResponse>('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify({
         current_password: currentPassword,
@@ -155,17 +152,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Fetch refreshed profile
     try {
-      const profile = await apiClient('/users/me');
-      setUser({
-        id: profile.user_id,
-        email: profile.email,
-        participantCode: profile.participant_code,
-        mustChangePassword: false,
-        interfaceLanguage: profile.interface_language ?? null,
-        targetLearningLanguage: profile.target_learning_language ?? null,
-      });
-      if (profile.interface_language) {
-        await setInterfaceLanguage(profile.interface_language);
+      const profile = await getLearnerProfile();
+      setUser(authUserFromProfile(profile));
+      if (profile.interfaceLanguage) {
+        await setInterfaceLanguage(profile.interfaceLanguage);
       }
     } catch {
       // ignore
@@ -191,18 +181,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = async (): Promise<void> => {
     try {
-      const profile = await apiClient('/users/me');
-      setUser((prev) => ({
-        ...prev,
-        id: profile.user_id,
-        email: profile.email,
-        participantCode: profile.participant_code,
-        mustChangePassword: profile.must_change_password ?? false,
-        interfaceLanguage: profile.interface_language ?? null,
-        targetLearningLanguage: profile.target_learning_language ?? null,
-      }));
-      if (profile.interface_language) {
-        await setInterfaceLanguage(profile.interface_language);
+      const profile = await getLearnerProfile();
+      setUser(authUserFromProfile(profile));
+      if (profile.interfaceLanguage) {
+        await setInterfaceLanguage(profile.interfaceLanguage);
       }
     } catch {
       // handled by apiClient
