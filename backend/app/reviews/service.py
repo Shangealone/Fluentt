@@ -2,13 +2,19 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.content.provenance import resolve_review_content
 from app.research_logging.service import record_research_event
-from app.reviews.models import ReviewAttempt, ReviewSchedule, ReviewSession
+from app.reviews.models import (
+    CurrentReviewSchedule,
+    ReviewAttempt,
+    ReviewSchedule,
+    ReviewSession,
+)
 from app.reviews.schemas import ReviewAttemptCreate
 from app.scheduling.base import Scheduler
 from app.scheduling.development import DevelopmentScheduler
@@ -205,6 +211,20 @@ def record_review_attempt(
             },
         )
         db.add(accepted_event)
+        # Flush the ledger uniqueness check before any current-state transition.
+        # A duplicate event rolls back without advancing the pointer.
+        db.flush()
+        transition = insert(CurrentReviewSchedule).values(
+            user_id=user.id,
+            vocabulary_item_id=attempt.vocabulary_item_id,
+            schedule_id=schedule.id,
+        )
+        db.execute(
+            transition.on_conflict_do_update(
+                index_elements=["user_id", "vocabulary_item_id"],
+                set_={"schedule_id": schedule.id},
+            )
+        )
 
         # 6. Append research events
         record_research_event(
@@ -267,4 +287,7 @@ def record_review_attempt(
             )
             if winner_attempt and winner_schedule:
                 return winner_attempt, winner_schedule
+        raise
+    except Exception:
+        db.rollback()
         raise

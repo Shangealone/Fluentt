@@ -1,3 +1,5 @@
+import { ApiLessonDetail } from '../content/types';
+
 /** Complete backend-shaped fixtures; never imported by production code. */
 export const ACCOUNT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 export const PROFILE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -31,4 +33,8 @@ export function detailWire(version = 'lesson-label') {
       term: 'hello', definition: 'greeting', example_sentence: 'Hello there.', difficulty: 'hard',
       category: null, translation: null, content_version: 'word-label', sort_order: 0, is_active: true,
       content_revision_id: REVISION, content_release_id: RELEASE }] };
+}
+export function eligibilityWire(detail: ApiLessonDetail = detailWire()) {
+  return { lesson_id: detail.id, content_release_id: detail.content_release_id, evaluated_at: '2025-01-01T00:00:00Z',
+    items: detail.vocabulary_items.map((vocabulary_item) => ({ vocabulary_item, eligibility: 'new' as const, current_schedule: null })) };
 }

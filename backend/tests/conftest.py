@@ -71,6 +71,21 @@ def setup_test_environment() -> None:
             )
             with Operations.context(MigrationContext.configure(connection)):
                 migration.upgrade()
+        if inspector.has_table("review_schedules") and not inspect(
+            connection
+        ).has_table("current_review_schedules"):
+            from alembic.config import Config
+            from alembic.migration import MigrationContext
+            from alembic.operations import Operations
+            from alembic.script import ScriptDirectory
+
+            migration = (
+                ScriptDirectory.from_config(Config("alembic.ini"))
+                .get_revision("d7c0de000001")
+                .module
+            )
+            with Operations.context(MigrationContext.configure(connection)):
+                migration.upgrade()
     Base.metadata.create_all(bind=test_engine)
 
 

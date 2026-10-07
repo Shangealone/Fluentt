@@ -1,4 +1,4 @@
-import { reviewWire } from '../../testUtils/contracts';
+import { eligibilityWire, reviewWire } from '../../testUtils/contracts';
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import ReviewScreen from '../../../app/(app)/review/[lessonId]';
@@ -10,6 +10,8 @@ import { loadAuthenticatedAccount } from '../../auth/tokenStore';
 import * as queue from '../../offline/reviewQueue';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { cacheLessonDetail } from '../../content/contentCache';
+import { adaptLessonDetailFromApi } from '../../content/types';
 
 jest.mock('expo-constants', () => {
   const configuration = require('../../../app.json');
@@ -20,6 +22,7 @@ const mockPush = jest.fn();
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
 let mockParams: Record<string, string> = { lessonId: 'lesson-uuid-1' };
+let mockOwnerUserId = 'test-user-id';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -34,7 +37,7 @@ jest.mock('expo-router', () => ({
 jest.mock('../../auth/AuthProvider', () => ({
   useAuth: () => ({
     user: {
-      id: 'test-user-id',
+      id: mockOwnerUserId,
       targetLearningLanguage: 'en',
       interfaceLanguage: 'en',
     },
@@ -91,10 +94,99 @@ describe('Vocabulary Review Flow', () => {
     jest.clearAllMocks();
     originalFetch = global.fetch;
     mockParams = { lessonId: 'lesson-uuid-1' };
+    mockOwnerUserId = 'test-user-id';
+    jest.mocked(loadAuthenticatedAccount).mockImplementation(async () => ({ userId: mockOwnerUserId,
+      tokens: { accessToken: 'fake-token', refreshToken: 'fake-refresh' }, generation: 0 }));
     await resetDatabaseForTesting();
     await act(async () => {
       await setInterfaceLanguage('en');
     });
+  });
+
+  it('uses an explicit empty server eligibility result instead of every active cached/content word', async () => {
+    global.fetch = jest.fn(async (url: string, options: any) => ({ ok: true, status: 200,
+      json: async () => url.includes('/reviews/eligible-items')
+        ? { lesson_id: mockLessonResponse.id, content_release_id: mockLessonResponse.content_release_id,
+          evaluated_at: '2025-01-01T00:00:00Z', items: [] }
+        : url.includes('/reviews/sessions')
+          ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' }
+          : eligibilityWire(mockLessonResponse) })) as any;
+    const rendered = await render(<ReviewScreen />);
+    await waitFor(() => expect(rendered.getByTestId('empty-review-container')).toBeTruthy());
+    expect(rendered.queryByTestId('card-term')).toBeNull();
+    expect(rendered.queryByTestId('error-container')).toBeNull();
+    expect(await getPendingReviews()).toHaveLength(0);
+  });
+
+  it('cannot start new review offline even when a complete published lesson is cached', async () => {
+    await cacheLessonDetail(adaptLessonDetailFromApi(mockLessonResponse));
+    global.fetch = jest.fn().mockRejectedValue(new TypeError('Network request failed'));
+    const rendered = await render(<ReviewScreen />);
+    await waitFor(() => expect(rendered.getByTestId('error-container')).toBeTruthy());
+    expect(rendered.getByText('Review availability could not be checked. Connect and try again.')).toBeTruthy();
+    expect(rendered.queryByTestId('card-term')).toBeNull();
+    expect(await getPendingReviews()).toHaveLength(0);
+    expect((global.fetch as jest.Mock).mock.calls.some(([url]) => url.includes('/reviews/eligible-items'))).toBe(true);
+    expect((global.fetch as jest.Mock).mock.calls.some(([url]) => url.includes('/content/lessons'))).toBe(false);
+  });
+
+  it('hides the previous account eligibility while the next account availability is unresolved', async () => {
+    let releaseNext!: (value: unknown) => void;
+    const next = new Promise((resolve) => { releaseNext = resolve; });
+    global.fetch = jest.fn(async (url: string, options: any) => ({ ok: true, status: 200,
+      json: async () => url.includes('/reviews/sessions')
+        ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' }
+        : mockOwnerUserId === 'test-user-id' ? eligibilityWire(mockLessonResponse) : await next })) as any;
+    const rendered = await render(<ReviewScreen />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    mockOwnerUserId = 'account-B';
+    await rendered.rerender(<ReviewScreen />);
+    expect(rendered.queryByTestId('card-term')).toBeNull();
+    expect(rendered.getByTestId('loading-indicator')).toBeTruthy();
+    await act(async () => { releaseNext({ ...eligibilityWire(mockLessonResponse), items: [] }); });
+    await waitFor(() => expect(rendered.getByTestId('empty-review-container')).toBeTruthy());
+    expect(await getPendingReviews()).toHaveLength(0);
+  });
+
+  it.each(['1900-01-01T00:00:00Z', '2200-01-01T00:00:00Z'])('displays server-approved due work independently of device time %s', async (deviceTime) => {
+    const approved = { ...eligibilityWire(mockLessonResponse), evaluated_at: '2100-01-01T00:00:00Z',
+      items: [{ vocabulary_item: mockLessonResponse.vocabulary_items[0], eligibility: 'due',
+        current_schedule: { id: 'schedule-id', scheduler_type: 'development', algorithm_version: 'dev-0.1',
+          next_interval_seconds: 600, next_due_at: '2099-01-01T00:00:00Z', scheduler_state: null } }] };
+    global.fetch = jest.fn(async (url: string, options: any) => ({ ok: true, status: 200,
+      json: async () => url.includes('/reviews/sessions')
+        ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' }
+        : approved })) as any;
+    jest.useFakeTimers().setSystemTime(new Date(deviceTime));
+    try {
+      const rendered = await render(<ReviewScreen />);
+      await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+      expect(rendered.getByTestId('card-term').props.children).toBe('ephemeral');
+    } finally { jest.useRealTimers(); }
+  });
+
+  it('preserves the pinned eligible revision/release through display and online answer', async () => {
+    const pinned = '66666666-6666-4666-8666-666666666666';
+    mockParams.contentReleaseId = pinned;
+    const detail = { ...mockLessonResponse, content_release_id: pinned,
+      vocabulary_items: mockLessonResponse.vocabulary_items.map((item) => ({ ...item, term: 'Pinned word', content_release_id: pinned })) };
+    let submitted: Record<string, unknown> | undefined;
+    global.fetch = jest.fn(async (url: string, options: any) => {
+      const body = options.body ? JSON.parse(options.body) : undefined;
+      if (url.includes('/reviews/attempts')) submitted = body;
+      return { ok: true, status: 200, json: async () => url.includes('/reviews/eligible-items') ? eligibilityWire(detail)
+        : url.includes('/reviews/sessions') ? { id: 'server-session', client_session_id: body.client_session_id, created_at: '2025-01-01T00:00:00Z' }
+          : { ...reviewWire(body.client_event_id), session_id: body.session_id, vocabulary_item_id: body.vocabulary_item_id,
+            content_revision_id: body.content_revision_id, content_release_id: body.content_release_id } };
+    }) as any;
+    const rendered = await render(<ReviewScreen />);
+    await waitFor(() => expect(rendered.getByTestId('card-term').props.children).toBe('Pinned word'));
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    expect((global.fetch as jest.Mock).mock.calls.some(([url]) => url.includes(`content_release_id=${pinned}`))).toBe(true);
+    expect(submitted).toMatchObject({ vocabulary_item_id: detail.vocabulary_items[0].id,
+      content_revision_id: detail.vocabulary_items[0].content_revision_id, content_release_id: pinned });
+    expect(await getPendingReviews()).toHaveLength(0);
   });
 
   afterEach(() => {
@@ -109,7 +201,7 @@ describe('Vocabulary Review Flow', () => {
         submitted.push(JSON.parse(options.body));
         throw new Error('Lost acknowledgement');
       }
-      return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : mockLessonResponse };
+      return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : eligibilityWire(mockLessonResponse) };
     }) as any;
     jest.spyOn(queue, 'enqueuePendingReview').mockRejectedValueOnce(new Error('Disk unavailable'));
     const rendered = await render(<ReviewScreen />);
@@ -136,7 +228,7 @@ describe('Vocabulary Review Flow', () => {
         throw new Error('Acknowledgement lost');
       }
       return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions')
-        ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : mockLessonResponse };
+        ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : eligibilityWire(mockLessonResponse) };
     }) as any;
     const rendered = await render(<ReviewScreen customClock={createTestClock([100, 100, 1500])} />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
@@ -166,9 +258,9 @@ describe('Vocabulary Review Flow', () => {
         sessions.push(JSON.parse(options.body).client_session_id);
         throw new TypeError('Offline');
       }
-      if (url.includes('/content/lessons')) {
+      if (url.includes('/reviews/eligible-items')) {
         if (++contentCalls === 1) throw new TypeError('Content unavailable');
-        return { ok: true, status: 200, json: async () => ({ ...mockLessonResponse,
+        return { ok: true, status: 200, json: async () => eligibilityWire({ ...mockLessonResponse,
           vocabulary_items: [...mockLessonResponse.vocabulary_items,
             { ...mockLessonResponse.vocabulary_items[0], id: 'vocab-2' }] }) };
       }
@@ -195,7 +287,7 @@ describe('Vocabulary Review Flow', () => {
 
   it('shows an explicit save failure and sends no answer when app version is unavailable', async () => {
     global.fetch = jest.fn(async (url: string, options: any) => ({ ok: true, status: 200,
-      json: async () => url.includes('/reviews/sessions') ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : mockLessonResponse })) as any;
+      json: async () => url.includes('/reviews/sessions') ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : eligibilityWire(mockLessonResponse) })) as any;
     const rendered = await render(<ReviewScreen />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
     jest.replaceProperty(Constants.expoConfig!, 'version', undefined);
@@ -211,7 +303,7 @@ describe('Vocabulary Review Flow', () => {
     const legacy = JSON.parse(JSON.stringify(mockLessonResponse));
     delete legacy.vocabulary_items[0][missing];
     global.fetch = jest.fn(async (url: string, options: any) => ({ ok: true, status: 200,
-      json: async () => url.includes('/reviews/sessions') ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : legacy })) as any;
+      json: async () => url.includes('/reviews/sessions') ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : eligibilityWire(legacy) })) as any;
     const rendered = await render(<ReviewScreen />);
     await waitFor(() => expect(rendered.getByTestId('error-container')).toBeTruthy());
     expect(rendered.queryByTestId('card-term')).toBeNull();
@@ -224,7 +316,7 @@ describe('Vocabulary Review Flow', () => {
     global.fetch = jest.fn(async (url: string, options: any) => ({
       ok: true,
       status: 200,
-      json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : mockLessonResponse,
+      json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : eligibilityWire(mockLessonResponse),
     })) as any;
     const rendered = await render(<ReviewScreen />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
@@ -241,11 +333,11 @@ describe('Vocabulary Review Flow', () => {
 
   it('renders flashcard with term, progress, and reveal button', async () => {
     global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
-      if (url.includes('/content/lessons/lesson-uuid-1')) {
+      if (url.includes('/reviews/eligible-items')) {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => mockLessonResponse,
+          json: async () => eligibilityWire(mockLessonResponse),
         });
       }
       if (url.includes('/reviews/sessions')) {
@@ -273,11 +365,11 @@ describe('Vocabulary Review Flow', () => {
 
   it('reveals definition and rating buttons when reveal clicked', async () => {
     global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
-      if (url.includes('/content/lessons/lesson-uuid-1')) {
+      if (url.includes('/reviews/eligible-items')) {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => mockLessonResponse,
+          json: async () => eligibilityWire(mockLessonResponse),
         });
       }
       if (url.includes('/reviews/sessions')) {
@@ -316,11 +408,11 @@ describe('Vocabulary Review Flow', () => {
     jest.replaceProperty(Platform, 'OS', 'ios');
 
     global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
-      if (url.includes('/content/lessons/lesson-uuid-1')) {
+      if (url.includes('/reviews/eligible-items')) {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => mockLessonResponse,
+          json: async () => eligibilityWire(mockLessonResponse),
         });
       }
       if (url.includes('/reviews/sessions')) {
@@ -389,11 +481,11 @@ describe('Vocabulary Review Flow', () => {
     const testClock = createTestClock([500, 500, 1800]); // 1300 ms elapsed
 
     global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
-      if (url.includes('/content/lessons/lesson-uuid-1')) {
+      if (url.includes('/reviews/eligible-items')) {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => mockLessonResponse,
+          json: async () => eligibilityWire(mockLessonResponse),
         });
       }
       // Review session or attempt fails (network offline)
@@ -445,11 +537,11 @@ describe('Vocabulary Review Flow', () => {
     const testClock = createTestClock([100, 100, 1500]); // 1400 ms elapsed
 
     global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
-      if (url.includes('/content/lessons/lesson-uuid-1')) {
+      if (url.includes('/reviews/eligible-items')) {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => mockLessonResponse,
+          json: async () => eligibilityWire(mockLessonResponse),
         });
       }
       // Exact React Native fetch failure when TCP connection refused on stopped FastAPI

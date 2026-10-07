@@ -93,7 +93,9 @@
     "backToLessons": "Bumalik sa mga Aralin",
     "viewSyncStatus": "Tingnan ang Katayuan ng Pag-sync",
     "startReview": "Simulan ang Pagsusuri",
-    "noItems": "Walang mga salitang masusuri sa araling ito."
+    "noItems": "Walang kailangang suriin sa ngayon.",
+    "checkAgain": "Suriin muli",
+    "eligibilityUnavailable": "Hindi masuri kung may magagamit na review. Kumonekta at subukan muli."
   },
   "sync": {
     "title": "Offline na Pag-synchronize",

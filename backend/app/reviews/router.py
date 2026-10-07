@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -6,9 +7,11 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.auth.models import User
 from app.database.session import get_db
+from app.reviews.eligibility import get_review_eligibility
 from app.reviews.schemas import (
     ReviewAttemptCreate,
     ReviewAttemptResponse,
+    ReviewEligibilityResponse,
     ReviewSessionCreate,
     ReviewSessionResponse,
 )
@@ -18,6 +21,16 @@ from app.reviews.service import (
 )
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
+
+
+@router.get("/eligible-items", response_model=ReviewEligibilityResponse)
+def eligible_review_items(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    lesson_id: uuid.UUID,
+    content_release_id: uuid.UUID | None = None,
+) -> ReviewEligibilityResponse:
+    return get_review_eligibility(db, current_user.id, lesson_id, content_release_id)
 
 
 @router.post("/sessions", response_model=ReviewSessionResponse)

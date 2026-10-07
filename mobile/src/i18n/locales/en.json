@@ -94,7 +94,9 @@
     "backToLessons": "Back to Lessons",
     "viewSyncStatus": "View Sync Status",
     "startReview": "Start Review",
-    "noItems": "No vocabulary items available to review in this lesson."
+    "noItems": "Nothing to review right now.",
+    "checkAgain": "Check again",
+    "eligibilityUnavailable": "Review availability could not be checked. Connect and try again."
   },
   "sync": {
     "title": "Offline Synchronization",

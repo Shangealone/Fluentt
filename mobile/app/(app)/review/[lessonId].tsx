@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { AppText } from '../../../src/components/AppText';
-import { fetchLessonDetail } from '../../../src/content/api';
+import { fetchReviewEligibility } from '../../../src/reviews/eligibility';
 import { VocabularyItem } from '../../../src/content/types';
 import { createMonotonicClock, MonotonicClock } from '../../../src/reviews/clock';
 import { createReviewSession, submitReviewAttempt } from '../../../src/reviews/api';
@@ -31,6 +31,9 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
   const ownerUserId = user?.id;
   const router = useRouter();
   const { lessonId, contentReleaseId } = useLocalSearchParams<{ lessonId: string; contentReleaseId?: string }>();
+  const contextKey = JSON.stringify([ownerUserId, lessonId, contentReleaseId ?? null]);
+  const currentContextRef = useRef(contextKey);
+  const [loadedContextKey, setLoadedContextKey] = useState<string | null>(null);
 
   const clock = useMemo(() => customClock ?? createMonotonicClock(), [customClock]);
   const [items, setItems] = useState<VocabularyItem[]>([]);
@@ -71,22 +74,26 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
 
     try {
       await resolveSession(ownerUserId, lessonId);
-
-      const result = await fetchLessonDetail(lessonId, contentReleaseId);
-      const activeItems = (result.lesson?.vocabularyItems || []).filter((item) => item.isActive !== false);
+      const result = await fetchReviewEligibility(lessonId, ownerUserId, contentReleaseId);
+      if (currentContextRef.current !== contextKey) return;
+      const activeItems = result.items.map((item) => item.vocabularyItem);
 
       setItems(activeItems);
       setCurrentIndex(0);
       setIsRevealed(false);
       startTickRef.current = clock.now();
     } catch {
-      setErrorMessage(t('content.error'));
+      if (currentContextRef.current === contextKey) setErrorMessage(t('reviews.eligibilityUnavailable'));
     } finally {
-      setIsLoading(false);
+      if (currentContextRef.current === contextKey) {
+        setLoadedContextKey(contextKey);
+        setIsLoading(false);
+      }
     }
-  }, [lessonId, contentReleaseId, clock, t, ownerUserId, resolveSession]);
+  }, [lessonId, contentReleaseId, clock, t, ownerUserId, resolveSession, contextKey]);
 
   useEffect(() => {
+    currentContextRef.current = contextKey;
     if (!lessonId || !ownerUserId) return;
     const owner = ownerUserId;
     let isMounted = true;
@@ -94,20 +101,22 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     async function loadData() {
       try {
         await resolveSession(owner, lessonId);
-
-        const result = await fetchLessonDetail(lessonId, contentReleaseId);
-        const activeItems = (result.lesson?.vocabularyItems || []).filter((item) => item.isActive !== false);
+        const result = await fetchReviewEligibility(lessonId, owner, contentReleaseId);
+        const activeItems = result.items.map((item) => item.vocabularyItem);
 
         if (isMounted) {
+          setErrorMessage(null);
           setItems(activeItems);
           setCurrentIndex(0);
           setIsRevealed(false);
           startTickRef.current = clock.now();
+          setLoadedContextKey(contextKey);
           setIsLoading(false);
         }
       } catch {
         if (isMounted) {
-          setErrorMessage(t('content.error'));
+          setErrorMessage(t('reviews.eligibilityUnavailable'));
+          setLoadedContextKey(contextKey);
           setIsLoading(false);
         }
       }
@@ -118,7 +127,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     return () => {
       isMounted = false;
     };
-  }, [lessonId, contentReleaseId, clock, t, ownerUserId, resolveSession]);
+  }, [lessonId, contentReleaseId, clock, t, ownerUserId, resolveSession, contextKey]);
 
   const handleReveal = () => {
     setIsRevealed(true);
@@ -202,7 +211,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || loadedContextKey !== contextKey) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered} testID="loading-indicator">
@@ -223,12 +232,12 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
           <AppText style={styles.screenTitle}>{t('reviews.title')}</AppText>
           <View style={styles.placeholder} />
         </View>
-        <View style={styles.centered} testID="error-container">
-          <AppText style={styles.errorText}>
+        <View style={styles.centered} testID={errorMessage ? 'error-container' : 'empty-review-container'}>
+          <AppText style={errorMessage ? styles.errorText : styles.statusText}>
             {errorMessage || t('reviews.noItems')}
           </AppText>
           <Pressable testID="retry-btn" style={styles.actionButton} onPress={initializeReview}>
-            <AppText style={styles.actionButtonText}>{t('common.retry')}</AppText>
+            <AppText style={styles.actionButtonText}>{t(errorMessage ? 'common.retry' : 'reviews.checkAgain')}</AppText>
           </Pressable>
         </View>
       </SafeAreaView>

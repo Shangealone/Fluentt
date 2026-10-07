@@ -1,8 +1,10 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.content.schemas import VocabularyItemResponse
 
 
 class ReviewSessionCreate(BaseModel):
@@ -56,3 +58,30 @@ class ReviewAttemptResponse(BaseModel):
     next_due_at: datetime
     server_acceptance_at: datetime
     scheduler_state: dict[str, Any] | None = None
+
+
+class CurrentScheduleResponse(BaseModel):
+    id: uuid.UUID
+    scheduler_type: str
+    algorithm_version: str
+    next_interval_seconds: int
+    next_due_at: datetime
+    scheduler_state: dict[str, Any] | None
+
+
+class PublishedReviewVocabularyItemResponse(VocabularyItemResponse):
+    content_revision_id: uuid.UUID
+    content_release_id: uuid.UUID
+
+
+class EligibleReviewItem(BaseModel):
+    vocabulary_item: PublishedReviewVocabularyItemResponse
+    eligibility: Literal["new", "due"]
+    current_schedule: CurrentScheduleResponse | None
+
+
+class ReviewEligibilityResponse(BaseModel):
+    lesson_id: uuid.UUID
+    content_release_id: uuid.UUID
+    evaluated_at: datetime
+    items: list[EligibleReviewItem]

@@ -168,3 +168,34 @@ class ReviewSchedule(Base):
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
+
+    __table_args__ = (
+        UniqueConstraint("attempt_id", name="uq_review_schedule_attempt"),
+        UniqueConstraint(
+            "id", "user_id", "vocabulary_item_id", name="uq_schedule_owner_item"
+        ),
+    )
+
+
+class CurrentReviewSchedule(Base):
+    """Mutable pointer; historical ReviewSchedule rows remain append-only on acceptance."""
+
+    __tablename__ = "current_review_schedules"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    vocabulary_item_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True
+    )
+    schedule_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["schedule_id", "user_id", "vocabulary_item_id"],
+            [
+                "review_schedules.id",
+                "review_schedules.user_id",
+                "review_schedules.vocabulary_item_id",
+            ],
+            ondelete="CASCADE",
+            name="fk_current_schedule_owner_item",
+        ),
+    )
