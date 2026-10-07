@@ -367,7 +367,11 @@ def test_postgresql_concurrent_acceptance_has_one_current_schedule(
     session = ReviewSession(user_id=user_id, client_session_id=uuid.uuid4())
     db_session.add(session)
     db_session.commit()
-    payload = {**attempt(detail["vocabulary_items"][0]), "session_id": str(session.id)}
+    payload = {
+        **attempt(detail["vocabulary_items"][0]),
+        "session_id": str(session.id),
+        "client_session_id": str(session.client_session_id),
+    }
     second = payload if duplicate else {**payload, "client_event_id": str(uuid.uuid4())}
     barrier = Barrier(2, timeout=10)
 

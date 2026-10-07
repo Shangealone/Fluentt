@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import User
 from app.content.provenance import resolve_review_content
-from app.research_logging.service import record_research_event
+from app.research_logging.service import ItemAttemptPayload, record_research_event
 from app.reviews.models import (
     CurrentReviewSchedule,
     ReviewAttempt,
@@ -128,6 +128,11 @@ def record_review_attempt(
         session = get_or_create_review_session(
             db, user.id, attempt_in.client_session_id
         )
+    if session and session.client_session_id != attempt_in.client_session_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Original and resolved review session identities conflict",
+        )
     if not session:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -164,8 +169,11 @@ def record_review_attempt(
             client_event_id=attempt_in.client_event_id,
             correct=attempt_in.correct,
             response_time_ms=attempt_in.response_time_ms,
-            timing_evidence=(attempt_in.timing_evidence.model_dump()
-                             if attempt_in.timing_evidence is not None else None),
+            timing_evidence=(
+                attempt_in.timing_evidence.model_dump()
+                if attempt_in.timing_evidence is not None
+                else None
+            ),
             scheduler_type=sched_result.scheduler_type,
             algorithm_version=sched_result.algorithm_version,
             client_interaction_at=attempt_in.client_interaction_at,
@@ -234,31 +242,16 @@ def record_review_attempt(
             db=db,
             user_id=user.id,
             event_type="REVIEW_ANSWERED",
-            payload={
-                "client_event_id": str(attempt_in.client_event_id),
-                "participant_code": user.participant_code,
-                "vocabulary_item_id": str(vocab_item.vocabulary_item_id),
-                "correct": attempt_in.correct,
-                "response_time_ms": attempt_in.response_time_ms,
-                "device_platform": attempt_in.device_platform,
-                "application_version": attempt_in.application_version,
-                "client_interaction_at": attempt_in.client_interaction_at.isoformat(),
-                "server_acceptance_at": now_utc.isoformat(),
-            },
+            payload=ItemAttemptPayload(),
+            review_attempt_id=attempt.id,
         )
 
         record_research_event(
             db=db,
             user_id=user.id,
-            event_type="REVIEW_COMPLETED",
-            payload={
-                "attempt_id": str(attempt.id),
-                "client_event_id": str(attempt_in.client_event_id),
-                "scheduler_type": sched_result.scheduler_type,
-                "algorithm_version": sched_result.algorithm_version,
-                "interval_seconds": sched_result.next_interval_seconds,
-                "due_at": sched_result.next_due_at.isoformat(),
-            },
+            event_type="REVIEW_SCHEDULED",
+            payload=ItemAttemptPayload(),
+            review_attempt_id=attempt.id,
         )
 
         db.commit()

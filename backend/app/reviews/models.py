@@ -28,7 +28,9 @@ class ReviewSession(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey(
+            "users.id", ondelete="RESTRICT", name="fk_review_session_user_retained"
+        ),
         nullable=False,
         index=True,
     )
@@ -58,7 +60,9 @@ class ReviewAttempt(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey(
+            "users.id", ondelete="RESTRICT", name="fk_review_attempt_user_retained"
+        ),
         nullable=False,
         index=True,
     )
@@ -74,7 +78,11 @@ class ReviewAttempt(Base):
     )
     session_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("review_sessions.id", ondelete="CASCADE"),
+        ForeignKey(
+            "review_sessions.id",
+            ondelete="RESTRICT",
+            name="fk_review_attempt_session_retained",
+        ),
         nullable=False,
         index=True,
     )
@@ -118,6 +126,7 @@ class ReviewAttempt(Base):
     content_revision = relationship("VocabularyRevision", viewonly=True)
     content_release = relationship("ContentRelease")
     __table_args__ = (
+        UniqueConstraint("id", "user_id", name="uq_review_attempt_owner"),
         ForeignKeyConstraint(
             ["content_revision_id", "vocabulary_item_id"],
             ["vocabulary_revisions.id", "vocabulary_revisions.vocabulary_item_id"],
@@ -141,19 +150,29 @@ class ReviewSchedule(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey(
+            "users.id", ondelete="RESTRICT", name="fk_review_schedule_user_retained"
+        ),
         nullable=False,
         index=True,
     )
     vocabulary_item_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("vocabulary_items.id", ondelete="CASCADE"),
+        ForeignKey(
+            "vocabulary_items.id",
+            ondelete="RESTRICT",
+            name="fk_review_schedule_item_retained",
+        ),
         nullable=False,
         index=True,
     )
     attempt_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("review_attempts.id", ondelete="CASCADE"),
+        ForeignKey(
+            "review_attempts.id",
+            ondelete="RESTRICT",
+            name="fk_review_schedule_attempt_retained",
+        ),
         nullable=False,
         index=True,
     )

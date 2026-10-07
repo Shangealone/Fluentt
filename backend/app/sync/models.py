@@ -22,7 +22,9 @@ class AcceptedClientEvent(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey(
+            "users.id", ondelete="RESTRICT", name="fk_accepted_event_user_retained"
+        ),
         nullable=False,
         index=True,
     )
@@ -33,7 +35,11 @@ class AcceptedClientEvent(Base):
     )
     attempt_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("review_attempts.id", ondelete="CASCADE"),
+        ForeignKey(
+            "review_attempts.id",
+            ondelete="RESTRICT",
+            name="fk_accepted_event_attempt_retained",
+        ),
         nullable=False,
         index=True,
     )

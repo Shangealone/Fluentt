@@ -234,7 +234,7 @@ def test_submit_review_attempt_persists_attempt_schedule_and_research_events(
     )
     event_types = [e.event_type for e in research_events]
     assert "REVIEW_ANSWERED" in event_types
-    assert "REVIEW_COMPLETED" in event_types
+    assert "REVIEW_SCHEDULED" in event_types
 
     # Verify no leaked secrets in research payload
     for event in research_events:
@@ -318,9 +318,7 @@ def test_submit_review_attempt_idempotent_replay_same_client_event_id(
         db_session.query(ResearchEvent).filter_by(event_type="REVIEW_ANSWERED").all()
     )
     matching_research = [
-        e
-        for e in research_answered
-        if e.payload.get("client_event_id") == client_event_id
+        e for e in research_answered if e.review_attempt_id == attempts[0].id
     ]
     assert len(matching_research) == 1
 

@@ -7,6 +7,7 @@ from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 from sqlalchemy import inspect, text
 
+from tests.research_helpers import allow_historical_fixture_edits
 from tests.reviews.test_due_review import accept, history, make_review_context
 
 
@@ -24,6 +25,7 @@ def migration():
 
 
 def pre_d7(connection):
+    allow_historical_fixture_edits(connection, "review_attempts", "review_schedules")
     connection.execute(
         text("DELETE FROM current_review_schedules")
     )  # Isolated test maintenance.

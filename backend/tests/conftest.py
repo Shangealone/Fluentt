@@ -3,7 +3,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session, sessionmaker
 
 # 1. Force testing environment variables before importing settings or app
@@ -22,6 +22,7 @@ import app.database.session as app_db_session
 from app.database.base import Base
 from app.database.session import get_db
 from app.main import app
+from tests.research_helpers import reset_isolated_research_database
 
 test_engine = create_engine(TEST_DB_URL, pool_pre_ping=True)
 TestSessionLocal = sessionmaker(
@@ -102,6 +103,22 @@ def setup_test_environment() -> None:
             )
             with Operations.context(MigrationContext.configure(connection)):
                 migration.upgrade()
+        if inspector.has_table("research_events") and not any(
+            column["name"] == "schema_version"
+            for column in inspect(connection).get_columns("research_events")
+        ):
+            from alembic.config import Config
+            from alembic.migration import MigrationContext
+            from alembic.operations import Operations
+            from alembic.script import ScriptDirectory
+
+            migration = (
+                ScriptDirectory.from_config(Config("alembic.ini"))
+                .get_revision("d9c0de000001")
+                .module
+            )
+            with Operations.context(MigrationContext.configure(connection)):
+                migration.upgrade()
     Base.metadata.create_all(bind=test_engine)
 
 
@@ -112,22 +129,10 @@ def isolate_test_database() -> Generator[None]:
 
     # Truncate test database tables before each test
     with test_engine.begin() as conn:
-        conn.execute(
-            text(
-                "TRUNCATE TABLE accepted_client_events, research_events, review_schedules, "
-                "review_attempts, review_sessions, vocabulary_items, lessons, languages, "
-                "learner_profiles, refresh_sessions, users CASCADE;"
-            )
-        )
+        reset_isolated_research_database(conn)
     yield
     with test_engine.begin() as conn:
-        conn.execute(
-            text(
-                "TRUNCATE TABLE accepted_client_events, research_events, review_schedules, "
-                "review_attempts, review_sessions, vocabulary_items, lessons, languages, "
-                "learner_profiles, refresh_sessions, users CASCADE;"
-            )
-        )
+        reset_isolated_research_database(conn)
 
 
 @pytest.fixture

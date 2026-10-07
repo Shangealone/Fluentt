@@ -192,9 +192,7 @@ def test_sync_idempotent_replay_same_client_event_id(
         db_session.query(ResearchEvent).filter_by(event_type="REVIEW_ANSWERED").all()
     )
     matching_events = [
-        e
-        for e in research_events
-        if e.payload.get("client_event_id") == client_event_id
+        e for e in research_events if e.review_attempt_id == attempts[0].id
     ]
     assert len(matching_events) == 1
 
@@ -260,9 +258,7 @@ def test_lost_acknowledgement_online_then_sync_retry(
         db_session.query(ResearchEvent).filter_by(event_type="REVIEW_ANSWERED").all()
     )
     matching_events = [
-        e
-        for e in research_events
-        if e.payload.get("client_event_id") == client_event_id
+        e for e in research_events if e.review_attempt_id == attempts[0].id
     ]
     assert len(matching_events) == 1
 
@@ -318,7 +314,7 @@ def test_partial_batch_commits_early_event_and_single_event_replay_is_idempotent
     assert db_session.query(ReviewAttempt).filter_by(user_id=user.id).count() == 2
     assert db_session.query(ReviewSchedule).filter_by(user_id=user.id).count() == 2
     assert db_session.query(AcceptedClientEvent).filter_by(user_id=user.id).count() == 2
-    for event_type in ["REVIEW_ANSWERED", "REVIEW_COMPLETED"]:
+    for event_type in ["REVIEW_ANSWERED", "REVIEW_SCHEDULED"]:
         assert (
             db_session.query(ResearchEvent)
             .filter_by(user_id=user.id, event_type=event_type)
@@ -460,22 +456,24 @@ def test_canonical_metadata_persists_across_online_sync_and_replay(
         .filter_by(user_id=user.id, event_type="REVIEW_ANSWERED")
         .one()
     )
+    assert answered.schema_version == "review-events-1"
+    assert answered.review_attempt_id == attempt.id
+    assert answered.payload == {"scope": "item_attempt"}
+    # Original D4 facts are reconstructed from the linked authoritative attempt.
+    linked = db_session.get(ReviewAttempt, answered.review_attempt_id)
+    for field in ["client_event_id", "vocabulary_item_id"]:
+        assert str(getattr(linked, field)) == payload[field]
     for field in [
-        "client_event_id",
-        "vocabulary_item_id",
         "correct",
         "response_time_ms",
         "device_platform",
         "application_version",
     ]:
-        assert answered.payload[field] == payload[field]
-    assert (
-        datetime.fromisoformat(answered.payload["client_interaction_at"])
-        == expected_time
-    )
+        assert getattr(linked, field) == payload[field]
+    assert linked.client_interaction_at == expected_time
     assert (
         db_session.query(ResearchEvent)
-        .filter_by(user_id=user.id, event_type="REVIEW_COMPLETED")
+        .filter_by(user_id=user.id, event_type="REVIEW_SCHEDULED")
         .count()
         == 1
     )
