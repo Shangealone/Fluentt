@@ -3,6 +3,7 @@ import { notifySyncStatusListeners } from './syncWorker';
 import { isAccountCurrent, loadAuthenticatedAccount } from '../auth/tokenStore';
 import { ReviewAttemptCreate } from '../reviews/types';
 import { sanitizeReviewAttempt } from '../reviews/payload';
+import { TimingEvidence } from '../reviews/timing';
 
 /** Stored historical payloads may be incomplete; reads never repair them. */
 export interface PendingReviewPayload {
@@ -13,6 +14,7 @@ export interface PendingReviewPayload {
   content_revision_id?: string;
   content_release_id?: string;
   response_time_ms: number;
+  timing_evidence?: TimingEvidence | null;
   correct: boolean;
   submitted_answer?: string;
   client_interaction_at?: string;

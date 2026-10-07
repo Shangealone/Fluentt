@@ -2,6 +2,7 @@ import { apiClient } from '../../api/client';
 import { createReviewSession, submitReviewAttempt } from '../api';
 import { adaptReviewAttemptFromApi, adaptReviewSessionFromApi } from '../types';
 import { ACCOUNT, CLIENT_SESSION, SERVER_SESSION, EVENT, reviewWire } from '../../testUtils/contracts';
+import { sanitizeReviewAttempt } from '../payload';
 
 jest.mock('../../api/client', () => ({ apiClient: jest.fn() }));
 
@@ -18,7 +19,7 @@ it('adapts the flat authoritative review result with seconds and ISO timestamps'
   const result = adaptReviewAttemptFromApi(reviewWire());
   expect(result).toEqual({ id: reviewWire().id, clientEventId: EVENT, sessionId: SERVER_SESSION,
     vocabularyItemId: reviewWire().vocabulary_item_id, contentRevisionId: reviewWire().content_revision_id,
-    contentReleaseId: reviewWire().content_release_id, correct: false, responseTimeMs: 1234,
+    contentReleaseId: reviewWire().content_release_id, correct: false, responseTimeMs: 1234, timingEvidence: null,
     schedulerType: 'development', algorithmVersion: 'dev-0.1', nextIntervalSeconds: 600,
     nextDueAt: '2025-01-01T11:32:33.456Z', serverAcceptanceAt: '2025-01-02T12:00:00Z', schedulerState: { correct: false } });
   expect(result).not.toHaveProperty('schedule');
@@ -47,4 +48,18 @@ it('submits the unchanged canonical D4/D5 wire request and adapts its response',
   const result = await submitReviewAttempt(payload, ACCOUNT);
   expect(JSON.parse((apiClient as jest.Mock).mock.calls[0][1].body)).toEqual(payload);
   expect(result.clientEventId).toBe(EVENT);
+});
+
+it('preserves canonical timing evidence while stripping nested extras and keeping legacy absence explicit', () => {
+  const evidence = { version: 1 as const, clock_source: 'date_now_fallback' as const,
+    start_boundary: 'prompt_layout_frame' as const, interruption_count: 1,
+    interruption_reasons: ['app_background' as const] };
+  const payload = { client_event_id: EVENT, client_session_id: CLIENT_SESSION, vocabulary_item_id: 'word',
+    content_revision_id: 'revision', content_release_id: 'release', correct: false, response_time_ms: 1234,
+    client_interaction_at: '2025-01-01T11:22:33.456Z', device_platform: 'ios', application_version: '1.0.0',
+    timing_evidence: { ...evidence, email: 'private@example.test', access_token: 'secret' } };
+  expect(sanitizeReviewAttempt(payload).timing_evidence).toEqual(evidence);
+  expect(adaptReviewAttemptFromApi({ ...reviewWire(), timing_evidence: evidence }).timingEvidence).toEqual(evidence);
+  expect(adaptReviewAttemptFromApi(reviewWire()).timingEvidence).toBeNull();
+  expect(() => sanitizeReviewAttempt({ ...payload, timing_evidence: { ...evidence, interruption_count: 0 } })).toThrow();
 });

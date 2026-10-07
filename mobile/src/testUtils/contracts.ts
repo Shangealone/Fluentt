@@ -19,7 +19,7 @@ export function reviewWire(eventId = EVENT) {
   return { id: ATTEMPT, client_event_id: eventId, session_id: SERVER_SESSION,
     vocabulary_item_id: '33333333-3333-4333-8333-333333333333',
     content_revision_id: REVISION, content_release_id: RELEASE, correct: false,
-    response_time_ms: 1234, scheduler_type: 'development', algorithm_version: 'dev-0.1',
+    response_time_ms: 1234, timing_evidence: null, scheduler_type: 'development', algorithm_version: 'dev-0.1',
     next_interval_seconds: 600, next_due_at: '2025-01-01T11:32:33.456Z',
     server_acceptance_at: '2025-01-02T12:00:00Z', scheduler_state: { correct: false } };
 }

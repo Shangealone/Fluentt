@@ -164,6 +164,8 @@ def record_review_attempt(
             client_event_id=attempt_in.client_event_id,
             correct=attempt_in.correct,
             response_time_ms=attempt_in.response_time_ms,
+            timing_evidence=(attempt_in.timing_evidence.model_dump()
+                             if attempt_in.timing_evidence is not None else None),
             scheduler_type=sched_result.scheduler_type,
             algorithm_version=sched_result.algorithm_version,
             client_interaction_at=attempt_in.client_interaction_at,
@@ -203,6 +205,7 @@ def record_review_attempt(
                 "content_release_id": str(attempt.content_release_id),
                 "correct": attempt.correct,
                 "response_time_ms": attempt.response_time_ms,
+                "timing_evidence": attempt.timing_evidence,
                 "scheduler_type": attempt.scheduler_type,
                 "algorithm_version": attempt.algorithm_version,
                 "next_interval_seconds": schedule.interval_seconds,

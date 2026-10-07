@@ -18,6 +18,7 @@ import { enqueuePendingReview } from '../../../src/offline/reviewQueue';
 import { generateUUID } from '../../../src/utils/uuid';
 import { ReviewAttemptCreate } from '../../../src/reviews/types';
 import { captureReviewAttempt } from '../../../src/reviews/metadata';
+import { useReviewTiming } from '../../../src/reviews/useReviewTiming';
 import { useAuth } from '../../../src/auth/AuthProvider';
 import { isAccountCurrent, loadAuthenticatedAccount } from '../../../src/auth/tokenStore';
 
@@ -48,8 +49,10 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
   const sessionRef = useRef<{
     owner: string; lesson: string; clientId: string; serverId?: string;
   } | null>(null);
-  const startTickRef = useRef<number>(clock.now());
   const statsRef = useRef<{ synced: number; queued: number }>({ synced: 0, queued: 0 });
+  const presentationKey = !isLoading && loadedContextKey === contextKey && !errorMessage && items[currentIndex]
+    ? JSON.stringify([contextKey, currentIndex, items[currentIndex].id]) : null;
+  const timing = useReviewTiming(presentationKey, clock);
 
   const resolveSession = useCallback(async (owner: string, lesson: string) => {
     if (!sessionRef.current || sessionRef.current.owner !== owner || sessionRef.current.lesson !== lesson) {
@@ -81,7 +84,6 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
       setItems(activeItems);
       setCurrentIndex(0);
       setIsRevealed(false);
-      startTickRef.current = clock.now();
     } catch {
       if (currentContextRef.current === contextKey) setErrorMessage(t('reviews.eligibilityUnavailable'));
     } finally {
@@ -90,7 +92,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
         setIsLoading(false);
       }
     }
-  }, [lessonId, contentReleaseId, clock, t, ownerUserId, resolveSession, contextKey]);
+  }, [lessonId, contentReleaseId, t, ownerUserId, resolveSession, contextKey]);
 
   useEffect(() => {
     currentContextRef.current = contextKey;
@@ -109,7 +111,6 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
           setItems(activeItems);
           setCurrentIndex(0);
           setIsRevealed(false);
-          startTickRef.current = clock.now();
           setLoadedContextKey(contextKey);
           setIsLoading(false);
         }
@@ -127,17 +128,18 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     return () => {
       isMounted = false;
     };
-  }, [lessonId, contentReleaseId, clock, t, ownerUserId, resolveSession, contextKey]);
+  }, [lessonId, contentReleaseId, t, ownerUserId, resolveSession, contextKey]);
 
   const handleReveal = () => {
+    if (!timing.isInteractable || isSubmitting || unsavedAttemptRef.current) return;
     setIsRevealed(true);
   };
 
   const handleResponse = async (isCorrect: boolean) => {
-    if (!ownerUserId || isSubmitting || currentIndex >= items.length) return;
+    if (!ownerUserId || isSubmitting || currentIndex >= items.length ||
+      (!unsavedAttemptRef.current && !timing.isInteractable)) return;
     setIsSubmitting(true);
 
-    const finishTick = clock.now();
     const capturedOwner = ownerUserId;
     const session = sessionRef.current;
     if (!session || session.owner !== capturedOwner ||
@@ -151,13 +153,14 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
       if (!unsavedAttemptRef.current && (!item.contentRevisionId || !item.contentReleaseId)) {
         throw new Error('This cached content has no verified revision provenance.');
       }
+      // Freeze once at final commitment, before authentication/transport/storage.
       attemptPayload = unsavedAttemptRef.current?.payload ?? captureReviewAttempt({
+        ...timing.commit(),
         client_session_id: session.clientId,
         session_id: session.serverId,
         vocabulary_item_id: item.id,
         content_revision_id: item.contentRevisionId!,
         content_release_id: item.contentReleaseId!,
-        response_time_ms: clock.elapsedMs(startTickRef.current, finishTick),
         correct: isCorrect,
         submitted_answer: isCorrect ? 'correct' : 'incorrect',
       });
@@ -169,8 +172,10 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
     unsavedAttemptRef.current = { owner: capturedOwner, payload: attemptPayload };
     const account = await loadAuthenticatedAccount().catch(() => null);
     if (!account || account.userId !== ownerUserId || !isAccountCurrent(account)) {
+      // This answer is already committed. Retain its presentation/payload for
+      // same-owner save retry instead of reloading eligibility and starting again.
+      setStorageError(true);
       setIsSubmitting(false);
-      setErrorMessage(t('content.error'));
       return;
     }
     try {
@@ -195,7 +200,6 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
       setCurrentIndex(nextIndex);
       setIsRevealed(false);
       setIsSubmitting(false);
-      startTickRef.current = clock.now();
     } else {
       // Completed review
       setIsSubmitting(false);
@@ -258,7 +262,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView key={presentationKey} contentContainerStyle={styles.content}>
         {storageError ? (
           <View testID="unsaved-review-error">
             <AppText style={styles.errorText}>{t('reviews.saveFailed')}</AppText>
@@ -269,7 +273,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
           </View>
         ) : null}
         {/* Flashcard */}
-        <View style={styles.card} testID="review-card">
+        <View style={styles.card} testID="review-card" onLayout={timing.onPromptLayout}>
           <View style={styles.badgeRow}>
             {currentItem.category ? (
               <View style={styles.badge}>
@@ -314,6 +318,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
             <Pressable
               testID="reveal-answer-btn"
               style={styles.revealButton}
+              disabled={!timing.isInteractable || isSubmitting}
               onPress={handleReveal}
             >
               <AppText style={styles.revealButtonText}>👀 {t('reviews.showAnswer')}</AppText>
@@ -331,7 +336,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
               <Pressable
                 testID="rating-again-btn"
                 style={[styles.ratingBtn, styles.againBtn]}
-                disabled={isSubmitting || storageError}
+                disabled={isSubmitting || storageError || !timing.isInteractable}
                 onPress={() => handleResponse(false)}
               >
                 <AppText style={styles.ratingBtnText}>{t('reviews.incorrect')}</AppText>
@@ -340,7 +345,7 @@ export default function ReviewScreen({ customClock }: ReviewScreenProps) {
               <Pressable
                 testID="rating-good-btn"
                 style={[styles.ratingBtn, styles.goodBtn]}
-                disabled={isSubmitting || storageError}
+                disabled={isSubmitting || storageError || !timing.isInteractable}
                 onPress={() => handleResponse(true)}
               >
                 <AppText style={styles.ratingBtnText}>{t('reviews.correct')}</AppText>

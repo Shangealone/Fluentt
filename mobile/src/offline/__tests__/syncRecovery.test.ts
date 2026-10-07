@@ -178,7 +178,10 @@ describe('D3 worker with real SQLite', () => {
   });
 
   it('sends identical canonical facts online, from SQLite, after app update, backoff, auth resume and lost acknowledgement', async () => {
-    const canonical = { ...event, correct: false, submitted_answer: 'incorrect' };
+    const canonical = { ...event, correct: false, submitted_answer: 'incorrect',
+      timing_evidence: { version: 1 as const, clock_source: 'native_performance_now' as const,
+        start_boundary: 'prompt_layout_frame' as const, interruption_count: 2,
+        interruption_reasons: ['app_background' as const, 'screen_blur' as const] } };
     const accidentalExtras = { ...canonical, access_token: 'SECRET_ACCESS', refresh_token: 'SECRET_REFRESH',
       jwt: 'SECRET_JWT', password: 'SECRET_PASSWORD', email: 'private@example.test',
       owner_user_id: B, lease_id: 'SECRET_LEASE', failure_kind: 'permanent', next_retry_at: 42, attempt_count: 99,
@@ -282,7 +285,9 @@ describe('D3 worker with real SQLite', () => {
   });
 
   it('recovers stale syncing for A without changing UUID, owner, payload, B or ownerless work', async () => {
-    await enqueuePendingReview(event, A);
+    const captured = { ...event, timing_evidence: { version: 1 as const, clock_source: 'date_now_fallback' as const,
+      start_boundary: 'prompt_layout_frame' as const, interruption_count: 1, interruption_reasons: ['app_background' as const] } };
+    await enqueuePendingReview(captured, A);
     await enqueuePendingReview(second, B);
     await markReviewStatus(event.client_event_id, 'syncing', undefined, A);
     await markReviewStatus(second.client_event_id, 'syncing', undefined, B);
@@ -295,13 +300,13 @@ describe('D3 worker with real SQLite', () => {
     await drainReviewQueue();
     const rows = await getPendingReviews();
     expect(rows.find((row) => row.owner_user_id === A)).toMatchObject({
-      client_event_id: event.client_event_id, owner_user_id: A, payload: event,
+      client_event_id: event.client_event_id, owner_user_id: A, payload: captured,
       status: 'pending', attempt_count: 2, last_error: 'lost acknowledgement',
     });
     for (const untouched of before.filter((row) => row.owner_user_id !== A)) {
       expect(sqlite.prepare('SELECT * FROM pending_review_events WHERE client_event_id = ?').get(untouched.client_event_id!)).toEqual(untouched);
     }
-    expect(JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body).events).toEqual([event]);
+    expect(JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body).events).toEqual([captured]);
   });
 
   it('does not recover a non-stale active sync', async () => {

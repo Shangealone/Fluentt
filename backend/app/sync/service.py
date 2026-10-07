@@ -35,6 +35,7 @@ def sync_review_events(
                 content_release_id=attempt.content_release_id,
                 correct=attempt.correct,
                 response_time_ms=attempt.response_time_ms,
+                timing_evidence=attempt.timing_evidence,
                 scheduler_type=attempt.scheduler_type,
                 algorithm_version=attempt.algorithm_version,
                 next_interval_seconds=schedule.interval_seconds,

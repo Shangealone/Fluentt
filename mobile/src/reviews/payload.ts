@@ -1,4 +1,5 @@
 import { ReviewAttemptCreate } from './types';
+import { parseTimingEvidence } from './timing';
 
 /** Copy only captured research facts. Never reconstruct missing legacy facts. */
 export function sanitizeReviewAttempt(payload: ReviewAttemptCreate): ReviewAttemptCreate {
@@ -20,6 +21,8 @@ export function sanitizeReviewAttempt(payload: ReviewAttemptCreate): ReviewAttem
     content_revision_id: payload.content_revision_id,
     content_release_id: payload.content_release_id,
     response_time_ms: payload.response_time_ms,
+    // Preserve omitted pre-D8 payloads as omitted. The backend stores null.
+    ...(payload.timing_evidence === undefined ? {} : { timing_evidence: parseTimingEvidence(payload.timing_evidence) }),
     correct: payload.correct,
     submitted_answer: payload.submitted_answer,
     client_interaction_at: payload.client_interaction_at,

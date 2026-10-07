@@ -1,4 +1,5 @@
 import { booleanField, ContractError, integerField, JsonValue, nullableString, object, stateField, stringField, timestampField } from '../api/contracts';
+import { parseTimingEvidence, TimingEvidence } from './timing';
 
 export interface ReviewSessionCreate { client_session_id: string; }
 export interface ApiReviewSession { id: string; client_session_id: string; created_at: string; }
@@ -15,6 +16,7 @@ export interface ReviewAttemptCreate {
   correct: boolean;
   submitted_answer?: string | null;
   response_time_ms: number;
+  timing_evidence?: TimingEvidence | null;
   client_interaction_at: string;
   device_platform: string;
   application_version: string;
@@ -34,6 +36,7 @@ export interface SchedulingResult {
   schedulerState: Record<string, JsonValue> | null;
 }
 export interface ApiReviewAttemptResponse extends ApiSchedulingResult {
+  timing_evidence?: TimingEvidence | null;
   id: string;
   client_event_id: string;
   session_id: string;
@@ -45,6 +48,7 @@ export interface ApiReviewAttemptResponse extends ApiSchedulingResult {
   server_acceptance_at: string;
 }
 export interface ReviewAttemptResponse extends SchedulingResult {
+  timingEvidence: TimingEvidence | null;
   id: string;
   clientEventId: string;
   sessionId: string;
@@ -69,7 +73,7 @@ export function adaptReviewAttemptFromApi(value: unknown): ReviewAttemptResponse
   return {
     id: stringField(row, 'id'), clientEventId: stringField(row, 'client_event_id'), sessionId: stringField(row, 'session_id'),
     vocabularyItemId: stringField(row, 'vocabulary_item_id'), contentRevisionId, contentReleaseId,
-    correct: booleanField(row, 'correct'), responseTimeMs,
+    correct: booleanField(row, 'correct'), responseTimeMs, timingEvidence: parseTimingEvidence(row.timing_evidence),
     schedulerType: stringField(row, 'scheduler_type'), algorithmVersion: stringField(row, 'algorithm_version'),
     nextIntervalSeconds: integerField(row, 'next_interval_seconds'), nextDueAt: timestampField(row, 'next_due_at'),
     serverAcceptanceAt: timestampField(row, 'server_acceptance_at'), schedulerState: stateField(row, 'scheduler_state'),

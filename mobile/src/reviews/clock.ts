@@ -1,4 +1,9 @@
+import { Platform } from 'react-native';
+
+export type ClockSource = 'native_performance_now' | 'performance_now' | 'date_now_fallback';
+
 export interface MonotonicClock {
+  readonly source: ClockSource;
   now(): number;
   elapsedMs(started: number, finished: number): number;
 }
@@ -6,6 +11,7 @@ export interface MonotonicClock {
 export function createTestClock(ticks: number[]): MonotonicClock {
   let index = 0;
   return {
+    source: 'performance_now',
     now(): number {
       if (ticks.length === 0) return 0;
       if (index >= ticks.length) {
@@ -24,15 +30,20 @@ export function createTestClock(ticks: number[]): MonotonicClock {
 }
 
 export function createMonotonicClock(): MonotonicClock {
-  let lastTime = 0;
+  const nativeNow = (globalThis as typeof globalThis & { nativePerformanceNow?: () => number }).nativePerformanceNow;
+  // RN's performance.now shim can itself use Date.now. Prefer the explicit JSI
+  // source on native; only identify browser performance.now as such on web.
+  const browserNow = Platform.OS === 'web' && typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now.bind(performance) : undefined;
+  const read = nativeNow ?? browserNow ?? Date.now;
+  const source: ClockSource = nativeNow ? 'native_performance_now'
+    : browserNow ? 'performance_now' : 'date_now_fallback';
+  let lastTime = -Infinity;
   return {
+    source,
     now(): number {
-      let t: number;
-      if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
-        t = performance.now();
-      } else {
-        t = Date.now();
-      }
+      let t = read();
+      if (!Number.isFinite(t)) throw new Error('Elapsed clock is unavailable.');
       // Ensure monotonic non-decreasing even if system clock shifts
       if (t < lastTime) {
         t = lastTime;

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.content.schemas import VocabularyItemResponse
 
@@ -17,6 +17,27 @@ class ReviewSessionResponse(BaseModel):
     id: uuid.UUID
     client_session_id: uuid.UUID
     created_at: datetime
+
+
+class TimingEvidence(BaseModel):
+    """Observed timing limitations; no research exclusion/validity classification."""
+
+    version: Literal[1]
+    clock_source: Literal["native_performance_now", "performance_now", "date_now_fallback"]
+    start_boundary: Literal["prompt_layout_frame"]
+    interruption_count: int = Field(ge=0, strict=True)
+    interruption_reasons: list[Literal[
+        "app_inactive", "app_background", "app_state_unknown", "app_blur",
+        "screen_blur", "navigation_transition", "navigation_away",
+    ]]
+
+    @model_validator(mode="after")
+    def consistent_interruptions(self) -> "TimingEvidence":
+        reasons = self.interruption_reasons
+        if (len(set(reasons)) != len(reasons) or len(reasons) > self.interruption_count
+                or (self.interruption_count == 0) != (len(reasons) == 0)):
+            raise ValueError("Inconsistent interruption evidence")
+        return self
 
 
 class ReviewAttemptCreate(BaseModel):
@@ -39,6 +60,7 @@ class ReviewAttemptCreate(BaseModel):
     device_platform: str = Field(..., min_length=1, max_length=32)
     application_version: str = Field(..., min_length=1, max_length=32)
     submitted_answer: str | None = None
+    timing_evidence: TimingEvidence | None = None
 
 
 class ReviewAttemptResponse(BaseModel):
@@ -52,6 +74,7 @@ class ReviewAttemptResponse(BaseModel):
     content_release_id: uuid.UUID | None = None
     correct: bool
     response_time_ms: int
+    timing_evidence: TimingEvidence | None = None
     scheduler_type: str
     algorithm_version: str
     next_interval_seconds: int

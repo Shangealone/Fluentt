@@ -86,6 +86,22 @@ def setup_test_environment() -> None:
             )
             with Operations.context(MigrationContext.configure(connection)):
                 migration.upgrade()
+        if inspector.has_table("review_attempts") and not any(
+            column["name"] == "timing_evidence"
+            for column in inspect(connection).get_columns("review_attempts")
+        ):
+            from alembic.config import Config
+            from alembic.migration import MigrationContext
+            from alembic.operations import Operations
+            from alembic.script import ScriptDirectory
+
+            migration = (
+                ScriptDirectory.from_config(Config("alembic.ini"))
+                .get_revision("d8c0de000001")
+                .module
+            )
+            with Operations.context(MigrationContext.configure(connection)):
+                migration.upgrade()
     Base.metadata.create_all(bind=test_engine)
 
 

@@ -85,6 +85,10 @@ class ReviewAttempt(Base):
     )
     correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
     response_time_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    # SQL NULL identifies legacy absence; never reconstruct historical evidence.
+    timing_evidence: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
     scheduler_type: Mapped[str] = mapped_column(String(64), nullable=False)
     algorithm_version: Mapped[str] = mapped_column(String(64), nullable=False)
     client_interaction_at: Mapped[datetime] = mapped_column(

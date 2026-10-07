@@ -8,7 +8,7 @@ import { getPendingReviews } from '../../offline/reviewQueue';
 import { setInterfaceLanguage } from '../../i18n';
 import { loadAuthenticatedAccount } from '../../auth/tokenStore';
 import * as queue from '../../offline/reviewQueue';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { cacheLessonDetail } from '../../content/contentCache';
 import { adaptLessonDetailFromApi } from '../../content/types';
@@ -23,6 +23,45 @@ const mockBack = jest.fn();
 const mockReplace = jest.fn();
 let mockParams: Record<string, string> = { lessonId: 'lesson-uuid-1' };
 let mockOwnerUserId = 'test-user-id';
+let mockFocused = true;
+const mockNavigationListeners = new Map<string, Set<(event?: any) => void>>();
+const mockNavigation = {
+  isFocused: () => mockFocused,
+  addListener: (name: string, listener: (event?: any) => void) => {
+    if (!mockNavigationListeners.has(name)) mockNavigationListeners.set(name, new Set());
+    mockNavigationListeners.get(name)!.add(listener);
+    return () => { mockNavigationListeners.get(name)?.delete(listener); };
+  },
+};
+const appListeners = new Map<string, Set<(state?: any) => void>>();
+const initialAppState = AppState.currentState;
+const frames = new Map<number, FrameRequestCallback>();
+let nextFrame = 0;
+function flushFrames() {
+  const pending = [...frames.values()]; frames.clear();
+  for (const callback of pending) callback(0);
+}
+async function present(rendered: Awaited<ReturnType<typeof render>>) {
+  await act(async () => {
+    fireEvent(rendered.getByTestId('review-card'), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 300 } } });
+    flushFrames();
+  });
+}
+async function navigationSignal(name: string, data?: any) {
+  await act(async () => {
+    if (name === 'focus') mockFocused = true;
+    if (name === 'blur') mockFocused = false;
+    for (const listener of mockNavigationListeners.get(name) ?? []) listener({ data });
+    flushFrames();
+  });
+}
+async function appSignal(name: string, state?: any) {
+  await act(async () => {
+    if (name === 'change') AppState.currentState = state;
+    for (const listener of appListeners.get(name) ?? []) listener(state);
+    flushFrames();
+  });
+}
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -31,6 +70,7 @@ jest.mock('expo-router', () => ({
     replace: mockReplace,
   }),
   useLocalSearchParams: () => mockParams,
+  useNavigation: () => mockNavigation,
 }));
 
 // Mock useAuth
@@ -95,12 +135,192 @@ describe('Vocabulary Review Flow', () => {
     originalFetch = global.fetch;
     mockParams = { lessonId: 'lesson-uuid-1' };
     mockOwnerUserId = 'test-user-id';
+    mockFocused = true;
+    mockNavigationListeners.clear(); appListeners.clear(); frames.clear(); nextFrame = 0;
+    AppState.currentState = 'active';
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((name, listener) => {
+      if (!appListeners.has(name)) appListeners.set(name, new Set());
+      appListeners.get(name)!.add(listener);
+      return { remove: () => { appListeners.get(name)?.delete(listener); } };
+    });
+    jest.spyOn(global, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.set(++nextFrame, callback); return nextFrame;
+    });
+    jest.spyOn(global, 'cancelAnimationFrame').mockImplementation((id) => { if (id != null) frames.delete(id); });
     jest.mocked(loadAuthenticatedAccount).mockImplementation(async () => ({ userId: mockOwnerUserId,
       tokens: { accessToken: 'fake-token', refreshToken: 'fake-refresh' }, generation: 0 }));
     await resetDatabaseForTesting();
     await act(async () => {
       await setInterfaceLanguage('en');
     });
+  });
+
+  const offlineFetch = (detail = mockLessonResponse) => jest.fn(async (url: string, options: any) => {
+    if (url.includes('/reviews/attempts')) throw new TypeError('Offline');
+    return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions')
+      ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' }
+      : eligibilityWire(detail) };
+  });
+
+  it('does not read the elapsed clock during session/eligibility loading or before layout and a frame', async () => {
+    let finishSession!: (value: any) => void;
+    const session = new Promise((resolve) => { finishSession = resolve; });
+    let finishEligibility!: (value: any) => void;
+    const eligibility = new Promise((resolve) => { finishEligibility = resolve; });
+    global.fetch = jest.fn(async (url: string, options: any) => url.includes('/reviews/sessions') ? await session : await eligibility) as any;
+    const clock = createTestClock([100, 1500]);
+    const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
+    expect(rendered.getByTestId('loading-indicator')).toBeTruthy();
+    expect(reads).not.toHaveBeenCalled();
+    await act(async () => { finishSession({ ok: true, status: 200, json: async () => ({ id: 'session', client_session_id: JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body).client_session_id, created_at: '2025-01-01T00:00:00Z' }) }); });
+    expect(reads).not.toHaveBeenCalled();
+    await act(async () => { finishEligibility({ ok: true, status: 200, json: async () => eligibilityWire(mockLessonResponse) }); });
+    expect(rendered.getByTestId('reveal-answer-btn')).toBeDisabled();
+    expect(reads).not.toHaveBeenCalled();
+    await act(async () => { fireEvent(rendered.getByTestId('review-card'), 'layout', { nativeEvent: { layout: { width: 320, height: 300 } } }); });
+    expect(reads).not.toHaveBeenCalled();
+    await act(async () => { flushFrames(); });
+    await present(rendered);
+    await rendered.rerender(<ReviewScreen customClock={clock} />);
+    expect(reads).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    global.fetch = offlineFetch() as any;
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    expect((await getPendingReviews())[0].payload).toMatchObject({ response_time_ms: 1400,
+      timing_evidence: { interruption_count: 0, interruption_reasons: [] } });
+  });
+
+  it.each(['inactive', 'background', 'unfocused', 'transition', 'app_blur'])('defers presentation until %s ends', async (blocked) => {
+    if (blocked === 'unfocused') mockFocused = false;
+    if (blocked === 'inactive' || blocked === 'background') AppState.currentState = blocked;
+    global.fetch = offlineFetch() as any;
+    const clock = createTestClock([100, 900]); const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    if (blocked === 'transition') await navigationSignal('transitionStart', { closing: false });
+    if (blocked === 'app_blur') await appSignal('blur');
+    await present(rendered);
+    expect(reads).not.toHaveBeenCalled();
+    if (blocked === 'unfocused') await navigationSignal('focus');
+    else if (blocked === 'transition') await navigationSignal('transitionEnd', { closing: false });
+    else if (blocked === 'app_blur') await appSignal('focus');
+    else await appSignal('change', 'active');
+    expect(reads).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    expect((await getPendingReviews())[0].payload).toMatchObject({ response_time_ms: 800,
+      timing_evidence: { interruption_count: 0, interruption_reasons: [] } });
+  });
+
+  it('records background and focus/navigation interruptions, retains raw elapsed and never restarts on return', async () => {
+    global.fetch = offlineFetch() as any;
+    const clock = createTestClock([100, 10100]); const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    await present(rendered);
+    await appSignal('change', 'inactive'); await appSignal('change', 'background');
+    await appSignal('change', 'background'); // Duplicate notification is not a second transition.
+    await appSignal('change', 'active');
+    await navigationSignal('blur'); await navigationSignal('focus');
+    await navigationSignal('transitionStart', { closing: false }); await navigationSignal('transitionEnd', { closing: false });
+    await present(rendered);
+    expect(reads).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-again-btn')); });
+    expect((await getPendingReviews())[0].payload).toMatchObject({ response_time_ms: 10000,
+      timing_evidence: { interruption_count: 4,
+        interruption_reasons: ['app_inactive', 'app_background', 'screen_blur', 'navigation_transition'] } });
+  });
+
+  it('gives the next item a new presentation boundary and excludes pending save time', async () => {
+    const detail = { ...mockLessonResponse, vocabulary_items: [...mockLessonResponse.vocabulary_items,
+      { ...mockLessonResponse.vocabulary_items[0], id: 'vocab-2', term: 'second' }] };
+    global.fetch = offlineFetch(detail) as any;
+    const clock = createTestClock([100, 500, 10000, 11200]); const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    await present(rendered);
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    expect(rendered.getByTestId('card-term').props.children).toBe('second');
+    expect(reads).toHaveBeenCalledTimes(2);
+    expect(rendered.getByTestId('reveal-answer-btn')).toBeDisabled();
+    await present(rendered);
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    expect((await getPendingReviews()).map((row) => row.payload.response_time_ms)).toEqual([400, 1200]);
+    expect(reads).toHaveBeenCalledTimes(4);
+  });
+
+  it('cancels the pre-start frame when the app backgrounds and cannot answer before presentation', async () => {
+    global.fetch = offlineFetch() as any;
+    const clock = createTestClock([100, 900]); const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    expect(rendered.queryByTestId('rating-section')).toBeNull();
+    await act(async () => { fireEvent(rendered.getByTestId('review-card'), 'layout', { nativeEvent: { layout: { width: 320, height: 300 } } }); });
+    await appSignal('change', 'background');
+    expect(reads).not.toHaveBeenCalled();
+    await appSignal('change', 'active');
+    expect(reads).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['app_blur', 'navigation_away'])('records supported %s after start and can return without resetting', async (reason) => {
+    global.fetch = offlineFetch() as any;
+    const clock = createTestClock([100, 2100]); const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    await present(rendered);
+    if (reason === 'app_blur') { await appSignal('blur'); await appSignal('focus'); }
+    else await navigationSignal('beforeRemove'); // Removal canceled by another route handler.
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    expect((await getPendingReviews())[0].payload).toMatchObject({ response_time_ms: 2000,
+      timing_evidence: { interruption_count: 1, interruption_reasons: [reason] } });
+    expect(reads).toHaveBeenCalledTimes(2);
+  });
+
+  it('freezes timing before a delayed online acknowledgement and ignores post-commit interruptions', async () => {
+    let acknowledge!: (value: any) => void;
+    const acknowledgement = new Promise((resolve) => { acknowledge = resolve; });
+    let body: any;
+    global.fetch = jest.fn(async (url: string, options: any) => {
+      if (url.includes('/reviews/attempts')) { body = JSON.parse(options.body); return await acknowledgement; }
+      return await offlineFetch()(url, options);
+    }) as any;
+    const clock = createTestClock([100, 1400, 999999]); const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    await present(rendered);
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    expect(body).toMatchObject({ response_time_ms: 1300, timing_evidence: { interruption_count: 0, interruption_reasons: [] } });
+    await appSignal('change', 'background'); await appSignal('change', 'active');
+    expect(reads).toHaveBeenCalledTimes(2);
+    await act(async () => { acknowledge({ ok: true, status: 200, json: async () => ({ ...reviewWire(body.client_event_id),
+      response_time_ms: body.response_time_ms, timing_evidence: body.timing_evidence }) }); });
+    expect(reads).toHaveBeenCalledTimes(2);
+    expect(mockReplace).toHaveBeenCalledWith(expect.objectContaining({ params: expect.objectContaining({ syncedCount: '1' }) }));
+  });
+
+  it('retries the same frozen interaction after account verification pauses without starting timing again', async () => {
+    global.fetch = offlineFetch() as any;
+    const clock = createTestClock([100, 1700, 999999]); const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
+    await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    await present(rendered);
+    jest.mocked(loadAuthenticatedAccount).mockResolvedValueOnce(null);
+    await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+    await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+    expect(rendered.getByTestId('retry-save-btn')).toBeTruthy();
+    expect(await getPendingReviews()).toHaveLength(0);
+    await appSignal('change', 'background'); await appSignal('change', 'active');
+    await act(async () => { fireEvent.press(rendered.getByTestId('retry-save-btn')); });
+    expect((await getPendingReviews())[0].payload).toMatchObject({ correct: true, response_time_ms: 1600,
+      timing_evidence: { interruption_count: 0, interruption_reasons: [] } });
+    expect(reads).toHaveBeenCalledTimes(2);
   });
 
   it('uses an explicit empty server eligibility result instead of every active cached/content word', async () => {
@@ -181,6 +401,7 @@ describe('Vocabulary Review Flow', () => {
     }) as any;
     const rendered = await render(<ReviewScreen />);
     await waitFor(() => expect(rendered.getByTestId('card-term').props.children).toBe('Pinned word'));
+    await present(rendered);
     await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
     await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
     expect((global.fetch as jest.Mock).mock.calls.some(([url]) => url.includes(`content_release_id=${pinned}`))).toBe(true);
@@ -191,6 +412,7 @@ describe('Vocabulary Review Flow', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    AppState.currentState = initialAppState;
     global.fetch = originalFetch;
   });
 
@@ -204,8 +426,10 @@ describe('Vocabulary Review Flow', () => {
       return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions') ? { id: 'session-uuid-1', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : eligibilityWire(mockLessonResponse) };
     }) as any;
     jest.spyOn(queue, 'enqueuePendingReview').mockRejectedValueOnce(new Error('Disk unavailable'));
-    const rendered = await render(<ReviewScreen />);
+    const clock = createTestClock([100, 1700, 999999]); const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
+    await present(rendered);
     await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
     await act(async () => { fireEvent.press(rendered.getByTestId('rating-again-btn')); });
     expect(rendered.getByTestId('unsaved-review-error')).toBeTruthy();
@@ -215,6 +439,9 @@ describe('Vocabulary Review Flow', () => {
     await act(async () => { fireEvent.press(rendered.getByTestId('retry-save-btn')); });
     expect(submitted).toHaveLength(2);
     expect(submitted[1]).toEqual(submitted[0]);
+    expect(submitted[1]).toMatchObject({ response_time_ms: 1600,
+      timing_evidence: { interruption_count: 0, interruption_reasons: [] } });
+    expect(reads).toHaveBeenCalledTimes(2);
     expect(submitted[1].application_version).toBe('1.0.0');
     expect((await getPendingReviews())[0].client_event_id).toBe(submitted[0].client_event_id);
     expect(mockReplace).toHaveBeenCalled();
@@ -230,7 +457,7 @@ describe('Vocabulary Review Flow', () => {
       return { ok: true, status: 200, json: async () => url.includes('/reviews/sessions')
         ? { id: 'server-session', client_session_id: JSON.parse(options.body).client_session_id, created_at: '2025-01-01T00:00:00Z' } : eligibilityWire(mockLessonResponse) };
     }) as any;
-    const rendered = await render(<ReviewScreen customClock={createTestClock([100, 100, 1500])} />);
+    const rendered = await render(<ReviewScreen customClock={createTestClock([100, 1500])} />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
     jest.useFakeTimers().setSystemTime(new Date('2025-01-01T11:22:33.456Z'));
     try {
@@ -239,6 +466,7 @@ describe('Vocabulary Review Flow', () => {
         jest.setSystemTime(new Date('2025-01-01T12:22:33.456Z'));
         return { userId: 'test-user-id', tokens: { accessToken: 'fake-token', refreshToken: 'fake-refresh' }, generation: 0 };
       });
+      await present(rendered);
       await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
       await act(async () => { fireEvent.press(rendered.getByTestId('rating-again-btn')); });
       expect(online.client_interaction_at).toBe('2025-01-01T11:22:33.456Z');
@@ -271,6 +499,7 @@ describe('Vocabulary Review Flow', () => {
     await act(async () => { fireEvent.press(rendered.getByTestId('retry-btn')); });
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
     for (let i = 0; i < 2; i++) {
+      await present(rendered);
       await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
       await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
     }
@@ -291,6 +520,7 @@ describe('Vocabulary Review Flow', () => {
     const rendered = await render(<ReviewScreen />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
     jest.replaceProperty(Constants.expoConfig!, 'version', undefined);
+    await present(rendered);
     await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
     await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
     expect(rendered.getByTestId('error-container')).toBeTruthy();
@@ -321,6 +551,7 @@ describe('Vocabulary Review Flow', () => {
     const rendered = await render(<ReviewScreen />);
     await waitFor(() => expect(rendered.getByTestId('card-term')).toBeTruthy());
     jest.mocked(loadAuthenticatedAccount).mockResolvedValueOnce(null);
+    await present(rendered);
     await act(async () => {
       fireEvent.press(rendered.getByTestId('reveal-answer-btn'));
     });
@@ -388,6 +619,7 @@ describe('Vocabulary Review Flow', () => {
       expect(rendered.getByTestId('reveal-answer-btn')).toBeTruthy();
     });
 
+    await present(rendered);
     await act(async () => {
       fireEvent.press(rendered.getByTestId('reveal-answer-btn'));
     });
@@ -402,7 +634,7 @@ describe('Vocabulary Review Flow', () => {
   });
 
   it('submits review interaction online and records measured monotonic response time', async () => {
-    const testClock = createTestClock([1000, 1000, 3250]); // 2250 ms elapsed
+    const testClock = createTestClock([1000, 3250]); // 2250 ms elapsed
     let attemptBody: any = null;
     let originalClientSession: string | undefined;
     jest.replaceProperty(Platform, 'OS', 'ios');
@@ -440,6 +672,7 @@ describe('Vocabulary Review Flow', () => {
       expect(rendered.getByTestId('reveal-answer-btn')).toBeTruthy();
     });
 
+    await present(rendered);
     await act(async () => {
       fireEvent.press(rendered.getByTestId('reveal-answer-btn'));
     });
@@ -478,7 +711,7 @@ describe('Vocabulary Review Flow', () => {
   });
 
   it('enqueues review to SQLite pending queue when network is offline', async () => {
-    const testClock = createTestClock([500, 500, 1800]); // 1300 ms elapsed
+    const testClock = createTestClock([500, 1800]); // 1300 ms elapsed
 
     global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
       if (url.includes('/reviews/eligible-items')) {
@@ -498,6 +731,7 @@ describe('Vocabulary Review Flow', () => {
       expect(rendered.getByTestId('reveal-answer-btn')).toBeTruthy();
     });
 
+    await present(rendered);
     await act(async () => {
       fireEvent.press(rendered.getByTestId('reveal-answer-btn'));
     });
@@ -534,7 +768,7 @@ describe('Vocabulary Review Flow', () => {
   });
 
   it('reproduces exact offline network failure (TypeError: Network request failed) and creates exactly one SQLite pending event', async () => {
-    const testClock = createTestClock([100, 100, 1500]); // 1400 ms elapsed
+    const testClock = createTestClock([100, 1500]); // 1400 ms elapsed
 
     global.fetch = jest.fn().mockImplementation((url: string, opts: any) => {
       if (url.includes('/reviews/eligible-items')) {
@@ -554,6 +788,7 @@ describe('Vocabulary Review Flow', () => {
       expect(rendered.getByTestId('reveal-answer-btn')).toBeTruthy();
     });
 
+    await present(rendered);
     await act(async () => {
       fireEvent.press(rendered.getByTestId('reveal-answer-btn'));
     });
