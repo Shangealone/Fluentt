@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { clearTokens, loadTokens, saveTokens } from './tokenStore';
 import { apiClient, registerAuthFailureHandler } from '../api/client';
 import { setInterfaceLanguage } from '../i18n';
@@ -40,16 +40,19 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
+  const sessionActions = useRef(0);
 
   // Restore session from SecureStore on application startup
   useEffect(() => {
     let isMounted = true;
+    const restorationAction = sessionActions.current;
+    const isRestorationCurrent = () => isMounted && sessionActions.current === restorationAction;
 
     async function restoreSession() {
       try {
         const tokens = await loadTokens();
         if (!tokens) {
-          if (isMounted) {
+          if (isRestorationCurrent()) {
             setStatus('signedOut');
           }
           return;
@@ -57,13 +60,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Fetch authenticated user profile
         const data = await getLearnerProfile();
-        if (isMounted) {
+        if (isRestorationCurrent()) {
           const authUser = authUserFromProfile(data);
           setUser(authUser);
 
           if (authUser.interfaceLanguage) {
             await setInterfaceLanguage(authUser.interfaceLanguage);
           }
+          if (!isRestorationCurrent()) return;
 
           if (authUser.mustChangePassword) {
             setStatus('mustChangePassword');
@@ -72,9 +76,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       } catch {
-        // If profile fetch fails due to invalid/revoked tokens
-        await clearTokens();
-        if (isMounted) {
+        // A transport/service failure does not reject credentials. The API client
+        // owns guarded invalidation after genuine refresh rejection. Leave identity
+        // unverified until a later online restoration/login succeeds.
+        if (isRestorationCurrent()) {
           setUser(null);
           setStatus('signedOut');
         }
@@ -107,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
     });
+    sessionActions.current++;
 
     const mustChange = data.must_change_password;
     const authUser: AuthUser = {
@@ -146,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
     });
+    sessionActions.current++;
 
     setUser((prev) => (prev ? { ...prev, mustChangePassword: false } : null));
     setStatus('signedIn');
@@ -163,6 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async (): Promise<void> => {
+    sessionActions.current++;
     try {
       const tokens = await loadTokens();
       if (tokens?.refreshToken) {

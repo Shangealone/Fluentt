@@ -3,7 +3,7 @@ import { render, act, fireEvent } from '@testing-library/react-native';
 import { Text, Button } from 'react-native';
 import { AuthProvider, useAuth } from '../AuthProvider';
 import * as SecureStore from 'expo-secure-store';
-import { SECURE_KEYS } from '../tokenStore';
+import { SECURE_KEYS, clearTokens, loadTokens, saveTokens } from '../tokenStore';
 
 jest.mock('expo-secure-store', () => {
   const store = new Map<string, string>();
@@ -110,6 +110,68 @@ describe('AuthProvider & useAuth', () => {
     expect(screen.getByTestId('user-email').props.children).toBe('restored@example.test');
     expect(screen.getByTestId('user-id').props.children).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
     expect(screen.getByTestId('profile-id').props.children).toBe('11111111-1111-1111-1111-111111111111');
+  });
+
+  it.each(['offline', 'service failure', 'refresh transport failure'])('preserves credentials after startup %s without claiming verified identity', async (failure) => {
+    await saveTokens({ accessToken: 'existing_access', refreshToken: 'existing_refresh' });
+    const original = await loadTokens();
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (failure === 'offline' || url.includes('/auth/refresh')) {
+        return Promise.reject(new TypeError('Network request failed'));
+      }
+      const status = failure === 'service failure' ? 503 : 401;
+      return Promise.resolve({ ok: false, status, json: async () => ({ detail: 'Unavailable' }) });
+    });
+    const screen = await render(<AuthProvider><AuthConsumer /></AuthProvider>);
+    expect(screen.getByTestId('auth-status').props.children).toBe('signedOut');
+    expect(screen.getByTestId('user-id').props.children).toBe('none');
+    expect(JSON.stringify(await loadTokens()) === JSON.stringify(original)).toBe(true);
+    await screen.unmount();
+    await clearTokens();
+  });
+
+  it('still clears rejected startup credentials through guarded API refresh failure', async () => {
+    await saveTokens({ accessToken: 'existing_access', refreshToken: 'existing_refresh' });
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({ detail: 'Rejected' }) });
+    const screen = await render(<AuthProvider><AuthConsumer /></AuthProvider>);
+    expect(screen.getByTestId('auth-status').props.children).toBe('signedOut');
+    expect(await loadTokens() === null).toBe(true);
+  });
+
+  it.each(['rejected', 'resolved'])('does not replace a later login when the startup request is %s', async (outcome) => {
+    await saveTokens({ accessToken: 'existing_access', refreshToken: 'existing_refresh' });
+    let finishRestore!: (value: any) => void;
+    let rejectRestore!: (reason: Error) => void;
+    const restoration = new Promise((resolve, reject) => { finishRestore = resolve; rejectRestore = reject; });
+    let profileRequests = 0;
+    const profile = (userId: string) => ({ ok: true, status: 200, json: async () => ({
+      id: '11111111-1111-1111-1111-111111111111', user_id: userId,
+      email: 'disposable@example.test', participant_code: 'D10_B',
+      interface_language: null, target_learning_language: null,
+      created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z',
+    }) });
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url.includes('/users/me')) {
+        profileRequests++;
+        return profileRequests === 1 ? restoration : Promise.resolve(profile('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'));
+      }
+      if (url.includes('/auth/login')) return Promise.resolve({ ok: true, status: 200, json: async () => ({
+        access_token: 'later_access', refresh_token: 'later_refresh', token_type: 'bearer', must_change_password: false,
+      }) });
+      return Promise.reject(new Error('Unexpected route'));
+    });
+    const screen = await render(<AuthProvider><AuthConsumer /></AuthProvider>);
+    await act(async () => { fireEvent.press(screen.getByTestId('login-normal-btn')); });
+    const current = await loadTokens();
+    await act(async () => {
+      if (outcome === 'rejected') rejectRestore(new TypeError('Network request failed'));
+      else finishRestore(profile('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'));
+    });
+    expect(JSON.stringify(await loadTokens()) === JSON.stringify(current)).toBe(true);
+    expect(screen.getByTestId('auth-status').props.children).toBe('signedIn');
+    expect(screen.getByTestId('user-id').props.children).toBe('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    await screen.unmount();
+    await clearTokens();
   });
 
   it('sets mustChangePassword state on first login with temporary password', async () => {
