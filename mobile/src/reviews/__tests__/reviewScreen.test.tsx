@@ -253,6 +253,75 @@ describe('Vocabulary Review Flow', () => {
     expect(reads).toHaveBeenCalledTimes(4);
   });
 
+  it('keeps compiled A/B/C presentations independent through reveal, rerenders and commitment', async () => {
+    const detail = { ...mockLessonResponse, vocabulary_items: [
+      { ...mockLessonResponse.vocabulary_items[0], term: 'hello' },
+      { ...mockLessonResponse.vocabulary_items[0], id: 'vocab-2', term: 'welcome' },
+      { ...mockLessonResponse.vocabulary_items[0], id: 'vocab-3', term: 'gratitude' },
+    ] };
+    const submitted: any[] = [];
+    global.fetch = jest.fn(async (url: string, options: any) => {
+      if (url.includes('/reviews/attempts')) {
+        const body = JSON.parse(options.body);
+        submitted.push(body);
+        return { ok: true, status: 200, json: async () => reviewWire(body.client_event_id) };
+      }
+      return await offlineFetch(detail)(url, options);
+    }) as any;
+    const clock = createTestClock([100, 500, 10000, 11200, 20000, 22300]);
+    const reads = jest.spyOn(clock, 'now');
+    const rendered = await render(<ReviewScreen customClock={clock} />);
+    await waitFor(() => expect(rendered.getByTestId('card-term').props.children).toBe('hello'));
+    const wallTime = jest.spyOn(Date.prototype, 'toISOString');
+    try {
+      wallTime.mockReturnValue('2026-10-15T03:30:00.000Z');
+      await present(rendered);
+      await appSignal('blur'); await appSignal('focus');
+      await rendered.rerender(<ReviewScreen customClock={clock} />);
+      await present(rendered); // Repeat layout must not restart this item.
+      await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+      expect(reads).toHaveBeenCalledTimes(1); // Reveal must not restart either.
+      await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+      expect(submitted[0]).toMatchObject({ vocabulary_item_id: 'vocab-1', correct: true,
+        response_time_ms: 400, client_interaction_at: '2026-10-15T03:30:00.000Z',
+        timing_evidence: { interruption_count: 1, interruption_reasons: ['app_blur'] } });
+      const firstEvidence = JSON.stringify(submitted[0]);
+
+      expect(rendered.getByTestId('card-term').props.children).toBe('welcome');
+      expect(rendered.getByTestId('reveal-answer-btn')).toBeDisabled();
+      expect(rendered.queryByTestId('revealed-section')).toBeNull();
+      wallTime.mockReturnValue('2026-10-15T03:30:10.000Z');
+      await present(rendered);
+      await rendered.rerender(<ReviewScreen customClock={clock} />);
+      await present(rendered);
+      await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+      await act(async () => { fireEvent.press(rendered.getByTestId('rating-again-btn')); });
+      expect(submitted[1]).toMatchObject({ vocabulary_item_id: 'vocab-2', correct: false,
+        response_time_ms: 1200, client_interaction_at: '2026-10-15T03:30:10.000Z',
+        timing_evidence: { interruption_count: 0, interruption_reasons: [] } });
+
+      expect(rendered.getByTestId('card-term').props.children).toBe('gratitude');
+      expect(rendered.getByTestId('reveal-answer-btn')).toBeDisabled();
+      wallTime.mockReturnValue('2026-10-15T03:30:20.000Z');
+      await present(rendered);
+      await navigationSignal('blur'); await navigationSignal('focus');
+      await rendered.rerender(<ReviewScreen customClock={clock} />);
+      await present(rendered);
+      await act(async () => { fireEvent.press(rendered.getByTestId('reveal-answer-btn')); });
+      await act(async () => { fireEvent.press(rendered.getByTestId('rating-good-btn')); });
+      expect(submitted[2]).toMatchObject({ vocabulary_item_id: 'vocab-3', correct: true,
+        response_time_ms: 2300, client_interaction_at: '2026-10-15T03:30:20.000Z',
+        timing_evidence: { interruption_count: 1, interruption_reasons: ['screen_blur'] } });
+      expect(reads).toHaveBeenCalledTimes(6);
+      expect(new Set(submitted.map((body) => body.client_event_id)).size).toBe(3);
+      expect(JSON.stringify(submitted[0])).toBe(firstEvidence);
+      expect(mockReplace).toHaveBeenCalledWith(expect.objectContaining({
+        params: expect.objectContaining({ totalCount: '3', syncedCount: '3' }),
+      }));
+      expect(await getPendingReviews()).toHaveLength(0);
+    } finally { wallTime.mockRestore(); }
+  });
+
   it('cancels the pre-start frame when the app backgrounds and cannot answer before presentation', async () => {
     global.fetch = offlineFetch() as any;
     const clock = createTestClock([100, 900]); const reads = jest.spyOn(clock, 'now');

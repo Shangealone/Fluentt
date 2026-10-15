@@ -17,9 +17,9 @@ export function useReviewTiming(presentationKey: string | null, clock: Monotonic
   const navigation = useNavigation<ReviewNavigation>();
   const lifecycle = useRef({ appState: AppState.currentState, focused: navigation.isFocused(),
     appBlurred: false, transitioning: false });
-  const presentation = useMemo(() => ({ key: presentationKey, timer: createPresentationTimer(clock) }), [presentationKey, clock]);
+  const presentation = useMemo(() => ({ key: presentationKey, clock }), [presentationKey, clock]);
   const presentationRef = useRef<{ presentation: typeof presentation; laidOut: boolean;
-    frame: number | null; alive: boolean } | null>(null);
+    timer: ReturnType<typeof createPresentationTimer>; frame: number | null; alive: boolean } | null>(null);
   const [ready, setReady] = useState<{ presentation: typeof presentation; active: boolean } | null>(null);
   const canInteract = useCallback(() => Boolean(presentation.key &&
     presentationRef.current?.presentation === presentation && presentationRef.current.alive && presentationRef.current.laidOut &&
@@ -39,7 +39,7 @@ export function useReviewTiming(presentationKey: string | null, clock: Monotonic
       current.frame = null;
       if (!canInteract()) return;
       try {
-        presentation.timer.start();
+        current.timer.start();
         setReady({ presentation, active: true });
       } catch {
         // Unavailable clock cannot produce a fabricated attempt. Actions stay disabled.
@@ -49,12 +49,17 @@ export function useReviewTiming(presentationKey: string | null, clock: Monotonic
   }, [canInteract, presentation]);
 
   useLayoutEffect(() => {
-    const current = { presentation, laidOut: false, frame: null as number | null, alive: true };
+    const previous = presentationRef.current;
+    // Timer ownership is a lifecycle boundary, not a render memoization hint.
+    // React Compiler can otherwise cache the mutable timer by clock alone.
+    const timer = previous?.presentation === presentation
+      ? previous.timer : createPresentationTimer(presentation.clock);
+    const current = { presentation, timer, laidOut: false, frame: null as number | null, alive: true };
     presentationRef.current = current;
     lifecycle.current.appState = AppState.currentState;
     lifecycle.current.focused = navigation.isFocused();
     const interrupt = (reason: TimingInterruption) => {
-      presentation.timer.interrupt(reason);
+      current.timer.interrupt(reason);
       cancelFrame();
       setReady({ presentation, active: false });
     };
@@ -118,8 +123,9 @@ export function useReviewTiming(presentationKey: string | null, clock: Monotonic
     onPromptLayout,
     isInteractable: ready?.presentation === presentation && ready.active,
     commit: () => {
-      if (!canInteract()) throw new Error('Review prompt is not active.');
-      return presentation.timer.commit();
+      const current = presentationRef.current;
+      if (!canInteract() || current?.presentation !== presentation) throw new Error('Review prompt is not active.');
+      return current.timer.commit();
     },
   };
 }
