@@ -1,0 +1,1475 @@
+BEGIN;
+
+CREATE TABLE alembic_version (
+    version_num VARCHAR(32) NOT NULL, 
+    CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+);
+
+-- Running upgrade  -> 0001_initial
+
+CREATE SCHEMA research_private;
+
+REVOKE ALL ON SCHEMA research_private FROM PUBLIC;
+
+CREATE TABLE admin_permissions (
+    code VARCHAR(100) NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_admin_permissions PRIMARY KEY (id), 
+    CONSTRAINT uq_admin_permissions_code UNIQUE (code)
+);
+
+CREATE TABLE admin_roles (
+    name VARCHAR(80) NOT NULL, 
+    description TEXT, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_admin_roles PRIMARY KEY (id), 
+    CONSTRAINT uq_admin_roles_name UNIQUE (name)
+);
+
+CREATE TABLE curriculum_versions (
+    code VARCHAR(80) NOT NULL, 
+    name VARCHAR(200) NOT NULL, 
+    description TEXT, 
+    status VARCHAR(9) DEFAULT 'draft' NOT NULL, 
+    source_metadata JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    verification_status VARCHAR(10) DEFAULT 'unverified' NOT NULL, 
+    published_at TIMESTAMP WITH TIME ZONE, 
+    archived_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_curriculum_versions PRIMARY KEY (id), 
+    CONSTRAINT uq_curriculum_versions_code UNIQUE (code), 
+    CONSTRAINT ck_curriculum_versions_publication CHECK (status IN ('draft', 'published', 'archived')), 
+    CONSTRAINT ck_curriculum_versions_verification CHECK (verification_status IN ('unverified', 'verified'))
+);
+
+CREATE TABLE grade_levels (
+    number INTEGER NOT NULL, 
+    name VARCHAR(200) NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_grade_levels PRIMARY KEY (id), 
+    CONSTRAINT ck_grade_levels_grade_range CHECK (number BETWEEN 1 AND 12), 
+    CONSTRAINT uq_grade_levels_number UNIQUE (number)
+);
+
+CREATE TABLE model_versions (
+    task VARCHAR(60) NOT NULL, 
+    provider VARCHAR(100) NOT NULL, 
+    model_name VARCHAR(150) NOT NULL, 
+    version VARCHAR(100) NOT NULL, 
+    capabilities JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    artifact_reference TEXT, 
+    simulated BOOLEAN DEFAULT false NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_model_versions PRIMARY KEY (id), 
+    CONSTRAINT uq_model_versions_task UNIQUE (task, provider, model_name, version)
+);
+
+CREATE TABLE research_studies (
+    code VARCHAR(80) NOT NULL, 
+    title VARCHAR(200) NOT NULL, 
+    status VARCHAR(9) DEFAULT 'draft' NOT NULL, 
+    target_language VARCHAR(7) NOT NULL, 
+    protocol_version VARCHAR(80) NOT NULL, 
+    target_participants INTEGER DEFAULT '30' NOT NULL, 
+    starts_at TIMESTAMP WITH TIME ZONE, 
+    ends_at TIMESTAMP WITH TIME ZONE, 
+    conditions JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    locked_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_studies PRIMARY KEY (id), 
+    CONSTRAINT ck_research_studies_positive_target CHECK (target_participants > 0), 
+    CONSTRAINT ck_research_studies_study_dates CHECK (ends_at IS NULL OR starts_at IS NULL OR ends_at >= starts_at), 
+    CONSTRAINT uq_research_studies_code UNIQUE (code), 
+    CONSTRAINT ck_research_studies_study_status CHECK (status IN ('draft', 'approved', 'active', 'completed', 'archived')), 
+    CONSTRAINT ck_research_studies_language CHECK (target_language IN ('english', 'tagalog'))
+);
+
+CREATE TABLE subjects (
+    code VARCHAR(50) NOT NULL, 
+    name VARCHAR(200) NOT NULL, 
+    description TEXT, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_subjects PRIMARY KEY (id), 
+    CONSTRAINT uq_subjects_code UNIQUE (code)
+);
+
+CREATE TABLE users (
+    username VARCHAR(32) NOT NULL, 
+    canonical_username VARCHAR(32) GENERATED ALWAYS AS (lower(btrim(username) COLLATE "C")) STORED NOT NULL, 
+    role VARCHAR(16) NOT NULL, 
+    profile_status VARCHAR(10) DEFAULT 'onboarding' NOT NULL, 
+    onboarding_step VARCHAR(80), 
+    archived_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_users PRIMARY KEY (id), 
+    CONSTRAINT ck_users_username_format CHECK (username ~ '^[A-Za-z0-9_]{3,32}$'), 
+    CONSTRAINT uq_users_canonical_username UNIQUE (canonical_username), 
+    CONSTRAINT ck_users_role CHECK (role IN ('personal_student', 'school_student', 'instructor', 'administrator')), 
+    CONSTRAINT ck_users_profile_status CHECK (profile_status IN ('onboarding', 'active', 'disabled', 'archived'))
+);
+
+CREATE TABLE admin_identities (
+    user_id UUID NOT NULL, 
+    issuer VARCHAR(255) NOT NULL, 
+    subject VARCHAR(255) NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_admin_identities PRIMARY KEY (id), 
+    CONSTRAINT uq_admin_identities_issuer UNIQUE (issuer, subject), 
+    CONSTRAINT fk_admin_identities_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX ix_admin_identities_user_id ON admin_identities (user_id);
+
+CREATE TABLE admin_role_permissions (
+    role_id UUID NOT NULL, 
+    permission_id UUID NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_admin_role_permissions PRIMARY KEY (id), 
+    CONSTRAINT uq_admin_role_permissions_role_id UNIQUE (role_id, permission_id), 
+    CONSTRAINT fk_admin_role_permissions_role_id_admin_roles FOREIGN KEY(role_id) REFERENCES admin_roles (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_admin_role_permissions_permission_id_admin_permissions FOREIGN KEY(permission_id) REFERENCES admin_permissions (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_admin_role_permissions_permission_id ON admin_role_permissions (permission_id);
+
+CREATE INDEX ix_admin_role_permissions_role_id ON admin_role_permissions (role_id);
+
+CREATE TABLE admin_user_roles (
+    user_id UUID NOT NULL, 
+    role_id UUID NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_admin_user_roles PRIMARY KEY (id), 
+    CONSTRAINT uq_admin_user_roles_user_id UNIQUE (user_id, role_id), 
+    CONSTRAINT fk_admin_user_roles_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_admin_user_roles_role_id_admin_roles FOREIGN KEY(role_id) REFERENCES admin_roles (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_admin_user_roles_role_id ON admin_user_roles (role_id);
+
+CREATE INDEX ix_admin_user_roles_user_id ON admin_user_roles (user_id);
+
+CREATE TABLE audit_logs (
+    actor_id UUID, 
+    action VARCHAR(100) NOT NULL, 
+    entity_type VARCHAR(100) NOT NULL, 
+    entity_id UUID, 
+    occurred_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    request_id UUID, 
+    safe_metadata JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_audit_logs PRIMARY KEY (id), 
+    CONSTRAINT fk_audit_logs_actor_id_users FOREIGN KEY(actor_id) REFERENCES users (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_audit_logs_actor_id ON audit_logs (actor_id);
+
+CREATE INDEX ix_audit_logs_entity_time ON audit_logs (entity_type, entity_id, occurred_at);
+
+CREATE TABLE classes (
+    instructor_id UUID NOT NULL, 
+    class_name VARCHAR(150) NOT NULL, 
+    grade_level_id UUID NOT NULL, 
+    subject_id UUID NOT NULL, 
+    language VARCHAR(7) NOT NULL, 
+    description TEXT, 
+    status VARCHAR(8) DEFAULT 'active' NOT NULL, 
+    archived_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_classes PRIMARY KEY (id), 
+    CONSTRAINT fk_classes_instructor_id_users FOREIGN KEY(instructor_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_classes_grade_level_id_grade_levels FOREIGN KEY(grade_level_id) REFERENCES grade_levels (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_classes_subject_id_subjects FOREIGN KEY(subject_id) REFERENCES subjects (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_classes_language CHECK (language IN ('english', 'tagalog')), 
+    CONSTRAINT ck_classes_class_status CHECK (status IN ('active', 'archived'))
+);
+
+CREATE INDEX ix_classes_grade_level_id ON classes (grade_level_id);
+
+CREATE INDEX ix_classes_instructor_id ON classes (instructor_id);
+
+CREATE INDEX ix_classes_subject_id ON classes (subject_id);
+
+CREATE TABLE curriculum_grades (
+    curriculum_version_id UUID NOT NULL, 
+    grade_level_id UUID NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_curriculum_grades PRIMARY KEY (id), 
+    CONSTRAINT uq_curriculum_grades_curriculum_version_id UNIQUE (curriculum_version_id, grade_level_id), 
+    CONSTRAINT fk_curriculum_grades_curriculum_version_id_curriculum_versions FOREIGN KEY(curriculum_version_id) REFERENCES curriculum_versions (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_curriculum_grades_grade_level_id_grade_levels FOREIGN KEY(grade_level_id) REFERENCES grade_levels (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_curriculum_grades_curriculum_version_id ON curriculum_grades (curriculum_version_id);
+
+CREATE INDEX ix_curriculum_grades_grade_level_id ON curriculum_grades (grade_level_id);
+
+CREATE TABLE instructor_profiles (
+    user_id UUID NOT NULL, 
+    display_name VARCHAR(120), 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_instructor_profiles PRIMARY KEY (id), 
+    CONSTRAINT fk_instructor_profiles_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX ix_instructor_profiles_user_id ON instructor_profiles (user_id);
+
+CREATE TABLE learner_profiles (
+    user_id UUID NOT NULL, 
+    preferred_grade_id UUID, 
+    preferred_language VARCHAR(7), 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_learner_profiles PRIMARY KEY (id), 
+    CONSTRAINT fk_learner_profiles_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_learner_profiles_preferred_grade_id_grade_levels FOREIGN KEY(preferred_grade_id) REFERENCES grade_levels (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_learner_profiles_language CHECK (preferred_language IN ('english', 'tagalog'))
+);
+
+CREATE INDEX ix_learner_profiles_preferred_grade_id ON learner_profiles (preferred_grade_id);
+
+CREATE UNIQUE INDEX ix_learner_profiles_user_id ON learner_profiles (user_id);
+
+CREATE TABLE model_configurations (
+    model_version_id UUID NOT NULL, 
+    version INTEGER NOT NULL, 
+    parameters JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_model_configurations PRIMARY KEY (id), 
+    CONSTRAINT uq_model_configurations_model_version_id UNIQUE (model_version_id, version), 
+    CONSTRAINT ck_model_configurations_positive_version CHECK (version > 0), 
+    CONSTRAINT fk_model_configurations_model_version_id_model_versions FOREIGN KEY(model_version_id) REFERENCES model_versions (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_model_configurations_model_version_id ON model_configurations (model_version_id);
+
+CREATE TABLE notifications (
+    user_id UUID NOT NULL, 
+    event_type VARCHAR(80) NOT NULL, 
+    title VARCHAR(200) NOT NULL, 
+    message TEXT NOT NULL, 
+    related_resource_type VARCHAR(80), 
+    related_resource_id UUID, 
+    read_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_notifications PRIMARY KEY (id), 
+    CONSTRAINT fk_notifications_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_notifications_inbox ON notifications (user_id, read_at, created_at);
+
+CREATE INDEX ix_notifications_user_id ON notifications (user_id);
+
+CREATE TABLE questions (
+    author_id UUID, 
+    status VARCHAR(9) DEFAULT 'draft' NOT NULL, 
+    archived_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_questions PRIMARY KEY (id), 
+    CONSTRAINT fk_questions_author_id_users FOREIGN KEY(author_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_questions_publication CHECK (status IN ('draft', 'published', 'archived'))
+);
+
+CREATE INDEX ix_questions_author_id ON questions (author_id);
+
+CREATE TABLE research_levels (
+    study_id UUID NOT NULL, 
+    number INTEGER NOT NULL, 
+    title VARCHAR(200) NOT NULL, 
+    content_snapshot JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    locked_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_levels PRIMARY KEY (id), 
+    CONSTRAINT uq_research_levels_study_id UNIQUE (study_id, number), 
+    CONSTRAINT uq_research_levels_id UNIQUE (id, study_id), 
+    CONSTRAINT ck_research_levels_level_range CHECK (number BETWEEN 1 AND 5), 
+    CONSTRAINT fk_research_levels_study_id_research_studies FOREIGN KEY(study_id) REFERENCES research_studies (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_research_levels_study_id ON research_levels (study_id);
+
+CREATE TABLE research_participants (
+    study_id UUID NOT NULL, 
+    participant_code VARCHAR(80) NOT NULL, 
+    enrollment_status VARCHAR(9) DEFAULT 'pending' NOT NULL, 
+    eligibility_status VARCHAR(10) DEFAULT 'pending' NOT NULL, 
+    enrolled_at TIMESTAMP WITH TIME ZONE, 
+    withdrawn_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_participants PRIMARY KEY (id), 
+    CONSTRAINT uq_research_participants_study_id UNIQUE (study_id, participant_code), 
+    CONSTRAINT uq_research_participants_id UNIQUE (id, study_id), 
+    CONSTRAINT fk_research_participants_study_id_research_studies FOREIGN KEY(study_id) REFERENCES research_studies (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_research_participants_enrollment CHECK (enrollment_status IN ('pending', 'enrolled', 'withdrawn', 'completed')), 
+    CONSTRAINT ck_research_participants_eligibility CHECK (eligibility_status IN ('pending', 'eligible', 'ineligible'))
+);
+
+CREATE INDEX ix_research_participants_study_id ON research_participants (study_id);
+
+CREATE TABLE user_sessions (
+    user_id UUID NOT NULL, 
+    credential_digest VARCHAR(64) NOT NULL, 
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    absolute_expires_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    last_used_at TIMESTAMP WITH TIME ZONE, 
+    revoked_at TIMESTAMP WITH TIME ZONE, 
+    device_label VARCHAR(100), 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_user_sessions PRIMARY KEY (id), 
+    CONSTRAINT ck_user_sessions_digest_format CHECK (credential_digest ~ '^[0-9a-f]{64}$'), 
+    CONSTRAINT ck_user_sessions_expiry_order CHECK (expires_at > created_at AND absolute_expires_at >= expires_at), 
+    CONSTRAINT fk_user_sessions_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT uq_user_sessions_credential_digest UNIQUE (credential_digest)
+);
+
+CREATE INDEX ix_user_sessions_active ON user_sessions (user_id, expires_at) WHERE revoked_at IS NULL;
+
+CREATE INDEX ix_user_sessions_user_id ON user_sessions (user_id);
+
+CREATE TABLE assignments (
+    class_id UUID NOT NULL, 
+    instructor_id UUID NOT NULL, 
+    status VARCHAR(9) DEFAULT 'draft' NOT NULL, 
+    archived_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_assignments PRIMARY KEY (id), 
+    CONSTRAINT fk_assignments_class_id_classes FOREIGN KEY(class_id) REFERENCES classes (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_assignments_instructor_id_users FOREIGN KEY(instructor_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_assignments_assignment_status CHECK (status IN ('draft', 'published', 'closed', 'archived'))
+);
+
+CREATE INDEX ix_assignments_class_id ON assignments (class_id);
+
+CREATE INDEX ix_assignments_instructor_id ON assignments (instructor_id);
+
+CREATE TABLE class_join_codes (
+    class_id UUID NOT NULL, 
+    code VARCHAR(6) NOT NULL, 
+    status VARCHAR(7) DEFAULT 'active' NOT NULL, 
+    expires_at TIMESTAMP WITH TIME ZONE, 
+    revoked_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_class_join_codes PRIMARY KEY (id), 
+    CONSTRAINT ck_class_join_codes_six_digits CHECK (code ~ '^[0-9]{6}$'), 
+    CONSTRAINT ck_class_join_codes_active_not_revoked CHECK (status != 'active' OR revoked_at IS NULL), 
+    CONSTRAINT ck_class_join_codes_expiry_order CHECK (expires_at IS NULL OR expires_at > created_at), 
+    CONSTRAINT fk_class_join_codes_class_id_classes FOREIGN KEY(class_id) REFERENCES classes (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_class_join_codes_code_status CHECK (status IN ('active', 'revoked', 'expired'))
+);
+
+CREATE INDEX ix_class_join_codes_class_id ON class_join_codes (class_id);
+
+CREATE UNIQUE INDEX uq_class_join_codes_active_class ON class_join_codes (class_id) WHERE status = 'active';
+
+CREATE UNIQUE INDEX uq_class_join_codes_active_code ON class_join_codes (code) WHERE status = 'active';
+
+CREATE TABLE class_memberships (
+    class_id UUID NOT NULL, 
+    student_id UUID NOT NULL, 
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    status VARCHAR(7) DEFAULT 'active' NOT NULL, 
+    ended_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_class_memberships PRIMARY KEY (id), 
+    CONSTRAINT fk_class_memberships_class_id_classes FOREIGN KEY(class_id) REFERENCES classes (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_class_memberships_student_id_users FOREIGN KEY(student_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_class_memberships_membership_status CHECK (status IN ('active', 'left', 'removed'))
+);
+
+CREATE INDEX ix_class_memberships_class_id ON class_memberships (class_id);
+
+CREATE INDEX ix_class_memberships_student_id ON class_memberships (student_id);
+
+CREATE UNIQUE INDEX uq_class_memberships_active ON class_memberships (class_id, student_id) WHERE status = 'active';
+
+CREATE TABLE curriculum_subjects (
+    curriculum_grade_id UUID NOT NULL, 
+    subject_id UUID NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_curriculum_subjects PRIMARY KEY (id), 
+    CONSTRAINT uq_curriculum_subjects_curriculum_grade_id UNIQUE (curriculum_grade_id, subject_id), 
+    CONSTRAINT fk_curriculum_subjects_curriculum_grade_id_curriculum_grades FOREIGN KEY(curriculum_grade_id) REFERENCES curriculum_grades (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_curriculum_subjects_subject_id_subjects FOREIGN KEY(subject_id) REFERENCES subjects (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_curriculum_subjects_curriculum_grade_id ON curriculum_subjects (curriculum_grade_id);
+
+CREATE INDEX ix_curriculum_subjects_subject_id ON curriculum_subjects (subject_id);
+
+CREATE TABLE learning_contexts (
+    student_id UUID, 
+    kind VARCHAR(9) NOT NULL, 
+    class_id UUID, 
+    participant_id UUID, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_learning_contexts PRIMARY KEY (id), 
+    CONSTRAINT ck_learning_contexts_context_scope CHECK ((kind = 'personal' AND student_id IS NOT NULL AND class_id IS NULL AND participant_id IS NULL) OR (kind = 'classroom' AND student_id IS NOT NULL AND class_id IS NOT NULL AND participant_id IS NULL) OR (kind = 'research' AND student_id IS NULL AND class_id IS NULL AND participant_id IS NOT NULL)), 
+    CONSTRAINT fk_learning_contexts_student_id_users FOREIGN KEY(student_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_learning_contexts_context_kind CHECK (kind IN ('personal', 'classroom', 'research')), 
+    CONSTRAINT fk_learning_contexts_class_id_classes FOREIGN KEY(class_id) REFERENCES classes (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_learning_contexts_participant_id_research_participants FOREIGN KEY(participant_id) REFERENCES research_participants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_learning_contexts_class_id ON learning_contexts (class_id);
+
+CREATE INDEX ix_learning_contexts_participant_id ON learning_contexts (participant_id);
+
+CREATE INDEX ix_learning_contexts_student_id ON learning_contexts (student_id);
+
+CREATE UNIQUE INDEX uq_learning_context_class ON learning_contexts (student_id, class_id) WHERE kind = 'classroom';
+
+CREATE UNIQUE INDEX uq_learning_context_personal ON learning_contexts (student_id) WHERE kind = 'personal';
+
+CREATE UNIQUE INDEX uq_learning_context_research ON learning_contexts (participant_id) WHERE kind = 'research';
+
+CREATE TABLE messages (
+    sender_id UUID NOT NULL, 
+    recipient_id UUID, 
+    class_id UUID, 
+    message_type VARCHAR(12) NOT NULL, 
+    content TEXT NOT NULL, 
+    sent_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_messages PRIMARY KEY (id), 
+    CONSTRAINT ck_messages_one_destination CHECK ((recipient_id IS NOT NULL) != (class_id IS NOT NULL)), 
+    CONSTRAINT fk_messages_sender_id_users FOREIGN KEY(sender_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_messages_recipient_id_users FOREIGN KEY(recipient_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_messages_class_id_classes FOREIGN KEY(class_id) REFERENCES classes (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_messages_message_type CHECK (message_type IN ('direct', 'announcement', 'feedback'))
+);
+
+CREATE INDEX ix_messages_class_id ON messages (class_id);
+
+CREATE INDEX ix_messages_recipient_id ON messages (recipient_id);
+
+CREATE INDEX ix_messages_sender_id ON messages (sender_id);
+
+CREATE TABLE research_assessments (
+    study_id UUID NOT NULL, 
+    kind VARCHAR(17) NOT NULL, 
+    level_id UUID, 
+    instrument_version VARCHAR(80) NOT NULL, 
+    instrument_snapshot JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    conditions JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    opens_at TIMESTAMP WITH TIME ZONE, 
+    closes_at TIMESTAMP WITH TIME ZONE, 
+    locked_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_assessments PRIMARY KEY (id), 
+    CONSTRAINT uq_research_assessments_id UNIQUE (id, study_id), 
+    CONSTRAINT fk_research_assessments_level_id_research_levels FOREIGN KEY(level_id, study_id) REFERENCES research_levels (id, study_id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_research_assessments_level_context CHECK ((kind = 'learning_level') = (level_id IS NOT NULL)), 
+    CONSTRAINT ck_research_assessments_assessment_window CHECK (closes_at IS NULL OR opens_at IS NULL OR closes_at > opens_at), 
+    CONSTRAINT fk_research_assessments_study_id_research_studies FOREIGN KEY(study_id) REFERENCES research_studies (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_research_assessments_assessment_kind CHECK (kind IN ('pre_test', 'learning_level', 'post_test', 'delayed_retention', 'pronunciation'))
+);
+
+CREATE INDEX ix_research_assessments_level_id ON research_assessments (level_id);
+
+CREATE INDEX ix_research_assessments_study_id ON research_assessments (study_id);
+
+CREATE UNIQUE INDEX uq_research_assessment_instrument ON research_assessments (study_id, kind, instrument_version) WHERE level_id IS NULL;
+
+CREATE UNIQUE INDEX uq_research_assessment_level ON research_assessments (study_id, level_id, instrument_version) WHERE level_id IS NOT NULL;
+
+CREATE TABLE research_events (
+    participant_id UUID NOT NULL, 
+    event_type VARCHAR(80) NOT NULL, 
+    event_version INTEGER DEFAULT '1' NOT NULL, 
+    occurred_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    payload JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_events PRIMARY KEY (id), 
+    CONSTRAINT fk_research_events_participant_id_research_participants FOREIGN KEY(participant_id) REFERENCES research_participants (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_research_events_participant_id ON research_events (participant_id);
+
+CREATE INDEX ix_research_events_participant_time ON research_events (participant_id, occurred_at);
+
+CREATE TABLE research_private.research_consent_records (
+    participant_id UUID NOT NULL, 
+    kind VARCHAR(16) NOT NULL, 
+    protocol_version VARCHAR(80) NOT NULL, 
+    status VARCHAR(9) NOT NULL, 
+    evidence_reference TEXT NOT NULL, 
+    recorded_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_consent_records PRIMARY KEY (id), 
+    CONSTRAINT fk_research_consent_records_participant_id_research_par_5e39 FOREIGN KEY(participant_id) REFERENCES research_participants (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_research_consent_records_consent_kind CHECK (kind IN ('consent', 'guardian_consent', 'assent')), 
+    CONSTRAINT ck_research_consent_records_consent_status CHECK (status IN ('granted', 'withdrawn'))
+);
+
+CREATE INDEX ix_research_consent_records_participant_id ON research_private.research_consent_records (participant_id);
+
+CREATE TABLE research_private.research_identity_links (
+    participant_id UUID NOT NULL, 
+    study_id UUID NOT NULL, 
+    user_id UUID NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_identity_links PRIMARY KEY (id), 
+    CONSTRAINT fk_research_identity_links_participant_id_research_participants FOREIGN KEY(participant_id, study_id) REFERENCES research_participants (id, study_id) ON DELETE RESTRICT, 
+    CONSTRAINT uq_research_identity_links_study_id UNIQUE (study_id, user_id), 
+    CONSTRAINT fk_research_identity_links_study_id_research_studies FOREIGN KEY(study_id) REFERENCES research_studies (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_research_identity_links_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX ix_research_identity_links_participant_id ON research_private.research_identity_links (participant_id);
+
+CREATE INDEX ix_research_identity_links_study_id ON research_private.research_identity_links (study_id);
+
+CREATE INDEX ix_research_identity_links_user_id ON research_private.research_identity_links (user_id);
+
+CREATE TABLE scheduler_configurations (
+    algorithm VARCHAR(80) NOT NULL, 
+    implementation_version VARCHAR(100) NOT NULL, 
+    configuration_version INTEGER NOT NULL, 
+    parameters JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    model_configuration_id UUID, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_scheduler_configurations PRIMARY KEY (id), 
+    CONSTRAINT uq_scheduler_configurations_algorithm UNIQUE (algorithm, implementation_version, configuration_version), 
+    CONSTRAINT ck_scheduler_configurations_positive_version CHECK (configuration_version > 0), 
+    CONSTRAINT fk_scheduler_configurations_model_configuration_id_mode_bcd8 FOREIGN KEY(model_configuration_id) REFERENCES model_configurations (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_scheduler_configurations_model_configuration_id ON scheduler_configurations (model_configuration_id);
+
+CREATE TABLE message_reads (
+    message_id UUID NOT NULL, 
+    user_id UUID NOT NULL, 
+    read_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_message_reads PRIMARY KEY (id), 
+    CONSTRAINT uq_message_reads_message_id UNIQUE (message_id, user_id), 
+    CONSTRAINT fk_message_reads_message_id_messages FOREIGN KEY(message_id) REFERENCES messages (id) ON DELETE CASCADE, 
+    CONSTRAINT fk_message_reads_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_message_reads_message_id ON message_reads (message_id);
+
+CREATE INDEX ix_message_reads_user_id ON message_reads (user_id);
+
+CREATE TABLE points_transactions (
+    context_id UUID NOT NULL, 
+    source_event_key UUID NOT NULL, 
+    amount INTEGER NOT NULL, 
+    reason VARCHAR(200) NOT NULL, 
+    reverses_id UUID, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_points_transactions PRIMARY KEY (id), 
+    CONSTRAINT fk_points_transactions_context_id_learning_contexts FOREIGN KEY(context_id) REFERENCES learning_contexts (id) ON DELETE RESTRICT, 
+    CONSTRAINT uq_points_transactions_source_event_key UNIQUE (source_event_key), 
+    CONSTRAINT fk_points_transactions_reverses_id_points_transactions FOREIGN KEY(reverses_id) REFERENCES points_transactions (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_points_transactions_context_id ON points_transactions (context_id);
+
+CREATE UNIQUE INDEX ix_points_transactions_reverses_id ON points_transactions (reverses_id);
+
+CREATE TABLE quarters (
+    curriculum_subject_id UUID NOT NULL, 
+    number INTEGER NOT NULL, 
+    name VARCHAR(200) NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_quarters PRIMARY KEY (id), 
+    CONSTRAINT uq_quarters_curriculum_subject_id UNIQUE (curriculum_subject_id, number), 
+    CONSTRAINT ck_quarters_quarter_range CHECK (number BETWEEN 1 AND 4), 
+    CONSTRAINT fk_quarters_curriculum_subject_id_curriculum_subjects FOREIGN KEY(curriculum_subject_id) REFERENCES curriculum_subjects (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_quarters_curriculum_subject_id ON quarters (curriculum_subject_id);
+
+CREATE TABLE research_assessment_results (
+    assessment_id UUID NOT NULL, 
+    participant_id UUID NOT NULL, 
+    study_id UUID NOT NULL, 
+    attempt_number INTEGER NOT NULL, 
+    started_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    completed_at TIMESTAMP WITH TIME ZONE, 
+    status VARCHAR(11) NOT NULL, 
+    score NUMERIC(10, 2), 
+    maximum_score NUMERIC(10, 2), 
+    response_duration_ms INTEGER, 
+    responses JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    model_configuration_id UUID, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_assessment_results PRIMARY KEY (id), 
+    CONSTRAINT fk_research_assessment_results_assessment_id_research_a_7d5f FOREIGN KEY(assessment_id, study_id) REFERENCES research_assessments (id, study_id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_research_assessment_results_participant_id_research__ccc7 FOREIGN KEY(participant_id, study_id) REFERENCES research_participants (id, study_id) ON DELETE RESTRICT, 
+    CONSTRAINT uq_research_assessment_results_assessment_id UNIQUE (assessment_id, participant_id, attempt_number), 
+    CONSTRAINT ck_research_assessment_results_valid_attempt CHECK (attempt_number > 0 AND (response_duration_ms IS NULL OR response_duration_ms >= 0)), 
+    CONSTRAINT ck_research_assessment_results_score_range CHECK ((score IS NULL AND maximum_score IS NULL) OR (score IS NOT NULL AND maximum_score IS NOT NULL AND score >= 0 AND maximum_score >= score)), 
+    CONSTRAINT ck_research_assessment_results_completion_order CHECK (completed_at IS NULL OR completed_at >= started_at), 
+    CONSTRAINT ck_research_assessment_results_completed_timestamp CHECK (status != 'completed' OR completed_at IS NOT NULL), 
+    CONSTRAINT ck_research_assessment_results_result_status CHECK (status IN ('in_progress', 'completed', 'invalidated')), 
+    CONSTRAINT fk_research_assessment_results_model_configuration_id_m_b520 FOREIGN KEY(model_configuration_id) REFERENCES model_configurations (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_research_assessment_results_assessment_id ON research_assessment_results (assessment_id);
+
+CREATE INDEX ix_research_assessment_results_model_configuration_id ON research_assessment_results (model_configuration_id);
+
+CREATE INDEX ix_research_assessment_results_participant_id ON research_assessment_results (participant_id);
+
+CREATE INDEX ix_research_assessment_results_study_id ON research_assessment_results (study_id);
+
+CREATE TABLE research_groups (
+    study_id UUID NOT NULL, 
+    condition VARCHAR(16) NOT NULL, 
+    target_size INTEGER DEFAULT '15' NOT NULL, 
+    scheduler_configuration_id UUID NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_groups PRIMARY KEY (id), 
+    CONSTRAINT uq_research_groups_study_id UNIQUE (study_id, condition), 
+    CONSTRAINT uq_research_groups_id UNIQUE (id, study_id), 
+    CONSTRAINT ck_research_groups_positive_target CHECK (target_size > 0), 
+    CONSTRAINT fk_research_groups_study_id_research_studies FOREIGN KEY(study_id) REFERENCES research_studies (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_research_groups_condition CHECK (condition IN ('sm2_control', 'esr_experimental')), 
+    CONSTRAINT fk_research_groups_scheduler_configuration_id_scheduler_ead8 FOREIGN KEY(scheduler_configuration_id) REFERENCES scheduler_configurations (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_research_groups_scheduler_configuration_id ON research_groups (scheduler_configuration_id);
+
+CREATE INDEX ix_research_groups_study_id ON research_groups (study_id);
+
+CREATE TABLE curriculum_topics (
+    quarter_id UUID NOT NULL, 
+    name VARCHAR(200) NOT NULL, 
+    description TEXT, 
+    position INTEGER NOT NULL, 
+    status VARCHAR(9) DEFAULT 'draft' NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_curriculum_topics PRIMARY KEY (id), 
+    CONSTRAINT uq_curriculum_topics_quarter_id UNIQUE (quarter_id, position), 
+    CONSTRAINT ck_curriculum_topics_positive_position CHECK (position > 0), 
+    CONSTRAINT fk_curriculum_topics_quarter_id_quarters FOREIGN KEY(quarter_id) REFERENCES quarters (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_curriculum_topics_publication CHECK (status IN ('draft', 'published', 'archived'))
+);
+
+CREATE INDEX ix_curriculum_topics_quarter_id ON curriculum_topics (quarter_id);
+
+CREATE TABLE research_group_assignments (
+    participant_id UUID NOT NULL, 
+    group_id UUID NOT NULL, 
+    study_id UUID NOT NULL, 
+    assignment_number INTEGER NOT NULL, 
+    assigned_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    allocation_metadata JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    supersedes_id UUID, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_research_group_assignments PRIMARY KEY (id), 
+    CONSTRAINT fk_research_group_assignments_participant_id_research_p_ae6a FOREIGN KEY(participant_id, study_id) REFERENCES research_participants (id, study_id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_research_group_assignments_group_id_research_groups FOREIGN KEY(group_id, study_id) REFERENCES research_groups (id, study_id) ON DELETE RESTRICT, 
+    CONSTRAINT uq_research_group_assignments_participant_id UNIQUE (participant_id, assignment_number), 
+    CONSTRAINT uq_research_group_assignments_id UNIQUE (id, participant_id), 
+    CONSTRAINT fk_research_group_assignments_supersedes_id_research_gr_8480 FOREIGN KEY(supersedes_id, participant_id) REFERENCES research_group_assignments (id, participant_id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_research_group_assignments_history_root CHECK ((assignment_number = 1) = (supersedes_id IS NULL)), 
+    CONSTRAINT ck_research_group_assignments_positive_assignment CHECK (assignment_number > 0)
+);
+
+CREATE INDEX ix_research_group_assignments_group_id ON research_group_assignments (group_id);
+
+CREATE INDEX ix_research_group_assignments_participant_id ON research_group_assignments (participant_id);
+
+CREATE INDEX ix_research_group_assignments_study_id ON research_group_assignments (study_id);
+
+CREATE UNIQUE INDEX ix_research_group_assignments_supersedes_id ON research_group_assignments (supersedes_id);
+
+CREATE TABLE lessons (
+    topic_id UUID NOT NULL, 
+    name VARCHAR(200) NOT NULL, 
+    description TEXT, 
+    position INTEGER NOT NULL, 
+    status VARCHAR(9) DEFAULT 'draft' NOT NULL, 
+    source_metadata JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    archived_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_lessons PRIMARY KEY (id), 
+    CONSTRAINT uq_lessons_topic_id UNIQUE (topic_id, position), 
+    CONSTRAINT ck_lessons_positive_position CHECK (position > 0), 
+    CONSTRAINT fk_lessons_topic_id_curriculum_topics FOREIGN KEY(topic_id) REFERENCES curriculum_topics (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_lessons_publication CHECK (status IN ('draft', 'published', 'archived'))
+);
+
+CREATE INDEX ix_lessons_topic_id ON lessons (topic_id);
+
+CREATE TABLE assignment_versions (
+    assignment_id UUID NOT NULL, 
+    lesson_id UUID NOT NULL, 
+    version INTEGER NOT NULL, 
+    title VARCHAR(200) NOT NULL, 
+    instructions TEXT, 
+    starts_at TIMESTAMP WITH TIME ZONE, 
+    due_at TIMESTAMP WITH TIME ZONE, 
+    time_limit_seconds INTEGER, 
+    max_attempts INTEGER DEFAULT '1' NOT NULL, 
+    grading_policy JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    curriculum_snapshot JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    locked_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_assignment_versions PRIMARY KEY (id), 
+    CONSTRAINT uq_assignment_versions_assignment_id UNIQUE (assignment_id, version), 
+    CONSTRAINT ck_assignment_versions_positive_limits CHECK (version > 0 AND max_attempts > 0), 
+    CONSTRAINT ck_assignment_versions_positive_timer CHECK (time_limit_seconds IS NULL OR time_limit_seconds > 0), 
+    CONSTRAINT ck_assignment_versions_window_order CHECK (due_at IS NULL OR starts_at IS NULL OR due_at > starts_at), 
+    CONSTRAINT fk_assignment_versions_assignment_id_assignments FOREIGN KEY(assignment_id) REFERENCES assignments (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_assignment_versions_lesson_id_lessons FOREIGN KEY(lesson_id) REFERENCES lessons (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_assignment_versions_assignment_id ON assignment_versions (assignment_id);
+
+CREATE INDEX ix_assignment_versions_lesson_id ON assignment_versions (lesson_id);
+
+CREATE TABLE conversation_topics (
+    lesson_id UUID, 
+    title VARCHAR(200) NOT NULL, 
+    language VARCHAR(7) NOT NULL, 
+    learning_context JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    status VARCHAR(9) DEFAULT 'draft' NOT NULL, 
+    version INTEGER DEFAULT '1' NOT NULL, 
+    locked_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_conversation_topics PRIMARY KEY (id), 
+    CONSTRAINT fk_conversation_topics_lesson_id_lessons FOREIGN KEY(lesson_id) REFERENCES lessons (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_conversation_topics_language CHECK (language IN ('english', 'tagalog')), 
+    CONSTRAINT ck_conversation_topics_publication CHECK (status IN ('draft', 'published', 'archived'))
+);
+
+CREATE INDEX ix_conversation_topics_lesson_id ON conversation_topics (lesson_id);
+
+CREATE TABLE learner_progress (
+    context_id UUID NOT NULL, 
+    lesson_id UUID NOT NULL, 
+    status VARCHAR(11) DEFAULT 'not_started' NOT NULL, 
+    completed_at TIMESTAMP WITH TIME ZONE, 
+    metrics JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_learner_progress PRIMARY KEY (id), 
+    CONSTRAINT uq_learner_progress_context_id UNIQUE (context_id, lesson_id), 
+    CONSTRAINT ck_learner_progress_completed_timestamp CHECK (status != 'completed' OR completed_at IS NOT NULL), 
+    CONSTRAINT fk_learner_progress_context_id_learning_contexts FOREIGN KEY(context_id) REFERENCES learning_contexts (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_learner_progress_lesson_id_lessons FOREIGN KEY(lesson_id) REFERENCES lessons (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_learner_progress_progress_status CHECK (status IN ('not_started', 'in_progress', 'completed'))
+);
+
+CREATE INDEX ix_learner_progress_context_id ON learner_progress (context_id);
+
+CREATE INDEX ix_learner_progress_lesson_id ON learner_progress (lesson_id);
+
+CREATE TABLE learning_competencies (
+    lesson_id UUID NOT NULL, 
+    code VARCHAR(100), 
+    description TEXT NOT NULL, 
+    position INTEGER NOT NULL, 
+    source_metadata JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_learning_competencies PRIMARY KEY (id), 
+    CONSTRAINT uq_learning_competencies_lesson_id UNIQUE (lesson_id, position), 
+    CONSTRAINT uq_learning_competencies_lesson_id UNIQUE (lesson_id, code), 
+    CONSTRAINT ck_learning_competencies_positive_position CHECK (position > 0), 
+    CONSTRAINT fk_learning_competencies_lesson_id_lessons FOREIGN KEY(lesson_id) REFERENCES lessons (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_learning_competencies_lesson_id ON learning_competencies (lesson_id);
+
+CREATE TABLE pronunciation_activities (
+    lesson_id UUID, 
+    target_text TEXT NOT NULL, 
+    language VARCHAR(7) NOT NULL, 
+    instructions TEXT, 
+    reference_audio_metadata JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    status VARCHAR(9) DEFAULT 'draft' NOT NULL, 
+    version INTEGER DEFAULT '1' NOT NULL, 
+    locked_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_pronunciation_activities PRIMARY KEY (id), 
+    CONSTRAINT fk_pronunciation_activities_lesson_id_lessons FOREIGN KEY(lesson_id) REFERENCES lessons (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_pronunciation_activities_language CHECK (language IN ('english', 'tagalog')), 
+    CONSTRAINT ck_pronunciation_activities_publication CHECK (status IN ('draft', 'published', 'archived'))
+);
+
+CREATE INDEX ix_pronunciation_activities_lesson_id ON pronunciation_activities (lesson_id);
+
+CREATE TABLE question_revisions (
+    question_id UUID NOT NULL, 
+    lesson_id UUID NOT NULL, 
+    version INTEGER NOT NULL, 
+    method VARCHAR(20) NOT NULL, 
+    language VARCHAR(7) NOT NULL, 
+    prompt TEXT NOT NULL, 
+    instructions TEXT, 
+    difficulty VARCHAR(6) DEFAULT 'medium' NOT NULL, 
+    points NUMERIC(10, 2) DEFAULT '1' NOT NULL, 
+    schema_version INTEGER DEFAULT '1' NOT NULL, 
+    content JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    locked_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_question_revisions PRIMARY KEY (id), 
+    CONSTRAINT uq_question_revisions_question_id UNIQUE (question_id, version), 
+    CONSTRAINT ck_question_revisions_version_valid CHECK (version > 0 AND schema_version = 1), 
+    CONSTRAINT ck_question_revisions_nonnegative_points CHECK (points >= 0), 
+    CONSTRAINT ck_question_revisions_content_object CHECK (jsonb_typeof(content) = 'object'), 
+    CONSTRAINT fk_question_revisions_question_id_questions FOREIGN KEY(question_id) REFERENCES questions (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_question_revisions_lesson_id_lessons FOREIGN KEY(lesson_id) REFERENCES lessons (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_question_revisions_answer_method CHECK (method IN ('multiple_choice', 'true_false', 'identification', 'fill_in_the_blank', 'multiple_select', 'flashcards', 'error_identification', 'word_arrangement', 'sentence_arrangement', 'matching_type')), 
+    CONSTRAINT ck_question_revisions_language CHECK (language IN ('english', 'tagalog')), 
+    CONSTRAINT ck_question_revisions_difficulty CHECK (difficulty IN ('easy', 'medium', 'hard'))
+);
+
+CREATE INDEX ix_question_revisions_lesson_id ON question_revisions (lesson_id);
+
+CREATE INDEX ix_question_revisions_question_id ON question_revisions (question_id);
+
+CREATE TABLE vocabulary_items (
+    lesson_id UUID NOT NULL, 
+    language VARCHAR(7) NOT NULL, 
+    term VARCHAR(200) NOT NULL, 
+    meaning TEXT NOT NULL, 
+    version INTEGER DEFAULT '1' NOT NULL, 
+    locked_at TIMESTAMP WITH TIME ZONE, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_vocabulary_items PRIMARY KEY (id), 
+    CONSTRAINT uq_vocabulary_items_lesson_id UNIQUE (lesson_id, language, term, version), 
+    CONSTRAINT ck_vocabulary_items_positive_version CHECK (version > 0), 
+    CONSTRAINT fk_vocabulary_items_lesson_id_lessons FOREIGN KEY(lesson_id) REFERENCES lessons (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_vocabulary_items_language CHECK (language IN ('english', 'tagalog'))
+);
+
+CREATE INDEX ix_vocabulary_items_lesson_id ON vocabulary_items (lesson_id);
+
+CREATE TABLE assignment_attempts (
+    assignment_version_id UUID NOT NULL, 
+    student_id UUID NOT NULL, 
+    attempt_number INTEGER NOT NULL, 
+    started_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    expires_at TIMESTAMP WITH TIME ZONE, 
+    submitted_at TIMESTAMP WITH TIME ZONE, 
+    status VARCHAR(11) DEFAULT 'in_progress' NOT NULL, 
+    score NUMERIC(10, 2), 
+    maximum_score NUMERIC(10, 2), 
+    submission_key UUID, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_assignment_attempts PRIMARY KEY (id), 
+    CONSTRAINT uq_assignment_attempts_id UNIQUE (id, assignment_version_id), 
+    CONSTRAINT uq_assignment_attempts_assignment_version_id UNIQUE (assignment_version_id, student_id, attempt_number), 
+    CONSTRAINT ck_assignment_attempts_positive_attempt CHECK (attempt_number > 0), 
+    CONSTRAINT ck_assignment_attempts_score_range CHECK ((score IS NULL AND maximum_score IS NULL) OR (score IS NOT NULL AND maximum_score IS NOT NULL AND score >= 0 AND maximum_score >= score)), 
+    CONSTRAINT ck_assignment_attempts_submission_order CHECK (submitted_at IS NULL OR submitted_at >= started_at), 
+    CONSTRAINT ck_assignment_attempts_submitted_timestamp CHECK (status NOT IN ('submitted', 'graded') OR submitted_at IS NOT NULL), 
+    CONSTRAINT fk_assignment_attempts_assignment_version_id_assignment_523a FOREIGN KEY(assignment_version_id) REFERENCES assignment_versions (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_assignment_attempts_student_id_users FOREIGN KEY(student_id) REFERENCES users (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_assignment_attempts_attempt_status CHECK (status IN ('in_progress', 'submitted', 'graded', 'expired')), 
+    CONSTRAINT uq_assignment_attempts_submission_key UNIQUE (submission_key)
+);
+
+CREATE INDEX ix_assignment_attempts_assignment_version_id ON assignment_attempts (assignment_version_id);
+
+CREATE INDEX ix_assignment_attempts_student_id ON assignment_attempts (student_id);
+
+CREATE TABLE assignment_questions (
+    assignment_version_id UUID NOT NULL, 
+    question_revision_id UUID NOT NULL, 
+    position INTEGER NOT NULL, 
+    points NUMERIC(10, 2) NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_assignment_questions PRIMARY KEY (id), 
+    CONSTRAINT uq_assignment_questions_id UNIQUE (id, assignment_version_id), 
+    CONSTRAINT uq_assignment_questions_assignment_version_id UNIQUE (assignment_version_id, position), 
+    CONSTRAINT uq_assignment_questions_assignment_version_id UNIQUE (assignment_version_id, question_revision_id), 
+    CONSTRAINT ck_assignment_questions_valid_item CHECK (position > 0 AND points >= 0), 
+    CONSTRAINT fk_assignment_questions_assignment_version_id_assignmen_ef2b FOREIGN KEY(assignment_version_id) REFERENCES assignment_versions (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_assignment_questions_question_revision_id_question_revisions FOREIGN KEY(question_revision_id) REFERENCES question_revisions (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_assignment_questions_assignment_version_id ON assignment_questions (assignment_version_id);
+
+CREATE INDEX ix_assignment_questions_question_revision_id ON assignment_questions (question_revision_id);
+
+CREATE TABLE conversation_sessions (
+    context_id UUID NOT NULL, 
+    topic_id UUID NOT NULL, 
+    language VARCHAR(7) NOT NULL, 
+    started_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    ended_at TIMESTAMP WITH TIME ZONE, 
+    model_configuration_id UUID NOT NULL, 
+    status VARCHAR(6) DEFAULT 'active' NOT NULL, 
+    retain_messages BOOLEAN DEFAULT false NOT NULL, 
+    retention_policy_version VARCHAR(100), 
+    delete_messages_after TIMESTAMP WITH TIME ZONE, 
+    simulated BOOLEAN DEFAULT false NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_conversation_sessions PRIMARY KEY (id), 
+    CONSTRAINT ck_conversation_sessions_approved_retention CHECK (NOT retain_messages OR (retention_policy_version IS NOT NULL AND delete_messages_after IS NOT NULL)), 
+    CONSTRAINT ck_conversation_sessions_session_order CHECK (ended_at IS NULL OR ended_at >= started_at), 
+    CONSTRAINT fk_conversation_sessions_context_id_learning_contexts FOREIGN KEY(context_id) REFERENCES learning_contexts (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_conversation_sessions_topic_id_conversation_topics FOREIGN KEY(topic_id) REFERENCES conversation_topics (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_conversation_sessions_language CHECK (language IN ('english', 'tagalog')), 
+    CONSTRAINT fk_conversation_sessions_model_configuration_id_model_c_adb6 FOREIGN KEY(model_configuration_id) REFERENCES model_configurations (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_conversation_sessions_conversation_status CHECK (status IN ('active', 'ended', 'failed'))
+);
+
+CREATE INDEX ix_conversation_sessions_context_id ON conversation_sessions (context_id);
+
+CREATE INDEX ix_conversation_sessions_model_configuration_id ON conversation_sessions (model_configuration_id);
+
+CREATE INDEX ix_conversation_sessions_topic_id ON conversation_sessions (topic_id);
+
+CREATE TABLE pronunciation_attempts (
+    context_id UUID NOT NULL, 
+    activity_id UUID NOT NULL, 
+    attempted_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    transcription TEXT, 
+    feedback TEXT, 
+    score NUMERIC(6, 2), 
+    scoring_status VARCHAR(11) DEFAULT 'pending' NOT NULL, 
+    asr_configuration_id UUID, 
+    evaluator_configuration_id UUID, 
+    result JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    error_code VARCHAR(100), 
+    simulated BOOLEAN DEFAULT false NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_pronunciation_attempts PRIMARY KEY (id), 
+    CONSTRAINT ck_pronunciation_attempts_supported_score_only CHECK ((scoring_status = 'scored' AND score IS NOT NULL AND evaluator_configuration_id IS NOT NULL) OR (scoring_status != 'scored' AND score IS NULL)), 
+    CONSTRAINT ck_pronunciation_attempts_score_range CHECK (score IS NULL OR (score >= 0 AND score <= 100)), 
+    CONSTRAINT fk_pronunciation_attempts_context_id_learning_contexts FOREIGN KEY(context_id) REFERENCES learning_contexts (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_pronunciation_attempts_activity_id_pronunciation_activities FOREIGN KEY(activity_id) REFERENCES pronunciation_activities (id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_pronunciation_attempts_scoring_status CHECK (scoring_status IN ('pending', 'processing', 'scored', 'unsupported', 'failed', 'unscored')), 
+    CONSTRAINT fk_pronunciation_attempts_asr_configuration_id_model_co_16e7 FOREIGN KEY(asr_configuration_id) REFERENCES model_configurations (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_pronunciation_attempts_evaluator_configuration_id_mo_9f63 FOREIGN KEY(evaluator_configuration_id) REFERENCES model_configurations (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_pronunciation_attempts_activity_id ON pronunciation_attempts (activity_id);
+
+CREATE INDEX ix_pronunciation_attempts_asr_configuration_id ON pronunciation_attempts (asr_configuration_id);
+
+CREATE INDEX ix_pronunciation_attempts_context_id ON pronunciation_attempts (context_id);
+
+CREATE INDEX ix_pronunciation_attempts_evaluator_configuration_id ON pronunciation_attempts (evaluator_configuration_id);
+
+CREATE TABLE question_answer_keys (
+    question_revision_id UUID NOT NULL, 
+    configuration JSONB NOT NULL, 
+    grading_version VARCHAR(80) DEFAULT 'ungraded-v1' NOT NULL, 
+    explanation TEXT, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_question_answer_keys PRIMARY KEY (id), 
+    CONSTRAINT ck_question_answer_keys_configuration_object CHECK (jsonb_typeof(configuration) = 'object'), 
+    CONSTRAINT fk_question_answer_keys_question_revision_id_question_revisions FOREIGN KEY(question_revision_id) REFERENCES question_revisions (id) ON DELETE RESTRICT
+);
+
+CREATE UNIQUE INDEX ix_question_answer_keys_question_revision_id ON question_answer_keys (question_revision_id);
+
+CREATE TABLE question_competencies (
+    question_revision_id UUID NOT NULL, 
+    competency_id UUID NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_question_competencies PRIMARY KEY (id), 
+    CONSTRAINT uq_question_competencies_question_revision_id UNIQUE (question_revision_id, competency_id), 
+    CONSTRAINT fk_question_competencies_question_revision_id_question__6ea2 FOREIGN KEY(question_revision_id) REFERENCES question_revisions (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_question_competencies_competency_id_learning_competencies FOREIGN KEY(competency_id) REFERENCES learning_competencies (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_question_competencies_competency_id ON question_competencies (competency_id);
+
+CREATE INDEX ix_question_competencies_question_revision_id ON question_competencies (question_revision_id);
+
+CREATE TABLE vocabulary_review_states (
+    context_id UUID NOT NULL, 
+    vocabulary_item_id UUID NOT NULL, 
+    scheduler_configuration_id UUID NOT NULL, 
+    state JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    due_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    last_reviewed_at TIMESTAMP WITH TIME ZONE, 
+    revision INTEGER DEFAULT '1' NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_vocabulary_review_states PRIMARY KEY (id), 
+    CONSTRAINT uq_vocabulary_review_states_context_id UNIQUE (context_id, vocabulary_item_id), 
+    CONSTRAINT uq_vocabulary_review_states_id UNIQUE (id, scheduler_configuration_id), 
+    CONSTRAINT ck_vocabulary_review_states_valid_state CHECK (revision > 0 AND jsonb_typeof(state) = 'object'), 
+    CONSTRAINT fk_vocabulary_review_states_context_id_learning_contexts FOREIGN KEY(context_id) REFERENCES learning_contexts (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_vocabulary_review_states_vocabulary_item_id_vocabulary_items FOREIGN KEY(vocabulary_item_id) REFERENCES vocabulary_items (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_vocabulary_review_states_scheduler_configuration_id__9ca6 FOREIGN KEY(scheduler_configuration_id) REFERENCES scheduler_configurations (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_vocabulary_review_states_context_id ON vocabulary_review_states (context_id);
+
+CREATE INDEX ix_vocabulary_review_states_due ON vocabulary_review_states (context_id, due_at);
+
+CREATE INDEX ix_vocabulary_review_states_scheduler_configuration_id ON vocabulary_review_states (scheduler_configuration_id);
+
+CREATE INDEX ix_vocabulary_review_states_vocabulary_item_id ON vocabulary_review_states (vocabulary_item_id);
+
+CREATE TABLE conversation_messages (
+    session_id UUID NOT NULL, 
+    sequence INTEGER NOT NULL, 
+    role VARCHAR(9) NOT NULL, 
+    content TEXT NOT NULL, 
+    sent_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_conversation_messages PRIMARY KEY (id), 
+    CONSTRAINT uq_conversation_messages_session_id UNIQUE (session_id, sequence), 
+    CONSTRAINT ck_conversation_messages_positive_sequence CHECK (sequence > 0), 
+    CONSTRAINT fk_conversation_messages_session_id_conversation_sessions FOREIGN KEY(session_id) REFERENCES conversation_sessions (id) ON DELETE CASCADE, 
+    CONSTRAINT ck_conversation_messages_message_role CHECK (role IN ('user', 'assistant'))
+);
+
+CREATE INDEX ix_conversation_messages_session_id ON conversation_messages (session_id);
+
+CREATE TABLE student_responses (
+    attempt_id UUID NOT NULL, 
+    assignment_question_id UUID NOT NULL, 
+    assignment_version_id UUID NOT NULL, 
+    answer JSONB NOT NULL, 
+    correct BOOLEAN, 
+    awarded_points NUMERIC(10, 2), 
+    response_duration_ms INTEGER, 
+    submitted_at TIMESTAMP WITH TIME ZONE, 
+    grading_status VARCHAR(8) DEFAULT 'pending' NOT NULL, 
+    grading_version VARCHAR(80), 
+    feedback TEXT, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_student_responses PRIMARY KEY (id), 
+    CONSTRAINT fk_student_responses_attempt_id_assignment_attempts FOREIGN KEY(attempt_id, assignment_version_id) REFERENCES assignment_attempts (id, assignment_version_id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_student_responses_assignment_question_id_assignment__0bfb FOREIGN KEY(assignment_question_id, assignment_version_id) REFERENCES assignment_questions (id, assignment_version_id) ON DELETE RESTRICT, 
+    CONSTRAINT uq_student_responses_attempt_id UNIQUE (attempt_id, assignment_question_id), 
+    CONSTRAINT ck_student_responses_nonnegative_latency CHECK (response_duration_ms IS NULL OR response_duration_ms >= 0), 
+    CONSTRAINT ck_student_responses_nonnegative_award CHECK (awarded_points IS NULL OR awarded_points >= 0), 
+    CONSTRAINT ck_student_responses_answer_object CHECK (jsonb_typeof(answer) = 'object'), 
+    CONSTRAINT ck_student_responses_grading_status CHECK (grading_status IN ('pending', 'graded', 'unscored', 'failed'))
+);
+
+CREATE INDEX ix_student_responses_assignment_question_id ON student_responses (assignment_question_id);
+
+CREATE INDEX ix_student_responses_assignment_version_id ON student_responses (assignment_version_id);
+
+CREATE INDEX ix_student_responses_attempt_id ON student_responses (attempt_id);
+
+CREATE TABLE vocabulary_review_events (
+    review_state_id UUID NOT NULL, 
+    scheduler_configuration_id UUID NOT NULL, 
+    event_key UUID NOT NULL, 
+    reviewed_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+    recall_rating VARCHAR(5) NOT NULL, 
+    answer_result JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    response_duration_ms INTEGER NOT NULL, 
+    previous_interval_seconds NUMERIC(16, 3) NOT NULL, 
+    resulting_interval_seconds NUMERIC(16, 3) NOT NULL, 
+    previous_state JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    resulting_state JSONB DEFAULT '{}'::jsonb NOT NULL, 
+    state_revision INTEGER NOT NULL, 
+    simulated BOOLEAN DEFAULT false NOT NULL, 
+    id UUID DEFAULT gen_random_uuid() NOT NULL, 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+    CONSTRAINT pk_vocabulary_review_events PRIMARY KEY (id), 
+    CONSTRAINT uq_vocabulary_review_events_review_state_id UNIQUE (review_state_id, state_revision), 
+    CONSTRAINT fk_vocabulary_review_events_review_state_id_vocabulary__c719 FOREIGN KEY(review_state_id, scheduler_configuration_id) REFERENCES vocabulary_review_states (id, scheduler_configuration_id) ON DELETE RESTRICT, 
+    CONSTRAINT ck_vocabulary_review_events_nonnegative_metrics CHECK (response_duration_ms >= 0 AND previous_interval_seconds >= 0 AND resulting_interval_seconds >= 0 AND state_revision > 0), 
+    CONSTRAINT fk_vocabulary_review_events_review_state_id_vocabulary__c719 FOREIGN KEY(review_state_id) REFERENCES vocabulary_review_states (id) ON DELETE RESTRICT, 
+    CONSTRAINT fk_vocabulary_review_events_scheduler_configuration_id__641b FOREIGN KEY(scheduler_configuration_id) REFERENCES scheduler_configurations (id) ON DELETE RESTRICT, 
+    CONSTRAINT uq_vocabulary_review_events_event_key UNIQUE (event_key), 
+    CONSTRAINT ck_vocabulary_review_events_recall_rating CHECK (recall_rating IN ('again', 'hard', 'good', 'easy'))
+);
+
+CREATE INDEX ix_vocabulary_review_events_history ON vocabulary_review_events (review_state_id, reviewed_at);
+
+CREATE INDEX ix_vocabulary_review_events_review_state_id ON vocabulary_review_events (review_state_id);
+
+CREATE INDEX ix_vocabulary_review_events_scheduler_configuration_id ON vocabulary_review_events (scheduler_configuration_id);
+
+REVOKE ALL ON ALL TABLES IN SCHEMA research_private FROM PUBLIC;
+
+CREATE FUNCTION fluentt_touch_updated_at() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
+
+CREATE FUNCTION fluentt_append_only() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN RAISE EXCEPTION 'Append-only record: add a new version or correction event' USING ERRCODE = '23514'; END; $$;
+
+CREATE FUNCTION fluentt_freeze_locked() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF OLD.locked_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Locked version is immutable' USING ERRCODE = '23514';
+  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END; $$;
+
+CREATE FUNCTION fluentt_guard_locked_parent() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+DECLARE parent_id uuid; locked timestamptz; ids uuid[] := ARRAY[]::uuid[];
+BEGIN
+  IF TG_OP != 'INSERT' THEN ids := array_append(ids, (to_jsonb(OLD)->>TG_ARGV[1])::uuid); END IF;
+  IF TG_OP != 'DELETE' THEN ids := array_append(ids, (to_jsonb(NEW)->>TG_ARGV[1])::uuid); END IF;
+  FOREACH parent_id IN ARRAY ids LOOP
+    EXECUTE format('SELECT locked_at FROM public.%I WHERE id = $1 FOR UPDATE', TG_ARGV[0]) INTO locked USING parent_id;
+    IF locked IS NOT NULL THEN RAISE EXCEPTION 'Parent version is locked' USING ERRCODE = '23514'; END IF;
+  END LOOP;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END; $$;
+
+CREATE FUNCTION fluentt_validate_question_lock() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.locked_at IS NOT NULL THEN RAISE EXCEPTION 'Create draft before locking' USING ERRCODE = '23514'; END IF;
+    RETURN NEW;
+  END IF;
+  IF NEW.locked_at IS NOT NULL AND OLD.locked_at IS NULL AND NOT EXISTS
+    (SELECT 1 FROM question_answer_keys WHERE question_revision_id = NEW.id) THEN
+    RAISE EXCEPTION 'Question lock requires an answer key' USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END; $$;
+
+CREATE FUNCTION fluentt_validate_assignment_lock() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.locked_at IS NOT NULL THEN RAISE EXCEPTION 'Create draft before locking' USING ERRCODE = '23514'; END IF;
+    RETURN NEW;
+  END IF;
+  IF NEW.locked_at IS NOT NULL AND OLD.locked_at IS NULL THEN
+    IF NOT EXISTS (SELECT 1 FROM assignment_questions WHERE assignment_version_id = NEW.id) THEN
+      RAISE EXCEPTION 'Assignment lock requires questions' USING ERRCODE = '23514';
+    END IF;
+    PERFORM q.id FROM question_revisions q JOIN assignment_questions aq ON q.id = aq.question_revision_id
+      WHERE aq.assignment_version_id = NEW.id FOR SHARE OF q;
+    IF EXISTS (SELECT 1 FROM assignment_questions aq JOIN question_revisions q ON q.id = aq.question_revision_id
+      WHERE aq.assignment_version_id = NEW.id AND q.locked_at IS NULL) THEN
+      RAISE EXCEPTION 'Published assignment requires locked questions' USING ERRCODE = '23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END; $$;
+
+CREATE FUNCTION fluentt_require_locked_assignment() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+DECLARE locked timestamptz;
+BEGIN
+  SELECT locked_at INTO locked FROM assignment_versions WHERE id = NEW.assignment_version_id FOR SHARE;
+  IF locked IS NULL THEN RAISE EXCEPTION 'Attempt requires a locked assignment version' USING ERRCODE = '23514'; END IF;
+  RETURN NEW;
+END; $$;
+
+CREATE FUNCTION fluentt_guard_study_protocol() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.locked_at IS NOT NULL THEN RAISE EXCEPTION 'Study protocol is locked' USING ERRCODE = '23514'; END IF;
+    RETURN OLD;
+  END IF;
+  IF OLD.locked_at IS NOT NULL AND
+    (to_jsonb(OLD) - 'updated_at' - 'status' - 'ends_at') IS DISTINCT FROM
+    (to_jsonb(NEW) - 'updated_at' - 'status' - 'ends_at') THEN
+    RAISE EXCEPTION 'Study protocol is locked' USING ERRCODE = '23514';
+  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END; $$;
+
+CREATE FUNCTION fluentt_guard_conversation_retention() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+DECLARE allowed boolean;
+BEGIN
+  SELECT retain_messages AND retention_policy_version IS NOT NULL AND delete_messages_after > now()
+    INTO allowed FROM conversation_sessions WHERE id = NEW.session_id FOR SHARE;
+  IF allowed IS NOT TRUE THEN RAISE EXCEPTION 'Message retention is not approved for this session' USING ERRCODE = '23514'; END IF;
+  RETURN NEW;
+END; $$;
+
+CREATE FUNCTION fluentt_freeze_review_scope() RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
+BEGIN
+  IF (OLD.context_id, OLD.vocabulary_item_id, OLD.scheduler_configuration_id) IS DISTINCT FROM
+     (NEW.context_id, NEW.vocabulary_item_id, NEW.scheduler_configuration_id) THEN
+    RAISE EXCEPTION 'Review state identity and scheduler are immutable' USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END; $$;
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON admin_permissions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON admin_roles FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON curriculum_versions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON grade_levels FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON model_versions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_studies FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON subjects FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON admin_identities FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON admin_role_permissions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON admin_user_roles FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON audit_logs FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON classes FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON curriculum_grades FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON instructor_profiles FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON learner_profiles FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON model_configurations FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON notifications FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON questions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_levels FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_participants FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON user_sessions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON assignments FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON class_join_codes FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON class_memberships FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON curriculum_subjects FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON learning_contexts FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON messages FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_assessments FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_events FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_private.research_consent_records FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_private.research_identity_links FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON scheduler_configurations FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON message_reads FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON points_transactions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON quarters FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_assessment_results FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_groups FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON curriculum_topics FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON research_group_assignments FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON lessons FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON assignment_versions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON conversation_topics FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON learner_progress FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON learning_competencies FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON pronunciation_activities FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON question_revisions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON vocabulary_items FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON assignment_attempts FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON assignment_questions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON conversation_sessions FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON pronunciation_attempts FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON question_answer_keys FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON question_competencies FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON vocabulary_review_states FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON conversation_messages FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON student_responses FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER touch_updated_at BEFORE UPDATE ON vocabulary_review_events FOR EACH ROW EXECUTE FUNCTION fluentt_touch_updated_at();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON model_versions FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON model_configurations FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON scheduler_configurations FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON vocabulary_review_events FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON points_transactions FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON research_group_assignments FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON research_events FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON research_private.research_consent_records FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON audit_logs FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER preserve_history BEFORE UPDATE OR DELETE ON learning_contexts FOR EACH ROW EXECUTE FUNCTION fluentt_append_only();
+
+CREATE TRIGGER freeze_locked BEFORE UPDATE OR DELETE ON question_revisions FOR EACH ROW EXECUTE FUNCTION fluentt_freeze_locked();
+
+CREATE TRIGGER freeze_locked BEFORE UPDATE OR DELETE ON assignment_versions FOR EACH ROW EXECUTE FUNCTION fluentt_freeze_locked();
+
+CREATE TRIGGER freeze_locked BEFORE UPDATE OR DELETE ON vocabulary_items FOR EACH ROW EXECUTE FUNCTION fluentt_freeze_locked();
+
+CREATE TRIGGER freeze_locked BEFORE UPDATE OR DELETE ON pronunciation_activities FOR EACH ROW EXECUTE FUNCTION fluentt_freeze_locked();
+
+CREATE TRIGGER freeze_locked BEFORE UPDATE OR DELETE ON conversation_topics FOR EACH ROW EXECUTE FUNCTION fluentt_freeze_locked();
+
+CREATE TRIGGER freeze_locked BEFORE UPDATE OR DELETE ON research_levels FOR EACH ROW EXECUTE FUNCTION fluentt_freeze_locked();
+
+CREATE TRIGGER freeze_locked BEFORE UPDATE OR DELETE ON research_assessments FOR EACH ROW EXECUTE FUNCTION fluentt_freeze_locked();
+
+CREATE TRIGGER guard_parent_lock BEFORE INSERT OR UPDATE OR DELETE ON question_answer_keys FOR EACH ROW EXECUTE FUNCTION fluentt_guard_locked_parent('question_revisions', 'question_revision_id');
+
+CREATE TRIGGER guard_parent_lock BEFORE INSERT OR UPDATE OR DELETE ON question_competencies FOR EACH ROW EXECUTE FUNCTION fluentt_guard_locked_parent('question_revisions', 'question_revision_id');
+
+CREATE TRIGGER guard_parent_lock BEFORE INSERT OR UPDATE OR DELETE ON assignment_questions FOR EACH ROW EXECUTE FUNCTION fluentt_guard_locked_parent('assignment_versions', 'assignment_version_id');
+
+CREATE TRIGGER guard_parent_lock BEFORE INSERT OR UPDATE OR DELETE ON research_groups FOR EACH ROW EXECUTE FUNCTION fluentt_guard_locked_parent('research_studies', 'study_id');
+
+CREATE TRIGGER guard_parent_lock BEFORE INSERT OR UPDATE OR DELETE ON research_levels FOR EACH ROW EXECUTE FUNCTION fluentt_guard_locked_parent('research_studies', 'study_id');
+
+CREATE TRIGGER guard_parent_lock BEFORE INSERT OR UPDATE OR DELETE ON research_assessments FOR EACH ROW EXECUTE FUNCTION fluentt_guard_locked_parent('research_studies', 'study_id');
+
+CREATE TRIGGER validate_question_lock BEFORE INSERT OR UPDATE ON question_revisions FOR EACH ROW EXECUTE FUNCTION fluentt_validate_question_lock();
+
+CREATE TRIGGER validate_assignment_lock BEFORE INSERT OR UPDATE ON assignment_versions FOR EACH ROW EXECUTE FUNCTION fluentt_validate_assignment_lock();
+
+CREATE TRIGGER require_locked_assignment BEFORE INSERT OR UPDATE ON assignment_attempts FOR EACH ROW EXECUTE FUNCTION fluentt_require_locked_assignment();
+
+CREATE TRIGGER guard_study_protocol BEFORE UPDATE OR DELETE ON research_studies FOR EACH ROW EXECUTE FUNCTION fluentt_guard_study_protocol();
+
+CREATE TRIGGER guard_conversation_retention BEFORE INSERT OR UPDATE ON conversation_messages FOR EACH ROW EXECUTE FUNCTION fluentt_guard_conversation_retention();
+
+CREATE TRIGGER freeze_review_scope BEFORE UPDATE ON vocabulary_review_states FOR EACH ROW EXECUTE FUNCTION fluentt_freeze_review_scope();
+
+INSERT INTO alembic_version (version_num) VALUES ('0001_initial') RETURNING alembic_version.version_num;
+
+COMMIT;
+

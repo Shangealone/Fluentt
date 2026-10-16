@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["postgresql: real PostgreSQL integration tests; creates and removes its own disposable database"]
+
+[tool.ruff]
+line-length = 120
