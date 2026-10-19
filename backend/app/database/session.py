@@ -12,6 +12,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 # Ensure all SQLAlchemy models are registered in the mapper registry
 import app.auth.models
 import app.content.models
+import app.pronunciation.models
 import app.research_authority.models
 import app.users.models  # noqa: F401
 

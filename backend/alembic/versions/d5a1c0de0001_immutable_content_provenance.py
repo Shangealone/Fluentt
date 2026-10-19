@@ -4,9 +4,9 @@ Revision ID: d5a1c0de0001
 Revises: 65b5e4087f54
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 from app.content.provenance_ddl import IMMUTABLE_CONTENT_DDL
 
 revision = "d5a1c0de0001"

@@ -13,6 +13,7 @@ TEST_DB_URL = os.environ.get(
 )
 os.environ["APP_ENV"] = "testing"
 os.environ["DATABASE_URL"] = TEST_DB_URL
+os.environ.setdefault("JWT_SECRET", "test-only-jwt-secret-not-for-production")
 
 from app.core.config import get_settings
 
@@ -47,6 +48,7 @@ def setup_test_environment() -> None:
     # Ensure all tables exist in test database
     import app.auth.models
     import app.content.models
+    import app.pronunciation.models
     import app.research_authority.models
     import app.research_logging.models
     import app.reviews.models
@@ -137,6 +139,20 @@ def setup_test_environment() -> None:
             with Operations.context(MigrationContext.configure(connection)):
                 migration.upgrade()
     Base.metadata.create_all(bind=test_engine)
+    # Persistent isolated databases can contain the pre-repair pronunciation schema.
+    from alembic.config import Config
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from alembic.script import ScriptDirectory
+
+    with test_engine.begin() as connection:
+        migration = (
+            ScriptDirectory.from_config(Config("alembic.ini"))
+            .get_revision("p05c0de000001")
+            .module
+        )
+        with Operations.context(MigrationContext.configure(connection)):
+            migration.upgrade()
 
 
 @pytest.fixture(autouse=True)

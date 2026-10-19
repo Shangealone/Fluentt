@@ -1,0 +1,118 @@
+{
+  "language": {
+    "code": "en",
+    "name": "English",
+    "is_active": true
+  },
+  "content_version": "sample-pronunciation-dev-v0.1",
+  "purpose": "development_pronunciation_sanity_only",
+  "purpose_note": "Development/sanity-test phrases for the pronunciation pipeline. NOT the formal research pronunciation dataset and NOT approved participant material.",
+  "lessons": [
+    {
+      "id": "33333333-0000-0000-0000-000000000001",
+      "title": "Pronunciation Practice (Dev)",
+      "description": "Development-only sanity phrases for end-to-end pronunciation pipeline checks. Not formal research material.",
+      "content_version": "sample-pronunciation-dev-v0.1",
+      "is_active": true,
+      "sort_order": 90,
+      "vocabulary_items": [
+        {
+          "id": "44444444-0000-0000-0000-000000000001",
+          "term": "good morning",
+          "definition": "Development pronunciation sanity phrase 1.",
+          "example_sentence": "Good morning, how are you today?",
+          "difficulty": "beginner",
+          "category": "pronunciation-dev",
+          "translation": null,
+          "content_version": "sample-pronunciation-dev-v0.1",
+          "is_active": true,
+          "sort_order": 1
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000002",
+          "term": "help",
+          "definition": "Development pronunciation sanity phrase 2.",
+          "example_sentence": "Can you help me with this?",
+          "difficulty": "beginner",
+          "category": "pronunciation-dev",
+          "translation": null,
+          "content_version": "sample-pronunciation-dev-v0.1",
+          "is_active": true,
+          "sort_order": 2
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000003",
+          "term": "water",
+          "definition": "Development pronunciation sanity phrase 3.",
+          "example_sentence": "I would like a glass of water.",
+          "difficulty": "beginner",
+          "category": "pronunciation-dev",
+          "translation": null,
+          "content_version": "sample-pronunciation-dev-v0.1",
+          "is_active": true,
+          "sort_order": 3
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000004",
+          "term": "thank you",
+          "definition": "Development pronunciation sanity phrase 4.",
+          "example_sentence": "Thank you very much for your help.",
+          "difficulty": "beginner",
+          "category": "pronunciation-dev",
+          "translation": null,
+          "content_version": "sample-pronunciation-dev-v0.1",
+          "is_active": true,
+          "sort_order": 4
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000005",
+          "term": "library",
+          "definition": "Development pronunciation sanity phrase 5.",
+          "example_sentence": "The public library opens at nine in the morning.",
+          "difficulty": "beginner",
+          "category": "pronunciation-dev",
+          "translation": null,
+          "content_version": "sample-pronunciation-dev-v0.1",
+          "is_active": true,
+          "sort_order": 5
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000006",
+          "term": "weather",
+          "definition": "Development pronunciation sanity phrase 6.",
+          "example_sentence": "The weather is nice today.",
+          "difficulty": "beginner",
+          "category": "pronunciation-dev",
+          "translation": null,
+          "content_version": "sample-pronunciation-dev-v0.1",
+          "is_active": true,
+          "sort_order": 6
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000007",
+          "term": "question",
+          "definition": "Development pronunciation sanity phrase 7.",
+          "example_sentence": "May I ask a question about the lesson?",
+          "difficulty": "beginner",
+          "category": "pronunciation-dev",
+          "translation": null,
+          "content_version": "sample-pronunciation-dev-v0.1",
+          "is_active": true,
+          "sort_order": 7
+        },
+        {
+          "id": "44444444-0000-0000-0000-000000000008",
+          "term": "practice",
+          "definition": "Development pronunciation sanity phrase 8.",
+          "example_sentence": "I practice English every day.",
+          "difficulty": "beginner",
+          "category": "pronunciation-dev",
+          "translation": null,
+          "content_version": "sample-pronunciation-dev-v0.1",
+          "is_active": true,
+          "sort_order": 8
+        }
+      ]
+    }
+  ]
+}

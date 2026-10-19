@@ -13,10 +13,13 @@ dependencies = [
   "pwdlib[argon2]",
   "email-validator",
   "fsrs==6.3.2",
+  "python-multipart",
+  "httpx==0.28.1",
+  "simplejson>=4.2.0",
 ]
 
 [dependency-groups]
-dev = ["pytest", "pytest-asyncio", "httpx", "ruff"]
+dev = ["pytest", "pytest-asyncio", "ruff"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

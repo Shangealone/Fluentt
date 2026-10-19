@@ -117,7 +117,13 @@ export default function LessonDetailScreen() {
         <FlatList
           data={lesson.vocabularyItems}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <VocabularyCard item={item} />}
+          renderItem={({ item }) => <View><VocabularyCard item={item} />
+            {lesson.languageCode === 'en' && lesson.contentReleaseId && item.contentRevisionId && item.contentReleaseId === lesson.contentReleaseId ? (
+              <Pressable accessibilityRole="button" style={styles.startReviewButton} onPress={() => router.push({ pathname: '/(app)/pronunciation/[lessonId]' as any, params: { lessonId: lesson.id, contentReleaseId: lesson.contentReleaseId!, vocabularyItemId: item.id } })}>
+                <AppText style={styles.startReviewButtonText}>{t('pronunciation.practice', { term: item.term })}</AppText>
+              </Pressable>
+            ) : null}
+          </View>}
           contentContainerStyle={styles.listContent}
           testID="vocabulary-list"
           ListHeaderComponent={

@@ -122,5 +122,65 @@
     "reviewAttemptsCompleted": "Mga Natapos na Pagsusuri",
     "correctAttempts": "Mga Tamang Pagsusuri",
     "accuracyRate": "Antas ng Kawastuhan"
+  },
+  "pronunciation": {
+    "title": "Pagsasanay sa pagbigkas",
+    "notice": "Ipapadala ang iyong recording para masuri ang pagbigkas kapag isinumite mo ito. Hindi nito binabago ang iskedyul ng iyong review.",
+    "unavailable": "Hindi magagamit sa device na ito ang pagsasanay na ito sa Ingles.",
+    "instructions": "Basahin nang malinaw ang teksto. Panatilihing mas maikli sa 10 segundo ang recording.",
+    "record": "Mag-record",
+    "stop": "Ihinto ang recording",
+    "submit": "Ipasuri ang recording",
+    "cancel": "Kanselahin",
+    "tryAgain": "Bagong recording",
+    "settings": "Buksan ang setting ng mikropono",
+    "checkStatus": "Tingnan ang resulta / subukang muli",
+    "useSentence": "Sanayin ang halimbawang pangungusap",
+    "useTerm": "Sanayin ang salita",
+    "score": "Katumpakan: {{score}} / 100",
+    "category": "Kategorya {{category}}",
+    "operatorAction": "Kailangang ayusin ang serbisyo ng pagsusuri. Makipag-ugnayan sa iyong guro o administrador.",
+    "states": {
+      "ready": "Handa nang mag-record",
+      "permission_required": "Kailangan ang pahintulot sa mikropono. Pindutin ang Mag-record upang payagan ito.",
+      "permission_denied": "Naka-block ang mikropono. Payagan ito sa Settings.",
+      "preparing": "Inihahanda ang mikropono…",
+      "recording": "Nagre-record…",
+      "stopping": "Tinatapos ang recording…",
+      "recorded": "Handa nang isumite ang recording",
+      "error": "Hindi natapos ang recording"
+    },
+    "submission": {
+      "idle": "Handa",
+      "submitting": "Sinusuri ang recording…",
+      "processing": "Patuloy pang sinusuri ang iyong recording…",
+      "uncertain": "Naputol ang koneksiyon. Tingnan muna ang resulta bago subukang muli.",
+      "scored": "Tapos na ang pagsusuri",
+      "unscorable": "Hindi mabigyan ng marka ang recording",
+      "failed": "Hindi natapos ang pagsusuri",
+      "error": "Pakisubukang muli"
+    },
+    "errors": {
+      "recording": "Hindi nakapag-record ang mikropono. Pakisubukang muli.",
+      "invalidRecording": "Walang laman, masyadong mahaba, o masyadong malaki ang recording. Mag-record muli.",
+      "cleanup": "Hindi natanggal ang naunang recording. Pindutin muli ang Kanselahin.",
+      "recorded": "Hindi maproseso ang recording na ito. Gumawa ng bagong recording.",
+      "service": "Hindi makonekta sa serbisyo ng pagsusuri. Tingnan ang resulta o subukan mamaya.",
+      "auth": "Mag-sign in muli bago magsumite."
+    },
+    "feedback": {
+      "A": "Napakalinaw ng iyong pagbigkas. Patuloy na magsanay upang mapanatili ito.",
+      "B": "Maganda ang iyong pagbigkas. Pagtuunan ang mga tunog na ipinakita.",
+      "C": "May mga tunog na kailangan pang sanayin. Basahin nang dahan-dahan at subukang muli.",
+      "D": "Sanayin muna ang maliliit na bahagi ng teksto, saka mag-record muli.",
+      "unscorable": "Hindi namin masuri ang recording. Basahin nang malinaw ang buong teksto at subukang muli."
+    },
+    "issue": {
+      "phoneme": "Sanayin ang tunog na “{{unit}}”.",
+      "Mispronunciation": "Sanayin ang pagbigkas ng “{{unit}}”.",
+      "Omission": "Tandaang sabihin ang “{{unit}}”.",
+      "Insertion": "May narinig na dagdag na salita: “{{unit}}”.",
+      "None": "Sanayin ang “{{unit}}”."
+    }
   }
 }

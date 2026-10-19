@@ -13,6 +13,7 @@ export default function AppLayout() {
       <Stack.Screen name="review/result" />
       <Stack.Screen name="sync-status" />
       <Stack.Screen name="progress" />
+      <Stack.Screen name="pronunciation/[lessonId]" />
     </Stack>
   );
 }

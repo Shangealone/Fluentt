@@ -123,5 +123,65 @@
     "reviewAttemptsCompleted": "Review Attempts Completed",
     "correctAttempts": "Correct Attempts",
     "accuracyRate": "Accuracy Rate"
+  },
+  "pronunciation": {
+    "title": "Pronunciation practice",
+    "notice": "Your recording is sent for speech assessment when you submit. This practice does not change your review schedule.",
+    "unavailable": "This English practice item is unavailable on this device.",
+    "instructions": "Read the text aloud clearly. Keep the recording under 10 seconds.",
+    "record": "Record",
+    "stop": "Stop recording",
+    "submit": "Assess recording",
+    "cancel": "Cancel",
+    "tryAgain": "New recording",
+    "settings": "Open microphone settings",
+    "checkStatus": "Check status / retry",
+    "useSentence": "Practice the example sentence",
+    "useTerm": "Practice the term",
+    "score": "Accuracy: {{score}} / 100",
+    "category": "Category {{category}}",
+    "operatorAction": "The assessment service needs attention. Please contact your teacher or administrator.",
+    "states": {
+      "ready": "Ready to record",
+      "permission_required": "Microphone permission is required. Tap Record to allow access.",
+      "permission_denied": "Microphone access is blocked. Enable it in Settings.",
+      "preparing": "Preparing microphone…",
+      "recording": "Recording…",
+      "stopping": "Finishing recording…",
+      "recorded": "Recording ready to submit",
+      "error": "Recording could not be completed"
+    },
+    "submission": {
+      "idle": "Ready",
+      "submitting": "Assessing recording…",
+      "processing": "Your recording is still being assessed…",
+      "uncertain": "The connection was interrupted. Check status before trying again.",
+      "scored": "Assessment complete",
+      "unscorable": "Recording could not be scored",
+      "failed": "Assessment could not be completed",
+      "error": "Please try again"
+    },
+    "errors": {
+      "recording": "The microphone could not record. Please try again.",
+      "invalidRecording": "The recording is empty, too long, or too large. Please record again.",
+      "cleanup": "The previous recording could not be removed. Please try Cancel again.",
+      "recorded": "This recording could not be processed. Make a new recording.",
+      "service": "The assessment service could not be reached. Check status or try later.",
+      "auth": "Please sign in again before submitting."
+    },
+    "feedback": {
+      "A": "Very clear pronunciation. Keep practicing to maintain consistency.",
+      "B": "Good pronunciation. Focus on the highlighted sounds.",
+      "C": "Some sounds need practice. Read slowly and try again.",
+      "D": "Practice the text in smaller parts, then record again.",
+      "unscorable": "We could not assess this recording. Read all the text clearly and try again."
+    },
+    "issue": {
+      "phoneme": "Practice the sound “{{unit}}”.",
+      "Mispronunciation": "Practice pronouncing “{{unit}}”.",
+      "Omission": "Remember to say “{{unit}}”.",
+      "Insertion": "An extra word was heard: “{{unit}}”.",
+      "None": "Practice “{{unit}}”."
+    }
   }
 }

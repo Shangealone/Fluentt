@@ -1,7 +1,8 @@
 """Preserve nullable, original D8 timing evidence without legacy backfill."""
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "d8c0de000001"
 down_revision = "d7c0de000001"

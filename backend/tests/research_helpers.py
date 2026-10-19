@@ -51,7 +51,8 @@ def reset_isolated_research_database(connection) -> None:
     connection.execute(
         text(
             "TRUNCATE TABLE research_protocols, accepted_client_events, research_events, review_schedules, "
-            "review_attempts, review_sessions, vocabulary_items, lessons, languages, "
+            "review_attempts, review_sessions, pronunciation_results, pronunciation_attempts, "
+            "vocabulary_items, lessons, languages, "
             "learner_profiles, refresh_sessions, users CASCADE"
         )
     )

@@ -144,7 +144,7 @@ export async function apiClient<T = any>(
   const baseUrl = getApiBaseUrl();
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
   const requestHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(typeof FormData !== 'undefined' && rest.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(headers as Record<string, string>),
   };
 

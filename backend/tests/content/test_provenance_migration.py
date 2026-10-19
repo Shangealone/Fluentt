@@ -84,6 +84,12 @@ def test_real_upgrade_preserves_legacy_rows_and_creates_no_inferred_content(db_s
     try:
         with Operations.context(MigrationContext.configure(connection)):
             # Remove the later additive authority FKs before exercising the D5 boundary.
+            pronunciation = (
+                ScriptDirectory.from_config(Config("alembic.ini"))
+                .get_revision("p04c0de000001")
+                .module
+            )
+            pronunciation.downgrade()  # Empty later tables also reference D5 content.
             d11 = (
                 ScriptDirectory.from_config(Config("alembic.ini"))
                 .get_revision("d11b00000001")
@@ -93,6 +99,7 @@ def test_real_upgrade_preserves_legacy_rows_and_creates_no_inferred_content(db_s
             migration().downgrade()  # No D5 evidence exists in this isolated test.
             migration().upgrade()
             d11.upgrade()
+            pronunciation.upgrade()
         after = dict(
             connection.execute(
                 text("SELECT * FROM review_attempts WHERE id = :id"), {"id": attempt.id}

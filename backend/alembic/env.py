@@ -2,16 +2,17 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 
+import app.auth.models
+import app.content.models
+import app.pronunciation.models
+import app.research_authority.models
+import app.research_logging.models
+import app.reviews.models
+import app.sync.models
+import app.users.models  # noqa: F401
 from alembic import context
 from app.core.config import get_settings
 from app.database.base import Base
-import app.auth.models  # noqa: F401
-import app.users.models  # noqa: F401
-import app.content.models  # noqa: F401
-import app.reviews.models  # noqa: F401
-import app.research_logging.models  # noqa: F401
-import app.sync.models  # noqa: F401
-import app.research_authority.models  # noqa: F401
 
 config = context.config
 

@@ -1,8 +1,8 @@
 """Version and retain accepted research evidence; leave historical links unknown."""
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 from app.research_logging.integrity_ddl import (
     GUARDED_TABLES,
     HISTORY_TABLES,
