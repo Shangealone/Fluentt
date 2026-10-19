@@ -11,6 +11,7 @@ import app.content.models  # noqa: F401
 import app.reviews.models  # noqa: F401
 import app.research_logging.models  # noqa: F401
 import app.sync.models  # noqa: F401
+import app.research_authority.models  # noqa: F401
 
 config = context.config
 

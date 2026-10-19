@@ -12,6 +12,7 @@ dependencies = [
   "pyjwt",
   "pwdlib[argon2]",
   "email-validator",
+  "fsrs==6.3.2",
 ]
 
 [dependency-groups]

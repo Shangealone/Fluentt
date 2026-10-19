@@ -27,11 +27,13 @@ from app.scheduling.development import DevelopmentScheduler
 from tests.content.test_provenance import DATA, attempt
 
 
-def make_review_context(db_session, client):
+def make_review_context(
+    db_session, client, *, participant_code="P_D7", email="due@example.test"
+):
     user = User(
-        email="due@example.test",
+        email=email,
         password_hash="mock",
-        participant_code="P_D7",
+        participant_code=participant_code,
         must_change_password=False,
         is_active=True,
     )
@@ -377,12 +379,13 @@ def test_postgresql_concurrent_acceptance_has_one_current_schedule(
 
     class ConcurrentScheduler(DevelopmentScheduler):
         def schedule(self, context):
-            barrier.wait()
             return super().schedule(context)
 
     def worker(body):
         with Session(db_session.bind) as db:
             user = db.get(User, user_id)
+            # Rendezvous before acceptance: calculation now holds the learner lock.
+            barrier.wait()
             accepted, scheduled = record_review_attempt(
                 db, user, ReviewAttemptCreate(**body), ConcurrentScheduler()
             )

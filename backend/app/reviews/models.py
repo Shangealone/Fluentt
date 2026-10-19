@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -99,6 +100,7 @@ class ReviewAttempt(Base):
     )
     scheduler_type: Mapped[str] = mapped_column(String(64), nullable=False)
     algorithm_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    research_assignment_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(), nullable=True)
     client_interaction_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -127,6 +129,13 @@ class ReviewAttempt(Base):
     content_release = relationship("ContentRelease")
     __table_args__ = (
         UniqueConstraint("id", "user_id", name="uq_review_attempt_owner"),
+        ForeignKeyConstraint(
+            ["research_assignment_id", "user_id", "scheduler_type", "algorithm_version"],
+            ["participant_set_conditions.id", "participant_set_conditions.user_id",
+             "participant_set_conditions.scheduler_type", "participant_set_conditions.algorithm_version"],
+            name="fk_d11_attempt_condition", ondelete="RESTRICT"),
+        CheckConstraint("(research_assignment_id IS NOT NULL) = (scheduler_type IN ('conventional_srs','enhanced_srs'))",
+                        name="ck_d11_attempt_assignment"),
         ForeignKeyConstraint(
             ["content_revision_id", "vocabulary_item_id"],
             ["vocabulary_revisions.id", "vocabulary_revisions.vocabulary_item_id"],
@@ -178,7 +187,7 @@ class ReviewSchedule(Base):
     )
     scheduler_type: Mapped[str] = mapped_column(String(64), nullable=False)
     algorithm_version: Mapped[str] = mapped_column(String(64), nullable=False)
-    interval_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    interval_seconds: Mapped[int] = mapped_column(BigInteger, nullable=False)
     due_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )

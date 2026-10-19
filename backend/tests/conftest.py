@@ -47,6 +47,7 @@ def setup_test_environment() -> None:
     # Ensure all tables exist in test database
     import app.auth.models
     import app.content.models
+    import app.research_authority.models
     import app.research_logging.models
     import app.reviews.models
     import app.sync.models
@@ -115,6 +116,22 @@ def setup_test_environment() -> None:
             migration = (
                 ScriptDirectory.from_config(Config("alembic.ini"))
                 .get_revision("d9c0de000001")
+                .module
+            )
+            with Operations.context(MigrationContext.configure(connection)):
+                migration.upgrade()
+        if inspector.has_table("review_attempts") and not any(
+            column["name"] == "research_assignment_id"
+            for column in inspect(connection).get_columns("review_attempts")
+        ):
+            from alembic.config import Config
+            from alembic.migration import MigrationContext
+            from alembic.operations import Operations
+            from alembic.script import ScriptDirectory
+
+            migration = (
+                ScriptDirectory.from_config(Config("alembic.ini"))
+                .get_revision("d11b00000001")
                 .module
             )
             with Operations.context(MigrationContext.configure(connection)):

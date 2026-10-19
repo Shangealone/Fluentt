@@ -1,0 +1,738 @@
+{
+  "provenance": {
+    "distribution": "fsrs",
+    "version": "6.3.2",
+    "python": "3.13.15",
+    "implementation": "CPython",
+    "machine": "AMD64",
+    "config_sha256": "4e4c56a9f928cae5581e5d577de413b17c9d581185482db423a98551f6575e4f",
+    "direct_call_path": "fsrs.Card + fsrs.Scheduler.review_card; no application adapter import",
+    "source_sha256": {
+      "card.py": "be433000a1b839b222420233b9019e905f88efda3901e2efd51c3fdb5754f0ab",
+      "scheduler.py": "dd04d86ba98ee22106f6bbdb7eede00fa3c848dbf15d18e33db4584f333bac46"
+    },
+    "parameters": [
+      0.212,
+      1.2931,
+      2.3065,
+      8.2956,
+      6.4133,
+      0.8334,
+      3.0194,
+      0.001,
+      1.8722,
+      0.1666,
+      0.796,
+      1.4835,
+      0.0614,
+      0.2629,
+      1.6483,
+      0.6014,
+      1.8729,
+      0.5425,
+      0.0912,
+      0.0658,
+      0.1542
+    ],
+    "desired_retention": 0.9,
+    "learning_steps": [],
+    "relearning_steps": [],
+    "maximum_interval": 36500,
+    "enable_fuzzing": false,
+    "user_id": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+    "vocabulary_item_id": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    "card_id": 115792089237316195423570985008687907853247299174512501475226692367417678425838
+  },
+  "cases": [
+    {
+      "name": "first_correct",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "first_incorrect",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.212,
+            "difficulty": 6.4133,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-02T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "correct_correct",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-03T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 10.964332335820698,
+            "difficulty": 2.111214235785395,
+            "interval_days": 11,
+            "interval_seconds": 950400,
+            "due_at": "2026-01-14T10:11:12.123456+00:00",
+            "last_review": "2026-01-03T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "correct_incorrect",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-03T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.6075801062519337,
+            "difficulty": 7.394502741279718,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-04T10:11:12.123456+00:00",
+            "last_review": "2026-01-03T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "incorrect_correct",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.212,
+            "difficulty": 6.4133,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-02T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-02T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 1.8867876195204154,
+            "difficulty": 6.402115069296838,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-04T10:11:12.123456+00:00",
+            "last_review": "2026-01-02T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "multiple_correct",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-03T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 10.964332335820698,
+            "difficulty": 2.111214235785395,
+            "interval_days": 11,
+            "interval_seconds": 950400,
+            "due_at": "2026-01-14T10:11:12.123456+00:00",
+            "last_review": "2026-01-03T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-11T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 38.86658721242465,
+            "difficulty": 2.1043313908464483,
+            "interval_days": 39,
+            "interval_seconds": 3369600,
+            "due_at": "2026-02-19T10:11:12.123456+00:00",
+            "last_review": "2026-01-11T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-02-11T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 124.63510617010179,
+            "difficulty": 2.0974554287524403,
+            "interval_days": 125,
+            "interval_seconds": 10800000,
+            "due_at": "2026-06-16T10:11:12.123456+00:00",
+            "last_review": "2026-02-11T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "repeated_incorrect",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.212,
+            "difficulty": 6.4133,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-02T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-02T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.10088578982099844,
+            "difficulty": 8.806304468856837,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-02T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-03T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.05503453011833104,
+            "difficulty": 9.592868765339693,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-04T10:11:12.123456+00:00",
+            "last_review": "2026-01-03T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-04T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.033369187408475304,
+            "difficulty": 9.85140710095639,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-05T10:11:12.123456+00:00",
+            "last_review": "2026-01-04T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "mixed_elapsed",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-03T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.6075801062519337,
+            "difficulty": 7.394502741279718,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-04T10:11:12.123456+00:00",
+            "last_review": "2026-01-03T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-04T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.4004040500172708,
+            "difficulty": 7.382336607835277,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-06T10:11:12.123456+00:00",
+            "last_review": "2026-01-04T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-07T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 7.122749316158636,
+            "difficulty": 7.37018264052428,
+            "interval_days": 7,
+            "interval_seconds": 604800,
+            "due_at": "2026-01-14T10:11:12.123456+00:00",
+            "last_review": "2026-01-07T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-08T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.9955848131321441,
+            "difficulty": 9.120825285995213,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-09T10:11:12.123456+00:00",
+            "last_review": "2026-01-08T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-09T10:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.30437873506378604,
+            "difficulty": 9.69624961919152,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-10T10:11:12.123456+00:00",
+            "last_review": "2026-01-09T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-12T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 1.171313786891941,
+            "difficulty": 9.681781738869166,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-13T10:11:12.123456+00:00",
+            "last_review": "2026-01-12T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-21T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 3.627507508106244,
+            "difficulty": 9.667328326427134,
+            "interval_days": 4,
+            "interval_seconds": 345600,
+            "due_at": "2026-01-25T10:11:12.123456+00:00",
+            "last_review": "2026-01-21T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "on_due",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-03T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 10.964332335820698,
+            "difficulty": 2.111214235785395,
+            "interval_days": 11,
+            "interval_seconds": 950400,
+            "due_at": "2026-01-14T10:11:12.123456+00:00",
+            "last_review": "2026-01-03T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "after_due",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-10T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 23.993042579260447,
+            "difficulty": 2.111214235785395,
+            "interval_days": 24,
+            "interval_seconds": 2073600,
+            "due_at": "2026-02-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-10T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "before_due",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-02T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 7.31530074407728,
+            "difficulty": 2.111214235785395,
+            "interval_days": 7,
+            "interval_seconds": 604800,
+            "due_at": "2026-01-09T10:11:12.123456+00:00",
+            "last_review": "2026-01-02T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "same_day",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-01T11:11:12.123456+00:00",
+          "correct": false,
+          "expected": {
+            "rating": 1,
+            "state": "Review",
+            "step": null,
+            "stability": 0.7750839828558984,
+            "difficulty": 7.394502741279718,
+            "interval_days": 1,
+            "interval_seconds": 86400,
+            "due_at": "2026-01-02T11:11:12.123456+00:00",
+            "last_review": "2026-01-01T11:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "elapsed_below_day",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-02T10:11:12.123455+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.111214235785395,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-04T10:11:12.123455+00:00",
+            "last_review": "2026-01-02T10:11:12.123455+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "elapsed_exact_day",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-02T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 7.31530074407728,
+            "difficulty": 2.111214235785395,
+            "interval_days": 7,
+            "interval_seconds": 604800,
+            "due_at": "2026-01-09T10:11:12.123456+00:00",
+            "last_review": "2026-01-02T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "elapsed_above_day",
+      "initial": null,
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 2.3065,
+            "difficulty": 2.118103970459016,
+            "interval_days": 2,
+            "interval_seconds": 172800,
+            "due_at": "2026-01-03T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        },
+        {
+          "interaction_at": "2026-01-02T10:11:12.123457+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 7.31530074407728,
+            "difficulty": 2.111214235785395,
+            "interval_days": 7,
+            "interval_seconds": 604800,
+            "due_at": "2026-01-09T10:11:12.123457+00:00",
+            "last_review": "2026-01-02T10:11:12.123457+00:00"
+          }
+        }
+      ]
+    },
+    {
+      "name": "maximum_cap",
+      "initial": {
+        "memory": {
+          "state": "Review",
+          "step": null,
+          "stability": 100000000.0,
+          "difficulty": 5.0
+        },
+        "prior_interaction_at": "2025-12-02T10:11:12.123456+00:00",
+        "prior_due_at": "2025-12-31T10:11:12.123456+00:00"
+      },
+      "steps": [
+        {
+          "interaction_at": "2026-01-01T10:11:12.123456+00:00",
+          "correct": true,
+          "expected": {
+            "rating": 3,
+            "state": "Review",
+            "step": null,
+            "stability": 100000006.54539123,
+            "difficulty": 4.9902283692968386,
+            "interval_days": 36500,
+            "interval_seconds": 3153600000,
+            "due_at": "2125-12-08T10:11:12.123456+00:00",
+            "last_review": "2026-01-01T10:11:12.123456+00:00"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -83,8 +83,16 @@ def test_real_upgrade_preserves_legacy_rows_and_creates_no_inferred_content(db_s
     savepoint = connection.begin_nested()
     try:
         with Operations.context(MigrationContext.configure(connection)):
+            # Remove the later additive authority FKs before exercising the D5 boundary.
+            d11 = (
+                ScriptDirectory.from_config(Config("alembic.ini"))
+                .get_revision("d11b00000001")
+                .module
+            )
+            d11.downgrade()
             migration().downgrade()  # No D5 evidence exists in this isolated test.
             migration().upgrade()
+            d11.upgrade()
         after = dict(
             connection.execute(
                 text("SELECT * FROM review_attempts WHERE id = :id"), {"id": attempt.id}
