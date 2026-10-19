@@ -8,3 +8,5 @@ pytest==8.4.2
 ruff==0.14.0
 pydantic==2.14.1
 alembic==1.18.4
+Authlib==1.9.1
+joserfc==1.7.5

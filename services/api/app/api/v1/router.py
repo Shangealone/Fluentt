@@ -5,10 +5,37 @@ from pydantic import BaseModel
 from app.modules.identity.router import router as identity_router
 
 from app.modules.classrooms.router import router as classrooms_router
+from app.modules.enrollment.router import router as enrollment_router
+from app.modules.administration.router import router as administration_router
+from app.modules.curriculum.router import router as curriculum_router, admin_router as admin_curriculum_router
+from app.modules.curriculum.management_router import router as curriculum_management_router
+from app.modules.questions.router import router as questions_router
+from app.modules.assignments.router import router as assignments_router
+from app.modules.assignments.capture_router import router as capture_router
+from app.modules.grading.router import router as grading_router
+from app.modules.assignments.results_router import router as results_router
+from app.modules.progress.router import router as progress_router
+
+from app.modules.monitoring.router import router as monitoring_router
+
+from app.modules.communications.router import router as communications_router
 
 router = APIRouter()
+router.include_router(communications_router)
+router.include_router(monitoring_router)
 router.include_router(classrooms_router)
 router.include_router(identity_router)
+router.include_router(enrollment_router)
+router.include_router(administration_router)
+router.include_router(curriculum_router)
+router.include_router(admin_curriculum_router)
+router.include_router(curriculum_management_router)
+router.include_router(questions_router)
+router.include_router(assignments_router)
+router.include_router(capture_router)
+router.include_router(grading_router)
+router.include_router(results_router)
+router.include_router(progress_router)
 
 
 class HealthResponse(BaseModel):

@@ -1,5 +1,127 @@
 # Decisions and constraints
 
+## Section 25 approved communication decisions — 2026-10-19
+
+The user approved all three recommended policies: owned-class announcements without replies plus class-scoped one-to-one instructor/current-school-student messages initiated by either participant; no peer, personal or admin chat. Live eligible enrollment/class/owner access gates every read/write, later members see announcements, direct history is participant-only, leaving/removal/disablement hides retained history and eligible rejoin restores it. Sent content is immutable, no editing/deletion/attachments; retain synthetic demo records without inventing a production purge schedule. Real-student retention and moderation remain OPEN before deployment. Plain text is 1–4,000 Unicode code points, blank-only rejected and accepted text preserved, server timestamps, UUID sender-scoped idempotency, bounded history and manual refresh. Read marking is explicit per viewer, never shared participant receipts. No automatic keys/grades/research data, push, WebSockets or typing indicators. Additive class context supplements the existing recipient-XOR-class destination; legacy rows remain untouched and excluded.
+
+## Section 24 approved monitoring decisions — 2026-10-19
+
+The user explicitly approved all three recommended monitoring policies: (1) instructor-owned active classes and current eligible active school memberships only, no former/disabled/personal/research data, aggregate points released-only; (2) submission-counts-v1 denominators A×S per class, A per student and S per assignment, no percentage/mastery, finalized incomplete/withheld/manual work still submitted, pinned lesson/edition filters without curriculum coverage; (3) released-assignment-mean-v1 includes only released COMPLETE runs of the same assignment version with identical engine/policy/max, Decimal mean rounded once to two places ROUND_HALF_UP, with cohort/exclusion counts, unavailable when empty and not_comparable for mixed contracts. No cross-assignment/class mean or academic grade. Section 22's separately authorized instructor review/release remains unchanged. No new writer, score, grade override, notification or research policy is approved.
+
+## Section 23 approved decisions
+
+- User approved submission counts: each currently available published assignment once; not started, in progress or finalized/submitted, even with unanswered questions or withheld/manual results. Display submitted/available counts without a completion percentage or mastery claim; no available assignments is an empty state. New publications and current membership change the denominator.
+- User approved own currently eligible class records only, preserving class and pinned lesson/edition identity, pending entries, real timestamps and class/status/date filters. Scores require the exact released run; no combined average or cross-class academic grade. Leaving/removal hides that class, eligible rejoining restores retained history without duplication.
+- User approved explicit unavailable personal tracking and no module/lesson mastery/completion, streak, retention, due-review, pronunciation or research metrics without an approved measured writer/algorithm. Existing progress/scheduler records remain untouched.
+- Progress is a read projection, not a new analytics engine or event store. Existing published/capture/release contracts and tables suffice. PROGRESS.md defines query, lock, pagination and privacy rules; no migration or instructor permission is added.
+
+## Section 22 approved decisions
+
+- User approved owning-instructor explicit release of existing COMPLETE ordinary-classroom evaluations, including earlier unscored captures; label equal-point objective evaluation rather than original examination grade. Grading execution stays administrator-only and nothing runs/releases automatically.
+- User approved current eligible membership/ownership on every read; students see status only before release, then actual totals, per-item correctness/points, pinned fronts and their own original responses. Keys, expected answers, private rubrics/explanations and Flashcard backs remain hidden. Instructor reads exclude former/ineligible members and research data.
+- User approved one permanently pinned immutable run per attempt, confirmed release/withdraw/re-release of that same run, freshness/replay protection and retained history. Review/unsupported runs cannot release; all-Flashcards have no objective score. No replacement run, score edits, instructor-written feedback, academic invalidation or controlled-research release policy is inferred.
+- Additive 0011_result_release stores append-only decisions without modifying captures or grading runs. RESULTS_AND_FEEDBACK.md specifies transaction/lock handling and safe disclosure.
+
+## Section 21 approved internal objective grading — 2026-10-19
+
+- User approved exact option/boolean, unordered-set, full sequence and complete pair comparisons; Identification uses authored accepted strings with casefold only when its stored case_sensitive is false; blanks are fully exact/case-sensitive. No trimming, normalization, inferred synonyms/spelling tolerance, partial credit or penalties. Valid missing/incomplete objective responses receive zero; malformed evidence is flagged.
+- User approved 1.00 per objective item in a separate versioned evaluation policy, exact Decimal totals and no percentage/letter/rounding conversion. Flashcards are NOT APPLICABLE, not objective recall scores. Missing/unlocked/inconsistent evidence requires manual review; unknown schema/policy is unsupported. Unresolved overall totals remain unset; automatic subtotals are labeled. Pinned retired content remains historical evidence.
+- User approved separate immutable run/item evaluations of existing finalized Section 20 classroom captures, explicit operator-granted grading.read/run and no automatic grants. Captures/answers/published limits remain unchanged; no student/instructor access, grading-on-submit, release UI or research grading. Additive 0010 creates two tables (62 total); GRADING.md defines the engine/source-key/applied-policy distinction and future release prerequisites.
+
+## Section 20 approved capture policies — 2026-10-19
+
+- User approved one unscored resumable capture attempt per student/pinned publication, no retakes/deadlines/timers, current membership for every operation, and retention/resumption after access suspension. Distribution-only versions and unset assignment policies remain immutable; new unscored-capture-v1 lives on attempts under additive 0009 guards.
+- User approved explicit Save progress without autosave/insecure local persistence, validated partial raw buffers and saved position, confirmed incomplete final submission, immutable final answers and receipt-only access. Identical final requests safely replay; changed payloads/stale edits conflict. No grading, correctness feedback, latency or research telemetry.
+- User approved deliberate attempt-scoped pinned Flashcard back reveal, remembered reveal IDs and revisable subjective recall before final submission. No backs in general reads; all other keys/rubrics stay hidden. Independent practice/scheduling semantics are unchanged.
+
+## Section 19 approved publication policies — 2026-10-19
+
+- User approved distribution-only-v1 publication: at least one eligible pinned question, immutable published version/root, unset points/max_attempts, no dates/timer/grading, close/archive/edit/new-version or attempts. Additive 0008 explicitly permits that freeze while rejecting executable attempts; preserve configured legacy values for operator review.
+- User approved explicit instructor confirmation to bind an unbound class to the selected lesson subject atomically with Publish, after checking retained assignment/lesson-progress context. Bound mismatch/conflicts reject; language never implies subject.
+- User approved immediate visibility to all currently eligible active members including later joiners/rejoiners, with removal/leave/class or owner deactivation denying access. Pinned publications survive curriculum/question retirement. No cohorts, per-student assignment records or notifications.
+- Student reads expose metadata/context/count/methods only; questions, private keys/backs and answering wait for Section 20 approval. Publish uses If-Match plus durable version/request UUID replay and a safe actor audit. No attempt/scoring policy is inferred.
+
+## Section 18 approved draft policies — 2026-10-19
+
+- User approved one published lesson per draft, same-lesson exact locked question revisions, matching class grade/language and bound subject. Unbound classes keep null subject; snapshot the explicitly selected lesson subject and require explicit binding before Section 19 publication.
+- User approved all-ten published front-only instructor previews, including no Flashcard backs, one stable Question per draft, retained owner-only pinned history after retirement and revalidation before edits. Archive rather than hard-delete; no restore, publication or attempts.
+- User approved title 1–200, optional instructions up to 8,000, 0–200 ordered items, fixed class, UUID creation idempotency and If-Match edits/archive. Migration 0007 permits NULL draft item points/max_attempts; preserve existing values and require configuration before future locking. No scoring/timer/attempt/release policy is inferred.
+
+## Section 17 approved practice boundary — 2026-10-19
+
+- User approved unchanged Flashcards cue/private-back schema, existing editor key permissions and component-only mobile practice with separately supplied authorized version-bound backs. No new learner delivery/history/event API or QuestionRevision/VocabularyItem association. Read-only admin preview stays front-only; private reveal needs live read+write.
+- User approved optional subjective ratings after reveal: again=could not recall, hard=with difficulty, good=with some effort, easy=readily. One per visit, authored order, fresh reveal/rating on navigation and confirmed exit. No objective scoring, timing collection, persistence or scheduler update.
+- General practice persistence is OPEN under the prompt's explicit fallback. Existing vocabulary events require scheduler state/configuration/intervals and do not imply permission for unscheduled telemetry. No placeholder scheduler or fake intervals. Retention, ownership/history, event ordering/idempotency, content eligibility and version links require a future approved contract. Classroom identity does not imply research consent; no experimental collection by default.
+- All ten method interfaces are now supported. Scheduler work remains Sections 28–31 and research execution 36–38 per the authoritative prompt; provisional roadmap numbering is superseded.
+
+## Section 16 matching policy — 2026-10-19
+
+- Existing accepted V1 keys are complete one-to-one mappings, with distinct IDs per side, equal complete set sizes and repeated labels permitted. No reused-target schema extension is approved or needed.
+- User approved independent authored set order, no shuffle, initially empty preview, left-then-right association, reassignment clearing the target's prior owner, review/remove/reset and serialization in authored left order. Readiness is structural completeness only; scoring remains deferred.
+- Matching extends existing editor/BFF and component-only mobile boundaries. No endpoint, migration, permission, dependency or backend application change. All ten contracts remain; only nine have interfaces because Flashcards is still deferred. The prompt's completion count does not authorize adding Flashcards.
+
+## Section 15 approved sequencing policy — 2026-10-19
+
+- User approved authored public item order independent of private expected order, no automatic shuffling, initially empty learner sequences, tap-to-append with move/remove/reset, and readiness only when every stable ID appears once. Alternative valid orders and grading remain deferred.
+- Reuse word_arrangement/sentence_arrangement V1 items (minimum two) and private ordered_ids full permutation. Whole explicit units preserve repeated labels through distinct IDs; no automatic token/sentence splitting or Unicode normalization. Author metadata retains existing trimming semantics.
+- Public reorder/text edits never rewrite private expected order. Removal removes the reference; new units require deliberate inclusion. The editor warns if visible order equals the private sequence; private-field omission cannot prevent semantic hints in author-supplied content.
+- Ready means structural completeness only, never correctness. Complete typed callbacks copy IDs in learner order; existing partial backend response contracts remain unchanged. No migration, API, permission, dependency, grading, persistence, drag infrastructure or runtime auth bypass is introduced. Host scrolling/blur/session cleanup and real provider/native verification remain prerequisites for later learner delivery.
+
+## Section 14 approved set/token policies — 2026-10-18; verified 2026-10-19
+
+- User approved preserving Multiple Select's existing one-or-more correct IDs, no public selection bounds, unfinished zero-selection previews and deterministic content-order response serialization. Do not infer all-or-nothing, partial credit or required learner counts from private keys.
+- User approved whole ordered token segments for Error Identification, supporting multiple target IDs. No character offsets/spans or Unicode slicing, learner correction entry or published-payload rewrite. Strict existing schemas reject offset/span alternatives; overlap is unrepresentable, not an implemented span feature.
+- Preserve optional private accepted_corrections metadata, including existing non-target known-token entries/empty arrays. The advanced JSON editor avoids inventing grammar/correction rules; removing a token removes its target/correction references. Invalid JSON requires explicit correction before saving.
+- Reuse the six-method shared editor/BFF, existing backend services/permissions/version locks and choice styling. No new API, migration, permission, dependency, real content/admin seed or runtime auth bypass. Safe components emit only selected canonical IDs; hosts retain Screen/blur/session cleanup responsibilities.
+
+## Section 13 approved text-method contracts — 2026-10-18
+
+- User approved optional input_max_length on the existing JSON contents: strict integer 1–2,000 Unicode code points, new editor default 500, absent for legacy items. No implicit limit or rewrite of existing/published rows. Expected metadata must fit a declared limit; this is structural validity, not grading.
+- User approved opt-in template_syntax="double-brace-v1": exact {{blank_id}} markers, each exactly once in blank_ids order; reject malformed/nested/unknown/missing markers. Braces are reserved for this tagged syntax. The editor saves stable gaps in passage order and shows paired gap fields; untagged legacy prompts stay literal and keep saved order.
+- The explicit Section 13 raw-response requirement supersedes TextValue's earlier stripping for Identification/blank response text only. Nonblank validation returns the original value. Case, whitespace, accents, punctuation, combining forms and synonyms are never transformed or evaluated. Private expected-answer metadata keeps its established semantics and remains hidden from previews.
+- Extend the same protected editor/BFF to four methods with no new endpoint/permission/schema migration/dependency. Keep mobile rendering component-only, without bank fetching, delivery, submission or scoring. Hosts own blur/session cleanup and Screen scrolling/keyboard avoidance. Existing optional partial drafts remain valid; explicit require_complete checks exact blank coverage.
+- Real OIDC/MFA/TLS remains disabled/unverified until configured; synthetic browser/database fixtures are not production accounts or educational content. No future method or grading/feedback policy is authorized.
+
+## Section 12 implementation boundary — 2026-10-18
+
+- The supplied prompt authorizes administrator Multiple Choice/True or False editors and unscored mobile components under Section 11's existing permissions and lifecycle. No new product/grading policy or permission grant is inferred.
+- Existing ordered options/single correct_option_id and empty-content/strict boolean contracts are unchanged. Option IDs survive reorder/edit; boolean false remains distinct from missing. Text only; other eight editors, media, scoring and learner delivery stay deferred.
+- Next uses a fixed same-origin question BFF; public previews explicitly project safe fields. Native components expose controlled typed selection plus a resettable unscored host, without adding any route or bank-fetch/submission capability. Future route hosts own blur/attempt-state cleanup.
+- Ambiguous initial save responses, including gateway/server 5xx, require reconciliation instead of assuming a failed POST did not commit. Question state clears before sign-out begins. No browser token/draft persistence, new dependency, migration, real content/admin seed or auth bypass.
+
+## Section 11 approved policies — 2026-10-18
+
+- User approved stable Question identities and locked QuestionRevision publications; corrections use new revision IDs, retirement archives the whole item and history remains intact. Competencies belong to the revision's lesson; publication requires published, unretired curriculum ancestry.
+- User approved separate operator-granted questions.read/write/publish. Editor=read+write; publisher=read+publish; publication/retirement require all three. Private key reads require write; curriculum roles confer nothing implicitly.
+- User approved admin-preview-only retrieval and key-free DTOs for later authorized delivery. No mobile bank/submission API or scoring is implemented; ungraded-v1 is the only authoring grading marker. Existing partial response and ten-method V1 semantics remain unchanged.
+- Additive 0006 guards same-lesson links in both edit directions without rewriting data. Inconsistent history aborts for operator review. Bank writers coordinate with curriculum under advisory 78090001, lock Question before freshness/version allocation, and keep authorization/write/audit atomic.
+- Draft replacement validates complete payloads and removes the old unlocked key before content/key replacement, preserving existing ORM hooks. No hard-delete, automatic clone, seeded content, real admin grant or new dependency. QUESTION_BANK.md records request budgets and pending normalization/rubric/randomization/release policies.
+
+## Section 10 approved policies — 2026-10-18
+
+- The user approved the recommended hierarchy, publication and permission policies, explicitly correcting an accidental permission selection. Manage existing version/grade/subject/quarter/topic/lesson/competency structure plus global subjects. No new module/level, rich lesson-body model or language-to-subject inference.
+- Only unfrozen/unreferenced drafts may be edited, reordered, reparented or removed. Removal is single-node RESTRICT, with no cascade. Published editions retire as a whole, cannot unretire, and corrections require a new edition/child IDs. Shared subjects referenced by frozen editions or classes remain immutable.
+- Publication adds no review role/status. A publisher confirms review and supplies nonempty source/licensing references and review note. Require at least one complete grade→subject→quarter→topic→lesson→competency branch and no empty included parent. Do not require all grades/four quarters or invent lesson counts. Publish all topics/lessons before freezing the root in one transaction; retain review evidence/actor privately and in audits. Do not promote academic verification_status.
+- Operator-only curriculum_editor grants read+write; curriculum_publisher grants read+publish. Publish/retire require all three. Existing/default administrators gain nothing automatically. Reader commands remain compatible; managed roles reject unexpected permissions and revocation rejects alternate grants of the controlled permission.
+- If-Match hashes the entire edition plus referenced labels; child creates compare parent state, moves also compare target_revision. These are freshness markers, not credentials. Structural reads/writes and authorized mutations retain the existing shared/exclusive advisory boundary and one authorization/write/audit transaction.
+- No migration, dependency, real curriculum seed, production admin grant or OIDC configuration is added. Current PostgreSQL/browser verification is documented in SECTION_10_REPORT.md; real provider/TLS and production operational grants remain prerequisites.
+
+## Post-Section 09 repair and verification — 2026-10-18
+
+- The user authorized local repair/testing and reported unknown earlier database history. Preserve frozen 0001–0004 and all unrelated work. Reproduced frozen 0001's duplicate-constraint failure on a generated disposable PostgreSQL database (SQLSTATE 42P07).
+- Fresh verified-empty databases use an explicit Alembic naming adapter that rewrites exactly three CREATE TABLE constraint declarations at execution, never on disk. Existing databases reject this option. Additive 0005 converges the three names by constraint column signature without dropping constraints or changing records; its downgrade keeps valid names. Unknown deployments require inspection/backups before any upgrade, never reset/stamp.
+- A separate password-protected PostgreSQL 17 cluster/database is configured locally on 127.0.0.1:55432; its runtime, password, data and logs are ignored. Existing environment settings were preserved while adding the backend database URL. This development owner credential is not a production runtime grant design.
+- The user has no OIDC provider yet and explicitly requested that administrator sign-in remain disabled. No real administrator or provider mapping is provisioned. Real provider MFA/TLS activation remains pending; synthetic test identities stay in disposable tests.
+- See LOCAL_VERIFICATION_REPORT.md for current evidence; older section reports retain their milestone results.
+
+## Section 09 approved curriculum decisions
+
+- Preserve version → grade → subject → quarter → topic → lesson → competency and original UUIDs. Five research levels remain separate study snapshots, not replacement modules/quarters. Filipino is a subject; Tagalog is a language. Sources, academic compatibility, lesson bodies and publication completeness remain open before authoring.
+- The user approved published browsing for all authenticated mobile roles and class-scoped reads requiring owner/eligible membership plus actual grade/explicit subject. An unconfigured subject gives an empty state; no language-to-subject inference or implicit current edition.
+- The user approved curriculum.read for admin draft/retired reads and explicit operator-only grant/revoke commands. Default admin provisioning remains dashboard-only. Backend read authorization and queries share one transaction; Next adds fixed GET proxy paths only.
+- The user accepted recommended whole-version snapshots: freeze published hierarchy, retire through archived status, correct with new version/child IDs. Migration 0004 adds guards and protects legacy assignment/progress references without rewriting tables, data or frozen migrations. A coarse shared/exclusive transaction advisory boundary protects structural consistency; future writers must lock before DML and review conflict handling.
+- Section 09 returns structure/competencies only; private provenance, question/key payloads, media/AI and research data are excluded. Existing content associations and open academic policies are documented in CURRICULUM.md. Frozen-0001 naming collisions and PostgreSQL/OIDC activation remain unresolved gates.
+
 All decisions are planned baselines, not implemented controls. Preserve the approved Section 00 requirements across later sessions.
 
 | ID | Decision | Reason / revision boundary |
@@ -8,7 +130,7 @@ All decisions are planned baselines, not implemented controls. Preserve the appr
 | D02 | Expo Router for the shared student/instructor Expo TypeScript app | Consistent navigation; administrator is a separate Next.js TypeScript site. |
 | D03 | REST /api/v1, JSON and multipart audio | Vendor-independent frontend contracts; generated TS client later. |
 | D04 | Passwordless profile creation plus opaque device sessions | Required mobile flow; usernames never authenticate. |
-| D05 | Separate secure administrator authentication | Prefer maintained OIDC identity provider with MFA; provider selection unresolved. No development bypass in production. |
+| D05 | Separate secure administrator authentication | Section 08 approves provider-neutral OIDC with provider-enforced MFA, operator-only provisioning and separate browser sessions; sign-in disabled until issuer/client/accepted MFA evidence are configured. See ADMIN_AUTH.md. |
 | D06 | Curriculum subject distinct from learning language | Filipino can be a subject while Tagalog is a learning track. |
 | D07 | Version published content, grading rules, schedulers and models | Preserve completed activity and research reproducibility. |
 | D08 | Exactly ten assessment methods | Speech and conversation remain independent activities. |
@@ -99,3 +221,57 @@ A root Git repository was initialized without staging or committing. Expo's gene
 - Require a UUID Idempotency-Key on POST /classes; unique owner/request identity prevents repeated or lost-response retries from creating duplicate classes. Requests for the same instructor serialize under the authenticated user lock. Same key and normalized fields replay 201; different fields conflict. Mobile retains pending request data/key only in memory. Restoration reads class existence, never automatically creates a class.
 - Permit grade/language edits only for empty, subject-unbound classes with no historical membership, assignments, learning contexts or messages. Lock the class before checking. Existing context remains unchanged on conflict; owner/name/description edits never rotate codes. Future enrollment/content services must share class-lock/validation order.
 - Invitation codes are owner-visible enrollment invitations, not device credentials. No enrollment/preview endpoint, rotation/revocation or class archival action is implemented. Copy/share uses Expo Clipboard and React Native Share, with cancellation/failure feedback and no delivery claim.
+
+## Section 06 approved decisions
+
+- User-approved policy: multiple active classes are allowed. Initial onboarding joins one; My Classes lists eligible memberships and permits another invitation entry. This resolves the earlier open multi-class policy.
+- User-approved policy: students who left may rejoin with a new historical membership row; any prior instructor removal from the class blocks self-enrollment. Removal/departure/reinstatement workflows are not implemented here. No old row is rewritten or deleted to rejoin.
+- Duplicate confirmation returns the existing eligible active membership with HTTP 200 and no repeated audit event. Student locks serialize retries across sessions; the existing partial unique index remains authoritative.
+- Eligible membership is active/unended, with an active/unarchived class and available instructor owner. Invitation expiry does not end membership. School completion is derived from actual eligible rows at restoration, not a local/stored flag.
+- Confirmation resubmits the six-digit code plus a server snapshot fingerprint and revalidates under session/student, shared owner, class and code locks. The fingerprint is an optimistic freshness marker, not authentication or a secret; no separate preview token/TTL/table is introduced. This approved design supersedes the conceptual short-lived reference in API_DESIGN.
+- Class/code changes or departed membership history require fresh review; existing active membership permits retry without the old snapshot matching. If an invitation expires after a successful commit, recover via memberships/me rather than accepting an invalid invitation.
+- Existing 58-table schema and frozen revisions suffice; no Section 06 migration. Enrollment audit, membership and completion commit together. Nullable subject is permitted; no curriculum/research state is created.
+- Peer and authenticated-session budgets default to 60/10 preview+confirmation requests per existing window. Protection remains process-local; global deployment limits/trusted proxies remain prerequisites.
+
+## Section 07 navigation and session UX
+
+- Reuse Expo Router protected routes and backend-derived destination rules. Instructors still default to first-class when onboarding is incomplete, but can open their real empty dashboard; additional class creation remains available. Multi-class student selection is transient presentation state over authorized memberships, never an authorization grant.
+- Personal learners can edit grade/language through the existing preferences API; school/instructor roles cannot. Shared account/navigation controls expose no unsupported identity, role, recovery or account-switching mutations.
+- Logout is exposed using the existing current-session revoke API. Before confirmation, explain that this device provides access and username recovery is unavailable. Hide protected views immediately on confirmed logout intent; retain the secure credential until server revocation/401 is acknowledged, then delete it. Failed logout stays behind a retry gate; cleanup retries do not reissue a confirmed revoke.
+- A current authenticated 401 immediately hides protected data, invalidates in-memory credentials and attempts secure cleanup without depending on a second network request. Generation checks reject late responses after invalidation/logout/restoration. Temporary restoration failures retain the secure credential behind the retry gate.
+- Dashboard class reads refresh on navigation focus and reject stale responses. Loading/errors hide class data; any displayed saved profile preferences after a failed refresh are labeled as previously verified. No fabricated progress, roster counts or recommendations are added.
+
+## Section 08 approved administrator decisions
+
+- The user approved OIDC with provider-enforced MFA, then explicitly chose provider-neutral support with sign-in disabled until issuer, confidential client and accepted MFA evidence are configured. No password fallback or provider is invented. Provider-specific enforcement remains an activation prerequisite.
+- Operator-only CLI provisions separate mapped admin profiles with dashboard/session access; existing mobile profiles are never promoted. CLI disable and revoke-all are approved. The shell grants only `dashboard.view`; later privileged APIs require separate approved permissions.
+- Approved browser session policy: 30-minute idle, 8-hour absolute, multiple browsers, current logout and operator revoke-all. HttpOnly/SameSite=Lax/host-only cookies are Secure with __Host- names in production. Logout requires exact Origin plus session-bound CSRF HMAC; sign-in starts with same-origin POST.
+- Reuse existing User/AdminIdentity/RBAC/AuditLog models. Add only digest-based admin_browser_sessions and admin_oidc_attempts in 0003; preserve frozen 0001/0002 and mobile sessions. Attempts are browser-bound, ten-minute and consumed once before exchange; fresh session secrets prevent fixation.
+- Next's fixed same-origin BFF carries admin cookies to FastAPI, with server-side authorization before dashboard account rendering. Keep credentialed CORS disabled; no bearer secrets in browser storage or Next database access. The original planned GET auth/start becomes POST to enforce Origin on initiation.
+- Default OIDC compatibility: discovery, confidential client_secret_basic, PKCE S256, GET callback, RS256/ES256, fresh auth_time and explicit acr/amr evidence. Authlib/joserfc provide protocol/signature validation. Unknown/missing evidence fails closed; no email/username matching fallback.
+- Operator events audit a null actor plus operator_cli reason; production operator attribution, provider activation, distributed edge limits, retained-session/attempt cleanup and real PostgreSQL/TLS verification remain documented operational gates. IdP-only revocation is not a back-channel FLUENTT revocation.
+- Final static review found pre-existing duplicate constraint names in frozen 0001 and metadata (MIGRATIONS.md). Preserve the frozen revisions; do not invent a baseline repair or reset an existing database. Approve a repair/bootstrap strategy and verify disposable PostgreSQL migration before activation. Offline SQL compilation alone does not validate those names against PostgreSQL.
+
+## UI refresh — 2026-10-19
+
+- User requested a clearer layout and updated visual design across the existing system. This is a presentation refresh of implemented screens, not authorization for a new roadmap section or new backend behavior.
+- Use a consistent blue palette, quiet neutral surfaces, readable text, large controls, and task-oriented labels. Dashboard navigation is explicitly enabled only by the student/instructor home screens, preserving existing form/attempt navigation boundaries.
+- Remove unsupported compliance/mastery claims, hard-coded student class/assignment totals, invented fallback teacher names, and static admin operational metrics. Continue using authorized progress projections; personal learning has no inferred activity counts.
+- Keep demo entry visually separate and explicitly label sample data. Preserve existing demo/session implementations without expanding their permissions. This refresh does not certify those existing implementations for production.
+- No dependencies, database models, migrations, API contracts, grading, release policies, or research semantics change. See UI_REDESIGN.md for changed files and verification.
+
+## Personal learning focus and navigation — 2026-10-19
+
+The user explicitly replaced personal grade selection with requested topics and lessons, and requested a previous-screen Back control throughout both clients. This authorizes the preference-contract adjustment below; classroom grades, curriculum structure, grading, research and progress semantics are unchanged.
+
+- Add optional `learning_focus: {topics: string[], lessons: string[]}` to mobile profile and personal preference updates. At least one nonblank request is required when supplied; each list holds at most 10 distinct trimmed strings, each at most 120 Unicode code points. Extra fields/null/empty focus are rejected. Requests are self-described needs, not published curriculum IDs, enrollment, delivered activities, proficiency, or a recommendation engine.
+- Store the request object in one nullable JSONB column on the existing learner profile, using additive migration 0013_learning_focus. Preserve every earlier migration and all legacy grade data. Table count remains 63.
+- New personal setup can complete using focus plus language with grade null. Legacy grade-plus-language profiles remain valid and can add focus without resetting onboarding. Retain the old grade API field for compatibility; the personal UI no longer asks for it. Instructor class-grade configuration is unchanged.
+- A shared Screen Back control uses Expo Router back history, then the guarded entry route if no previous screen exists. Back remains disabled during existing critical save/issuance operations. Existing attempt/editor usePreventRemove hooks remain authoritative.
+- Administrator Back uses browser history and lets curriculum/question editors intercept the action with their existing unsaved-work confirmations. No browser storage is added.
+
+## Username autofill repair — 2026-10-19
+
+- Reproduced the sample username Continue button staying on /username: the demo route guard intentionally keeps onboarding screens accessible, so creating a sample profile alone did not trigger navigation. Username now navigates explicitly only after successful creation and a matching role/canonical username appears in session context.
+- Selecting an autofill username explicitly requests a sample profile, including on native. Skip real availability checks for selected samples and existing demo sessions; stale checks are cancelled by effect cleanup. Fast-Enter passes the chosen handle and explicit preview flag directly, avoiding stale React state.
+- Preserve real-profile issuance, SecureStore retry handling, authenticated role guards, and live creation failures. This repair adds no backend endpoint, migration or real-account lookup/recovery path. Sample entry remains labeled and does not create a real account.

@@ -304,3 +304,40 @@ def test_preference_update_is_scoped_to_credential(identity_api):
     assert client.get("/api/v1/sessions/me", headers=bearer(second)).json()["grade"] is None
     client.post("/api/v1/sessions/revoke", headers=bearer(first))
     assert client.patch("/api/v1/users/me/preferences", headers=bearer(first), json={"grade": 2}).status_code == 401
+
+
+def test_personal_learning_focus_restores_without_choosing_a_grade(identity_api):
+    client, _ = identity_api
+    issued = register(client, "FocusLearner")
+    headers = bearer(issued)
+    focus = {"topics": [" Vocabulary ", "Reading comprehension"], "lessons": ["Writing a paragraph"]}
+    saved = client.patch("/api/v1/users/me/preferences", headers=headers, json={"learning_focus": focus})
+    assert saved.status_code == 200
+    assert saved.json()["learning_focus"]["topics"] == ["Vocabulary", "Reading comprehension"]
+    assert saved.json()["grade"] is None
+    assert saved.json()["profile_status"] == "onboarding"
+    saved = client.patch("/api/v1/users/me/preferences", headers=headers, json={"language": "english"})
+    assert saved.json()["profile_status"] == "active"
+    restored = client.get("/api/v1/sessions/me", headers=headers).json()
+    assert restored["learning_focus"] == saved.json()["learning_focus"]
+    assert restored["grade"] is None
+    other = register(client, "OtherFocusLearner")
+    assert client.get("/api/v1/sessions/me", headers=bearer(other)).json()["learning_focus"] is None
+    client.post("/api/v1/sessions/revoke", headers=headers)
+    assert client.patch("/api/v1/users/me/preferences", headers=headers, json={"learning_focus": focus}).status_code == 401
+
+
+@pytest.mark.parametrize("focus", [None, {}, {"topics": [" "]}, {"topics": ["x" * 121]}, {"topics": [str(i) for i in range(11)]}, {"lessons": ["same", "same"]}, {"topics": ["one"], "grade": 5}])
+def test_invalid_learning_focus_is_rejected(identity_api, focus):
+    client, _ = identity_api
+    issued = register(client)
+    assert client.patch("/api/v1/users/me/preferences", headers=bearer(issued), json={"learning_focus": focus}).status_code == 422
+    assert client.get("/api/v1/sessions/me", headers=bearer(issued)).json()["learning_focus"] is None
+
+
+@pytest.mark.parametrize("role", ["instructor", "school_student"])
+def test_school_profiles_cannot_write_personal_focus(identity_api, role):
+    client, _ = identity_api
+    issued = register(client, role=role)
+    response = client.patch("/api/v1/users/me/preferences", headers=bearer(issued), json={"learning_focus": {"topics": ["Vocabulary"]}})
+    assert response.status_code == 403

@@ -1,5 +1,9 @@
 # Mobile identity and device sessions — Section 03
 
+Section 08 administrator access is separate: see ADMIN_AUTH.md for OIDC, mapped admin permissions and dedicated browser-session cookies/tables. Mobile credentials, usernames and class codes cannot authenticate administrator endpoints. No Section 08 change to the mobile issuance, restoration or SecureStore contract is made.
+
+This document retains the Section 03 milestone description below. Sections 04–06 subsequently integrated native onboarding, preferences, instructor classes and student enrollment; see the updates at the end and ENROLLMENT.md. No account recovery or alternative authentication has been added.
+
 Implemented backend contracts only. No mobile screens, administrator authentication, classroom enrollment, account recovery or session rotation endpoints were added. All persistence uses the Section 02 users, user_sessions and optional role-specific profile tables. No new tables or migrations are required; 0001_initial is unchanged.
 
 ## Username rules and compatibility
@@ -136,3 +140,23 @@ Mobile routing: no credential -> welcome; personal with missing grade -> grade; 
 ## Section 05 restoration update
 
 Identity validation now exposes a shared authenticated transaction context for class services. Expiry/revocation/disabled/archive checks and row locks remain enforced while class writes execute. GET /sessions/me derives instructor status/step from actual owned classes: no class -> onboarding/first_class; any class -> active/no onboarding step. Class creation also persists active completion in the same class/code transaction. Existing personal preferences and school enrollment boundary are unchanged. See CLASSROOMS.md for class authorization and request deduplication.
+
+## Section 06 restoration
+
+GET /sessions/me now derives school-student completion from active, unended memberships in active/unarchived classes with available instructor owners. No eligible membership yields onboarding/class_enrollment; eligible membership yields active with no onboarding step. Personal preferences and instructor-owned-class derivation remain unchanged. GET /class-memberships/mine loads safe class context for the authenticated school student only. Enrollment uses the existing locked session/user transaction and never issues a new identity or credential. See ENROLLMENT.md for approved policies, confirmation/retry behavior and current native/live-PostgreSQL limitations.
+
+## Section 07 mobile account/logout
+
+The mobile account screen now exposes the existing current-session revoke endpoint. It explains that username-based recovery is unavailable before explicit confirmation. Confirming logout immediately hides protected screens and blocks old requests. A successful revoke or 401 is followed by secure credential deletion; network/429/5xx failures retain the secure credential and remain behind Retry sign-out. A lost successful response can be retried: the following 401 confirms that the old credential is unusable. A secure-delete failure retries cleanup without repeating an acknowledged revoke. No successful logout is claimed while either step is unresolved.
+
+Current authenticated 401 errors invalidate memory and hide protected views before secure cleanup, without requiring a second sessions/me request. If cleanup fails, the app exposes only a cleanup retry gate. Session-generation checks prevent old reads/updates from repopulating protected state after logout/invalidation or a newer restore. This is client state isolation, not replacement API authorization. External revocation is discovered on the next authenticated read/refresh; no push/background invalidation is claimed.
+
+Restart during an unacknowledged logout loses its in-memory retry intent; startup validates the stored credential with the server. It may restore if revocation never reached the server, or clear on 401 if it did. There is no new persistent logout queue, account-switching protocol or recovery method.
+
+## Personal lesson/topic requests — 2026-10-19
+
+PATCH /users/me/preferences now accepts optional learning_focus with topics/lessons arrays of learner-written requests. Each array is bounded to 10 distinct, trimmed nonblank strings of at most 120 Unicode code points. At least one request must be supplied across the arrays. Extra fields and explicit null are rejected. The response and GET /sessions/me include the saved focus (null for legacy profiles and nonpersonal roles).
+
+This remains a personal-only mutation inside the existing authenticated User/session transaction. It stores no activity, assessment, research state or inferred mastery. It does not resolve the requests to published content or guarantee lesson delivery. Focus plus language completes new personal setup without a grade. Legacy grade/language callers remain supported, with existing preferred_grade_id values retained. Mobile personal setup/preferences/account/home now present requested topics and lessons instead of a grade selector. Classroom grade metadata is unchanged.
+
+Migration 0013_learning_focus adds one nullable JSONB learner_profiles.learning_focus column; prior migrations remain frozen and the table count stays 63. The configured local database was verified at 0012 before applying this additive migration and is now at 0013.

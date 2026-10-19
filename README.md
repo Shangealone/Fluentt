@@ -1,6 +1,44 @@
 # FLUENTT
 
-Development foundation through Section 03 for NE Learning Inc.: React Native/Expo mobile, Next.js administrator placeholder, FastAPI backend and SQLAlchemy/Alembic database schema. Mobile identity APIs are implemented; frontend onboarding, enrollment, assignments, admin authentication and AI features remain future work. The database schema has not been applied to live PostgreSQL in this environment.
+Section 25 adds persisted class announcements and bounded instructor–student direct messages. Open **Class communication** from instructor/class details or the school student's My Classes card. Current class access is required; text is immutable after send, retries reuse request IDs, and read marking is private to the viewer. Manual refresh only. Migration 0012_class_communication preserves existing message destinations/history (63 tables). See docs/COMMUNICATIONS.md, docs/SECTION_25_REPORT.md and docs/OCT_21_DEMO_CHECKLIST.md. Real OIDC remains disabled and the normal local database has no published curriculum/questions/assignments; the passed synthetic backend smoke does not make the hands-on demo ready.
+
+Section 24 adds instructor monitoring: open **Monitor class progress** from the instructor dashboard or class details. Browse current eligible students, student class history, published assignment submission counts and explicitly released objective results. Assignment means use only comparable released results from that exact version; no cross-class grades, mastery or research analytics. See docs/INSTRUCTOR_MONITORING.md and docs/SECTION_24_REPORT.md. No migration or dependency change; head remains 0011_result_release (63 tables). Earlier milestone exclusions are historical.
+
+Section 23 adds student submission progress and learning history: open the dashboard's Progress and learning history link, or My Classes → View this class learning history. Real server counts distinguish not started/in progress/submitted; filter records by class, status or local calendar dates. Only released pinned evaluations show objective totals. Counts are not mastery or academic grades; personal tracking remains explicitly unavailable. No migration is needed (head 0011_result_release, 63 tables). See docs/PROGRESS.md and docs/SECTION_23_REPORT.md. Earlier milestone exclusions remain historical.
+
+Section 22 adds real assessment results: students open My Classes → Published assignments → Results; instructors open their class assignments → Results and release for a published assignment. Current-member authorization and explicit instructor release protect objective totals and readonly original-answer review. Administrator-only grading runs separately; no scores appear automatically and expected answers/private feedback/card backs stay hidden. Release/withdraw/re-release preserves immutable evaluation history. Head 0011_result_release (63 tables). See docs/RESULTS_AND_FEEDBACK.md and docs/SECTION_22_REPORT.md. Earlier section scope notes are historical.
+
+Section 21 adds backend-only internal objective grading through explicit administrator grading.read/run permissions. Nine methods use the approved exact-match/equal-point policy; Flashcards are not objectively scored. Versioned immutable results preserve submitted captures, with manual/unsupported states and no student result release or grading-on-submit. Head is 0010_grading_results (62 tables). See docs/GRADING.md and docs/SECTION_21_REPORT.md; client workflows below remain unchanged.
+
+Section 20 adds school-student assignment taking: My Classes → published assignment → Start, resume or view submitted receipt. All ten methods use existing widgets; Save progress is explicit, incomplete final submission is confirmed, and Flashcard backs require deliberate reveal. One unscored attempt, no timer/retakes/automatic grading/scheduler or research. Head is 0009_response_capture. See docs/ASSIGNMENTS.md and docs/SECTION_20_REPORT.md; earlier exclusions below are historical.
+
+Section 19 adds confirmed instructor publication and school-student published-assignment metadata: instructors open a saved draft and choose Review and publish; students use My Classes → View published assignments. Live membership controls access, including later joiners. Published versions are immutable, with no question answering, attempts, scores or notifications. Head is 0008_assignment_publication. See docs/ASSIGNMENTS.md and docs/SECTION_19_REPORT.md; earlier milestone exclusions below are historical.
+
+Section 18 adds instructor assignment drafts from owned class details: choose a published lesson and exact question versions, preview/add/reorder/remove, save/edit or archive. Drafts stay private; no publishing, student attempts or scoring. Migration head is 0007_assignment_drafts. See docs/ASSIGNMENTS.md and docs/SECTION_18_REPORT.md for contracts, evidence and Section 19 prerequisites.
+
+Section 17 added Flashcards authoring, administrator reveal and component-only local recall. All ten methods have interfaces; practice persistence remains OPEN. See docs/VOCABULARY.md and docs/SECTION_17_REPORT.md.
+
+Section 16 added Matching Type authoring and reusable unscored matching controls; its historical scope/evidence is recorded in docs/SECTION_16_REPORT.md.
+
+Section 15 added Word/Sentence Arrangement authoring and unscored sequencing controls; its historical scope/evidence is recorded in docs/SECTION_15_REPORT.md.
+
+Section 14 adds Multiple Select and Error Identification to **/questions** and reusable Expo checkbox/segment previews. Existing versioned APIs and permissions are reused; no grading or learner delivery is added. See docs/QUESTION_BANK.md and docs/SECTION_14_REPORT.md for approved contracts, verification and Section 15 readiness.
+
+Section 13 extends **/questions** to Identification/Fill in the Blank authoring and safe previews, plus reusable Expo text-entry components. Optional Unicode input limits and explicitly tagged gap templates preserve legacy items and raw responses. No learner delivery or grading is added; real OIDC sign-in still requires configuration. See docs/QUESTION_BANK.md and docs/SECTION_13_REPORT.md for contracts, verification and Section 14 readiness.
+
+Section 12 adds the protected administrator **/questions** page for Multiple Choice/True or False authoring and unscored previews, plus reusable Expo selection components. It reuses the Section 11 backend and permissions; migration head remains 0006. Real OIDC sign-in still needs configuration. No student assessment route, submission or grading is included. See docs/QUESTION_BANK.md and docs/SECTION_12_REPORT.md for usage, checks and remaining verification limits.
+
+Section 11 implements the versioned administrator question-bank backend for all ten existing methods. See docs/QUESTION_BANK.md for endpoints/operator grants, draft/publish/retire rules and deferred scoring/delivery policies; docs/SECTION_11_REPORT.md records verification. Source migration head is 0006_question_associations. No question-authoring website, student assessment delivery or grading is included. Earlier section status/head notes below are historical.
+
+Section 10 administrator curriculum management is implemented at `/curriculum`, with real backend CRUD/publishing and explicit operator-granted permissions. OIDC sign-in still requires local provider/MFA configuration; no development bypass or seeded administrator is supplied. See docs/CURRICULUM.md for workflows/operator commands and docs/SECTION_10_REPORT.md for verification and remaining activation gates.
+
+Local database verification is now configured: PostgreSQL on localhost:55432, migrated through 0005_constraint_names. Start this isolated cluster with `./scripts/local-postgres.ps1 start`, then run `./scripts/start.ps1 api`. The ignored API .env contains its local URL; do not share/commit it. Run `./scripts/start.ps1 admin` and `./scripts/start.ps1 mobile` in separate terminals. Administrator sign-in intentionally remains disabled until a real OIDC/MFA provider is configured. See docs/LOCAL_VERIFICATION_REPORT.md for verification results and docs/MIGRATIONS.md for the required explicit fresh-database bootstrap repair. Older setup/milestone notes below remain historical.
+
+Section 09 adds backend curriculum structure/competency reads and immutable curriculum snapshots, with no authoring screens or learning delivery. See [curriculum contracts](docs/CURRICULUM.md) and [Section 09 verification](docs/SECTION_09_REPORT.md). Source head is 0004_curriculum_snapshots; 60 tables remain. PostgreSQL bootstrap repair/verification and OIDC activation are still prerequisites for live use. Earlier milestone paragraphs below are historical.
+
+Section 08 adds administrator OIDC/MFA integration, operator-only provisioning and protected Next.js access. Sign-in deliberately stays disabled until a provider/client/accepted MFA policy is configured. See [administrator setup and security](docs/ADMIN_AUTH.md) and [Section 08 verification](docs/SECTION_08_REPORT.md). PostgreSQL migration 0003 and real provider/TLS verification remain activation prerequisites; no admin account or credential is bundled.
+
+Development foundation through Section 07 for NE Learning Inc.: Expo mobile identity/onboarding, instructor classes, student enrollment and role-based dashboards/account navigation, a public Next.js administrator placeholder, FastAPI and SQLAlchemy/Alembic. Assignment delivery, administrator authentication and AI remain future work. Live PostgreSQL and native end-to-end verification remain pending. Earlier section descriptions below record their milestone scope; see docs/SECTION_07_REPORT.md for current results.
 
 ## Prerequisites
 
@@ -109,7 +147,7 @@ Implemented routes: GET /api/v1/usernames/check, POST /api/v1/users, GET /api/v1
 
 ## Mobile onboarding (Section 04)
 
-The app now checks its secure device session on startup. Personal learners create a unique username, then save grade and English/Tagalog through the API. School students and instructors create a profile and reach explicit class joining/creation boundaries; those APIs arrive in Sections 06 and 05 respectively.
+The app checks its secure device session on startup. Personal learners save grade and English/Tagalog through the API. School students now join classes through Section 06 verification/confirmation; instructors create classes through Section 05. All real creation/restoration requires configured PostgreSQL and native SecureStore.
 
 Use the Android/iOS app for actual profile creation: the browser build is a navigation preview and intentionally cannot save device credentials. Expo SecureStore is configured through app.json. For a development build use `npx expo run:android` with the Android toolchain, or `npx eas-cli@latest build --profile development --platform android` after configuring EAS. No native project directories are created by hand. Follow the existing API/PostgreSQL setup first; health success alone does not mean identity storage is ready. On a physical phone, EXPO_PUBLIC_API_URL must use your development computer's reachable LAN address, and the API must bind to 0.0.0.0. Production uses HTTPS.
 
@@ -122,3 +160,19 @@ Instructors can create their first/additional classes, view invitation codes, co
 The additive migration preserves existing class/subject data and prevents historical code reuse. If historical codes are duplicated, upgrade stops for review rather than deleting records. Curriculum subject is configured separately from learning language. See docs/CLASSROOMS.md and docs/SECTION_05_REPORT.md for API examples, migration conditions and native verification steps. Student verification/enrollment remains Section 06.
 
 Additional tests: `node --test scripts/classes.test.mjs scripts/onboarding.test.mjs scripts/api-clients.test.mjs` from the root. `node scripts/preview-classes.cjs` generates a clearly labeled static visual review using synthetic data; its controls are inert and it is not an authenticated app/test backend.
+
+## Student enrollment (Section 06)
+
+Authenticated school students verify a six-digit invitation code, review limited class context, explicitly join, and see their backend memberships in My Classes. Multiple active classes are supported. Students who left may rejoin with a new historical row; instructor removal blocks self-rejoining. Personal/instructor flows retain existing behavior. Web remains a navigation preview; native SecureStore is required for real onboarding.
+
+Endpoints: POST /api/v1/class-enrollment-previews, POST /api/v1/class-memberships, GET /api/v1/class-memberships/mine. GET /sessions/me derives school completion from eligible database memberships. No new migration; head is 0002_class_creation. See docs/ENROLLMENT.md and docs/SECTION_06_REPORT.md. Configure PostgreSQL and use the existing migration instructions before live use.
+
+Run `node --test scripts/enrollment.test.mjs scripts/classes.test.mjs scripts/onboarding.test.mjs scripts/api-clients.test.mjs` from the root, plus backend pytest and mobile typecheck/lint/exports. Current machine: Node 24.21.0/npm 11.19.0 and an existing Python 3.14.8 virtual environment, differing from the documented Python 3.11 baseline. No system tools were installed or dependency versions changed for Section 06. The current checks do not establish Python 3.11 equivalence, PostgreSQL persistence or native device behavior.
+
+Section 07's prompt is available, but implementation waits for user acceptance of Section 06. PROJECT_HANDOFF.md remains the preserved handoff snapshot through Section 05.
+
+## Section 07 mobile dashboards
+
+Personal learners see saved preferences and can edit them through the existing API. School students select among their real memberships; instructors use their owned-class dashboard and existing creation/details/editing. My account provides a confirmed, server-revoked sign-out with secure cleanup and explicit recovery limitations. Loading/errors/refresh and late-response handling are shared; future learning features are labeled upcoming.
+
+Run `node --test scripts/navigation.test.mjs scripts/dashboard-components.test.cjs scripts/enrollment.test.mjs scripts/classes.test.mjs scripts/onboarding.test.mjs scripts/api-clients.test.mjs` from the repository root. Section 07 results, native/database limits and the file inventory are in docs/SECTION_07_REPORT.md. No package, migration or backend endpoint was added. Stop for approval before Section 08.

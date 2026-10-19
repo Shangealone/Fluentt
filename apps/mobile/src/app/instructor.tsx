@@ -1,130 +1,202 @@
-import { useCallback, useState, useRef } from "react";
-import { Text, View } from "react-native";
-import { useFocusEffect, router } from "expo-router";
-import {
-  Screen,
-  Button,
-  Loading,
-  ErrorMessage,
-  EmptyState,
-  s,
-} from "../components/ui";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import { Screen, Button, Badge, EmptyState, s } from "../components/ui";
+import { AppHeader, LoadState } from "../components/navigation";
 import { useSession } from "../session/provider";
-import type { ClassDetails } from "../services/api/classes";
+import { usePagedList } from "../features/dashboard/usePagedList";
+import { theme } from "../theme/tokens";
+import { LearningBanner } from "../components/LearningBanner";
+
 export default function Instructor() {
   const { profile, classes } = useSession();
-  const [rows, setRows] = useState<ClassDetails[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const generation = useRef(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [moreBusy, setMoreBusy] = useState(false);
-  const loadClasses = useCallback(async () => {
-    const current = ++generation.current;
-    setLoading(true);
-    setError("");
-    try {
-      const result = await classes.mine();
-      if (current === generation.current) {
-        setRows(result);
-        setHasMore(result.length === 50);
-      }
-    } catch (error) {
-      if (current === generation.current)
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Please retry loading classes.",
-        );
-    } finally {
-      if (current === generation.current) setLoading(false);
-    }
-  }, [classes]);
-  useFocusEffect(
-    useCallback(() => {
-      void loadClasses();
-      return () => {
-        generation.current += 1;
-      };
-    }, [loadClasses]),
-  );
+  const { state, reload, more } = usePagedList(classes.mine);
+
   return (
     <Screen>
-      <Text style={s.brand}>FLUENTT</Text>
-      <Text style={s.eyebrow}>INSTRUCTOR SPACE</Text>
-      <Text style={s.title}>Hello, {profile?.username}.</Text>
-      <Text style={s.heading}>My Classes</Text>
-      <Button
-        label="Create Another Class"
-        onPress={() => router.push("/first-class")}
+      <AppHeader
+        navigation
+        title={`Hello, ${profile?.username ?? "Instructor"}`}
+        subtitle="My teaching space"
       />
-      {loading && <Loading />}
-      {!!error && <ErrorMessage message={error} />}
-      <Button
-        secondary
-        label="Refresh My Classes"
-        disabled={loading || moreBusy}
-        onPress={() => void loadClasses()}
-      />
-      {!loading && !error && rows.length === 0 && (
-        <EmptyState
-          title="Your first class starts here"
-          description="Create a class to get its invitation code. No classes are saved yet."
-        />
-      )}
-      {rows.map((row) => (
-        <View key={row.id} style={s.card}>
-          <Text style={s.heading}>{row.class_name}</Text>
-          <Text style={s.body}>
-            Grade {row.grade_level} ·{" "}
-            {row.language === "english" ? "English" : "Tagalog"} · {row.status}
-          </Text>
-          <Text selectable style={s.heading}>
-            {row.join_code ?? "No active code"}
-          </Text>
-          <Button
-            secondary
-            label={`View ${row.class_name}`}
-            onPress={() =>
-              router.push({
-                pathname: "/class-details",
-                params: { id: row.id },
-              })
-            }
-          />
-        </View>
-      ))}
-      {hasMore && (
+
+      <LearningBanner compact title="A clear space for your classes." description="Open a class to prepare assignments and review submissions. Use its invitation code to welcome students." />
+
+      {/* Quick Action Command Grid */}
+      <View style={instStyles.commandGrid}>
         <Button
-          secondary
-          label={moreBusy ? "Loading classes…" : "Load more classes"}
-          disabled={moreBusy || loading}
-          onPress={async () => {
-            setMoreBusy(true);
-            setError("");
-            try {
-              const next = await classes.mine(rows.length);
-              setRows((previous) => [
-                ...previous,
-                ...next.filter(
-                  (row) => !previous.some((item) => item.id === row.id),
-                ),
-              ]);
-              setHasMore(next.length === 50);
-            } catch (error) {
-              setError(
-                error instanceof Error ? error.message : "Please retry.",
-              );
-            } finally {
-              setMoreBusy(false);
-            }
-          }}
+          label="Create a class"
+          variant="primary"
+          onPress={() => router.push("/first-class")}
+        />
+        <Button
+          label="Class monitoring"
+          variant="secondary"
+          onPress={() => router.push("/instructor-monitoring")}
+        />
+        <Button
+          label="Messages"
+          variant="secondary"
+          onPress={() => router.push("/communication")}
+        />
+        <Button
+          label="Refresh classes"
+          variant="ghost"
+          disabled={state.phase === "loading"}
+          onPress={reload}
+        />
+      </View>
+
+      <LoadState phase={state.phase} error={state.error} retry={reload} />
+
+      {state.phase === "ready" && state.rows.length === 0 && (
+        <EmptyState
+          icon="🏫"
+          title="No classes are saved yet"
+          description="Create a class, invite your students, then prepare your first assignment."
+          action={
+            <Button
+              label="Create a class"
+              variant="primary"
+              onPress={() => router.push("/first-class")}
+            />
+          }
         />
       )}
-      <Text style={s.body}>
-        Student enrollment is coming in Section 06. Assignments and analytics
-        will arrive later.
+
+      {/* Classrooms List */}
+      {state.phase === "ready" && state.rows.length > 0 && (
+        <View style={{ gap: 16 }}>
+          <View style={instStyles.sectionHeader}>
+            <Text accessibilityRole="header" style={s.heading}>
+              Your classes
+            </Text>
+            <Badge
+              label={`${state.rows.length}${state.hasMore ? "+" : ""} shown`}
+              variant="info"
+            />
+          </View>
+
+          {state.rows.map((row) => (
+            <View key={row.id} style={[s.card, instStyles.classCard]}>
+              {/* Badges Row */}
+              <View style={instStyles.badgeRow}>
+                <Badge label={`GRADE ${row.grade_level}`} variant="info" />
+                <Badge
+                  label={row.language === "english" ? "ENGLISH" : "TAGALOG"}
+                  variant="purple"
+                />
+                <Badge
+                  label={row.status.toUpperCase()}
+                  variant={row.status === "active" ? "success" : "neutral"}
+                  icon={row.status === "active" ? "●" : "○"}
+                />
+              </View>
+
+              <Text accessibilityRole="header" style={s.heading}>
+                {row.class_name}
+              </Text>
+
+              {/* Invitation Code Showcase Box */}
+              <View style={instStyles.codeBox}>
+                <View>
+                  <Text style={instStyles.codeLabel}>Student invitation code</Text>
+                  <Text selectable style={instStyles.codeValue}>
+                    {row.join_code ?? "NO ACTIVE CODE"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={instStyles.btnRow}>
+                <Button
+                  label="Open class"
+                  variant="primary"
+                  style={{ flex: 1 }}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/class-details",
+                      params: { id: row.id },
+                    })
+                  }
+                />
+                {row.status === "active" && (
+                  <Button
+                    label="Monitor"
+                    variant="secondary"
+                    onPress={() =>
+                      router.push({
+                        pathname: "/instructor-monitoring",
+                        params: { classId: row.id },
+                      })
+                    }
+                  />
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {state.phase === "ready" && state.hasMore && (
+        <Button label="Load more classes" variant="secondary" onPress={more} />
+      )}
+
+      <Text style={[s.body, { fontSize: 13, color: theme.colors.subtle }]}>
+        Students join through your 6-digit invitation code. Objective scores appear in
+        monitoring only after you confirm release.
       </Text>
     </Screen>
   );
 }
+
+const instStyles = StyleSheet.create({
+  commandGrid: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  classCard: {
+    gap: 14,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  codeBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: theme.colors.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  codeLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    color: theme.colors.muted,
+  },
+  codeValue: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: 4,
+    color: theme.colors.ink,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  },
+  btnRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+});

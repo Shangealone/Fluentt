@@ -360,5 +360,6 @@ def test_migration_upgrade_downgrade_round_trip(pg_engine):
         config.attributes["connection"] = connection
         command.downgrade(config, "base")
         assert not inspect(connection).has_table("users")
+        config.attributes["repair_initial_names"] = True
         command.upgrade(config, "head")
         assert inspect(connection).has_table("users")

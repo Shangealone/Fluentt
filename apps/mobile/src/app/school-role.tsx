@@ -4,7 +4,6 @@ import { Screen, Button, s } from "../components/ui";
 export default function SchoolRole() {
   return (
     <Screen>
-      <Button secondary label="← Welcome" onPress={() => router.replace("/")} />
       <Text style={s.eyebrow}>SCHOOL LEARNING</Text>
       <Text style={s.title}>How will you learn together?</Text>
       <View style={s.card}>

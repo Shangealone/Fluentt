@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from uuid import UUID
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.dialects.postgresql import insert
 from app.models.assessments import Assignment
 from app.models.curriculum import GradeLevel
@@ -60,7 +60,18 @@ class ClassroomRepository(IdentityRepository):
         if classroom.subject_id is not None:
             return True
         for model in (ClassMembership, Assignment, LearningContext, Message):
-            if self.session.scalar(select(model.id).where(model.class_id == classroom.id).limit(1)) is not None:
+            if (
+                self.session.scalar(
+                    select(model.id)
+                    .where(
+                        or_(model.class_id == classroom.id, model.context_class_id == classroom.id)
+                        if model is Message
+                        else model.class_id == classroom.id
+                    )
+                    .limit(1)
+                )
+                is not None
+            ):
                 return True
         return False
 

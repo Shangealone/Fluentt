@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { Text } from "react-native";
+import { router } from "expo-router";
 import { Screen, Button, ErrorMessage, s } from "../components/ui";
 import { Choices, languages } from "../components/onboarding";
 import { useSession } from "../session/provider";
@@ -19,6 +20,7 @@ export default function Preference() {
     setError("");
     try {
       await session.save({ language: value });
+      router.push("/student");
     } catch (error) {
       setError(error instanceof Error ? error.message : "Please retry.");
     } finally {
@@ -27,7 +29,7 @@ export default function Preference() {
     }
   }
   return (
-    <Screen>
+    <Screen backDisabled={busy}>
       <Text style={s.brand}>FLUENTT</Text>
       <Text style={s.eyebrow}>PERSONAL SETUP · 2 OF 2</Text>
       <Text style={s.title}>Choose Your Learning Language</Text>

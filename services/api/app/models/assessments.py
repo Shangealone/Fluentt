@@ -77,6 +77,9 @@ class Assignment(Entity, Base):
         choice("assignment_status", "draft", "published", "closed", "archived"), default="draft", server_default="draft"
     )
     archived_at: Mapped[datetime | None]
+    creation_request_id: Mapped[UUID | None]
+    creation_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    __table_args__ = (UniqueConstraint("instructor_id", "creation_request_id"),)
 
 
 class AssignmentVersion(Entity, Base):
@@ -89,10 +92,12 @@ class AssignmentVersion(Entity, Base):
     starts_at: Mapped[datetime | None]
     due_at: Mapped[datetime | None]
     time_limit_seconds: Mapped[int | None] = mapped_column(Integer)
-    max_attempts: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    max_attempts: Mapped[int | None] = mapped_column(Integer().evaluates_none(), server_default="1")
     grading_policy: Mapped[dict] = json_object()
     curriculum_snapshot: Mapped[dict] = json_object()
     locked_at: Mapped[datetime | None]
+    publication_contract: Mapped[str | None] = mapped_column(String(40))
+    publication_request_id: Mapped[UUID | None]
     __table_args__ = (
         UniqueConstraint("assignment_id", "version"),
         CheckConstraint("version > 0 AND max_attempts > 0", name="positive_limits"),
@@ -106,11 +111,13 @@ class AssignmentQuestion(Entity, Base):
     assignment_version_id: Mapped[UUID] = reference("assignment_versions.id")
     question_revision_id: Mapped[UUID] = reference("question_revisions.id")
     position: Mapped[int] = mapped_column(Integer)
-    points: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    points: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     __table_args__ = (
         UniqueConstraint("id", "assignment_version_id"),
         UniqueConstraint("assignment_version_id", "position"),
-        UniqueConstraint("assignment_version_id", "question_revision_id"),
+        UniqueConstraint(
+            "assignment_version_id", "question_revision_id", name="uq_assignment_questions_version_question"
+        ),
         CheckConstraint("position > 0 AND points >= 0", name="valid_item"),
     )
 
@@ -131,6 +138,9 @@ class AssignmentAttempt(Entity, Base):
     score: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     maximum_score: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     submission_key: Mapped[UUID | None] = mapped_column(unique=True)
+    capture_contract: Mapped[str | None] = mapped_column(String(40))
+    capture_state: Mapped[dict | None] = mapped_column(JSONB)
+    submission_fingerprint: Mapped[str | None] = mapped_column(String(64))
     __table_args__ = (
         UniqueConstraint("id", "assignment_version_id"),
         UniqueConstraint("assignment_version_id", "student_id", "attempt_number"),

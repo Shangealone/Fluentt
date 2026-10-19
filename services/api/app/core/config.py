@@ -23,6 +23,60 @@ class Settings(BaseSettings):
     user_creation_limit: int = 10
     class_creation_limit: int = 10
     mobile_session_request_limit: int = 60
+    enrollment_peer_limit: int = 60
+    enrollment_session_limit: int = 10
+    admin_web_origin: str = "http://localhost:3000"
+    admin_auth_limit: int = 10
+    admin_oidc_issuer: str | None = None
+    admin_oidc_client_id: str | None = None
+    admin_oidc_client_secret: SecretStr | None = None
+    admin_oidc_mfa_claim: Literal["acr", "amr"] = "acr"
+    admin_oidc_mfa_values: list[str] = []
+
+    @property
+    def admin_oidc_enabled(self) -> bool:
+        return bool(
+            self.admin_oidc_issuer
+            and self.admin_oidc_client_id
+            and self.admin_oidc_client_id.strip()
+            and self.admin_oidc_client_secret
+            and self.admin_oidc_client_secret.get_secret_value()
+            and self.admin_oidc_mfa_values
+        )
+
+    @field_validator("admin_web_origin")
+    @classmethod
+    def validate_admin_origin(cls, value: str) -> str:
+        cls.validate_origins([value])
+        return value
+
+    @field_validator("admin_oidc_issuer")
+    @classmethod
+    def validate_issuer(cls, value: str | None) -> str | None:
+        if value is not None:
+            parsed = urlparse(value)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.query
+                or parsed.fragment
+                or len(value) > 255
+            ):
+                raise ValueError("OIDC issuer must be an explicit HTTPS issuer URL")
+        return value
+
+    @model_validator(mode="after")
+    def admin_configuration(self):
+        if (
+            self.environment == "production"
+            and self.admin_oidc_enabled
+            and not self.admin_web_origin.startswith("https://")
+        ):
+            raise ValueError("Production admin origin must use HTTPS")
+        if any(not value.strip() or len(value) > 255 for value in self.admin_oidc_mfa_values):
+            raise ValueError("Accepted MFA values must be explicit nonempty values")
+        return self
 
     @field_validator(
         "mobile_session_idle_days",
@@ -32,6 +86,9 @@ class Settings(BaseSettings):
         "user_creation_limit",
         "class_creation_limit",
         "mobile_session_request_limit",
+        "enrollment_peer_limit",
+        "enrollment_session_limit",
+        "admin_auth_limit",
     )
     @classmethod
     def positive_identity_values(cls, value: int) -> int:

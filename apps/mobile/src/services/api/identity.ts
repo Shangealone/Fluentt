@@ -2,6 +2,13 @@ import { request, ApiError } from "./client.ts";
 export { ApiError } from "./client.ts";
 export type Role = "personal_student" | "school_student" | "instructor";
 export type Language = "english" | "tagalog";
+export type LearningFocus = { topics: string[]; lessons: string[] };
+export type PreferenceSettings = { grade?: number; language?: Language; learning_focus?: LearningFocus };
+export function validLearningFocus(value: unknown): value is LearningFocus {
+  if (!value || typeof value !== "object") return false;
+  const focus = value as LearningFocus;
+  return [focus.topics, focus.lessons].every(list => Array.isArray(list) && list.length <= 10 && new Set(list).size === list.length && list.every(label => typeof label === "string" && label.trim() === label && Array.from(label).length >= 1 && Array.from(label).length <= 120)) && focus.topics.length + focus.lessons.length > 0;
+}
 export type Profile = {
   id: string;
   username: string;
@@ -11,6 +18,7 @@ export type Profile = {
   onboarding_step: string | null;
   grade: number | null;
   language: Language | null;
+  learning_focus?: LearningFocus | null;
 };
 export type Created = {
   user: Profile;
@@ -34,7 +42,8 @@ function profile(value: Profile): Profile {
       value.grade === null ||
       (Number.isInteger(value.grade) && value.grade >= 1 && value.grade <= 12)
     ) ||
-    ![null, "english", "tagalog"].includes(value.language)
+    ![null, "english", "tagalog"].includes(value.language) ||
+    (value.learning_focus != null && !validLearningFocus(value.learning_focus))
   )
     throw new ApiError(
       0,
@@ -43,6 +52,7 @@ function profile(value: Profile): Profile {
   return value;
 }
 export const identity = {
+  revoke: (credential: string) => request<void>("/sessions/revoke", "POST", undefined, credential),
   check: (username: string) =>
     request<{ username: string; available: boolean; message: string }>(
       `/usernames/check?username=${encodeURIComponent(username)}`,
@@ -69,7 +79,7 @@ export const identity = {
     ),
   preferences: async (
     credential: string,
-    settings: { grade?: number; language?: Language },
+    settings: PreferenceSettings,
   ) =>
     profile(
       await request<Profile>(

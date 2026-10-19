@@ -55,8 +55,22 @@ export function ClassForm({
       setBusy(false);
     }
   }
+  function autofillDemoClass() {
+    setName("Baitang 7 - Mabini");
+    setGrade(7);
+    setLanguage("tagalog");
+    setDescription("Seksyon Mabini para sa Filipino 7 — Panitikan ng Pilipinas at Gramatika");
+    setError("");
+  }
+
   return (
     <>
+      <Button
+        label="⚡ Autofill Demo Class (Baitang 7 - Mabini)"
+        variant="secondary"
+        disabled={busy || locked}
+        onPress={autofillDemoClass}
+      />
       <Text style={s.heading}>Class name</Text>
       <Input
         accessibilityLabel="Class name"

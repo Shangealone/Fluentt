@@ -1,26 +1,44 @@
-# Implemented database schema — Sections 02–05
+# Implemented database schema — Sections 02–25
+
+Section 25 source head is 0012_class_communication, still 63 tables. Three nullable Message fields (communication_contract, context_class_id, send_request_id) preserve existing destinations and historical rows while class-text-v1 adds class-bound direct communication, owned announcements, sender/key uniqueness and indexed ordering. New invoker guards preserve sent/read history and validate allowed participants; PUBLIC access is revoked. Real-student retention/moderation remains unapproved; synthetic demo records only. See COMMUNICATIONS.md.
+
+Section 22 source head is 0011_result_release. One append-only result visibility ledger increases the total to 63. Explicit owning-instructor release/withdraw/re-release pins one immutable COMPLETE classroom run; live student membership gates scores and original-answer review. Existing captures, grading outcomes and frozen 0001–0010 remain unchanged. See RESULTS_AND_FEEDBACK.md.
+
+Section 21 source head is 0010_grading_results. Two additive immutable evaluation tables increase the total to 62 while preserving all original attempts, submitted responses and assignment/question/key versions. Live administrator grading.read/run controls backend-only computation; no student release or research grading. Engine/policy/Unicode identity, evidence FKs, natural idempotence and transactional sealing preserve auditable results. Frozen 0001–0009 remain unchanged. See GRADING.md; earlier section/count descriptions below are historical.
+
+Section 20 source head is 0009_response_capture (60 tables). Existing AssignmentAttempt adds nullable capture_contract/capture_state/submission_fingerprint. One explicit unscored-capture-v1 attempt can save/resume raw partial responses and finalize once, retaining frozen distribution-only assignment versions and unset scoring/attempt fields. Guards prevent retakes, grading/latency and post-submit mutations; no historical rows are converted. Frozen 0001–0008 remain unchanged. ASSIGNMENTS.md defines controlled Flashcard reveal and the approved response/receipt boundary; earlier scope notes are historical.
+
+Section 19 source head is 0008_assignment_publication (60 tables). AssignmentVersion adds nullable publication_contract/publication_request_id; explicitly marked distribution-only-v1 versions freeze with attempts/points/windows unset. Database guards reject attempts against them and preserve distributed root/version/item history. Existing configured values and frozen 0001–0007 remain unchanged. ASSIGNMENTS.md defines approved subject binding, live membership distribution and metadata-only student reads. The older section descriptions below are historical.
+
+Section 06 reuses this unchanged schema for student enrollment and audit writes; no migration was added. See ENROLLMENT.md for approved multi-class/rejoining policies, transactional authorization and actual membership-based restoration. Earlier descriptions of future enrollment services below reflect the Section 05 storage milestone.
 
 Generated from SQLAlchemy metadata by `services/api/scripts/document_schema.py`.
 Models define the relational schema; `migrations/versions/0001_initial.py` freezes its initial DDL plus PostgreSQL guard functions. Revision 0002 adds class request identity, permanent code uniqueness and optional curriculum subjects.
-There are 58 domain tables; Alembic also manages its own `alembic_version` table.
-This is implemented source code, not evidence of deployment: live PostgreSQL verification is pending infrastructure.
+Section 08 adds only separate digest-based administrator browser sessions and single-use OIDC attempts in revision 0003_admin_sessions. Existing mobile identities, RBAC mappings, research guards and frozen migrations are preserved. See ADMIN_AUTH.md for application authorization and provisioning.
+Section 09 reuses all tables and IDs for curriculum structure reads. Revision 0004_curriculum_snapshots adds only hierarchy/reference/history guards and a transaction advisory read/write boundary; published versions and previously assigned/completed hierarchy are preserved. See CURRICULUM.md for lifecycle and safe read contracts. No content or new domain table is seeded.
+There are 63 domain tables; Alembic also manages its own `alembic_version` table.
+Post-Section 09 local PostgreSQL verification now executes the integration suite. Revision 0005_constraint_names converges three constraint names without changing integrity or stored data. Fresh empty databases require the explicit execution adapter documented in MIGRATIONS.md; frozen migration files remain unchanged. See LOCAL_VERIFICATION_REPORT.md for evidence and remaining deployment gates.
+
+Section 18 source head is 0007_assignment_drafts. Assignment creation adds nullable creation_request_id/fingerprint with per-instructor UUID uniqueness; new draft max_attempts and item points are explicitly NULL, with no policy inferred. Existing values remain intact. A new guard refuses locking until both are configured. Owner-only draft APIs pin locked question revisions and safe curriculum context; no student publication, attempts or grading. See ASSIGNMENTS.md.
 
 ## Responsibilities and conventions
 
-- Identity: users, optional learner/instructor attributes, digest-only sessions and administrative identity/permission mappings. A generated canonical username lowercases ASCII under C collation; the username format and uniqueness are enforced by PostgreSQL. ORM input trims surrounding whitespace first. No password field exists.
+- Identity: users, optional learner/instructor attributes, separate digest-only mobile/admin sessions, digest-only OIDC attempts and administrative identity/permission mappings. A generated canonical username lowercases ASCII under C collation; the username format and uniqueness are enforced by PostgreSQL. ORM input trims surrounding whitespace first. No password field exists. Browser idle/absolute expiry and one-use attempt consumption are enforced transactionally in the administrator service.
 - Classes: ownership, grade, optional school subject and distinct learning language, code history and memberships. Class creation does not infer a curriculum subject from language. Six-digit strings preserve leading zeros; a permanent unique code constraint prevents historical reuse; partial unique indexes additionally allow one active code per class. Owner/request UUID uniqueness makes creation retries idempotent. Expiry must be checked by the future enrollment service and stale codes explicitly marked expired. Historical inactive memberships can coexist; duplicate active enrollment cannot.
 - Curriculum: version → curriculum-grade → curriculum-subject → quarter → topic → lesson → competency. Grade and subject reference records are reusable. No official curriculum is seeded; provenance starts unverified. Future content services must create new curriculum versions instead of relabeling historical materials.
 - Assessments: stable question identity, immutable-when-locked revisions, separate private answer keys and competency links. Assignment identity separates lifecycle status from frozen assignment versions/items. Attempts and responses retain original version associations; composite foreign keys reject responses from a different assignment version.
 - Learning: progress and review state belong to personal/classroom/research contexts. Personal/classroom contexts require a student ID. Research contexts require a participant ID and forbid student/class IDs, avoiding a public identity bridge. Review histories preserve scheduler configuration and previous/resulting states; no algorithm is executed here. Event student/item associations are normalized through state/context, not duplicated on every event.
 - AI activities: pronunciation reference metadata, independent ASR/evaluator configurations and optional score only in scored status; no raw recording column. Conversation retention defaults off and requires a policy version and deletion deadline before inserts are accepted. No speech pipeline, retention worker or LLM is implemented.
 - Research: configurable study/group targets (defaults 30 and 15, not permanent caps), coded participants, private identity/consent, append-only allocation history, controlled levels 1–5, versioned instrument snapshots/results/events and immutable model/scheduler configurations. No enrollment, allocation or experiment execution logic is implemented.
-- Communications/operations: direct or class messages with per-recipient read receipts, inbox notifications and append-only audit records. Notification resource IDs and audit entity IDs are optional typed references, not polymorphic foreign keys; future API code must validate them.
+- Communications/operations: class-text-v1 direct/announcement APIs reuse messages and immutable own-viewer message_reads. Direct context_class_id supplements the preserved recipient-versus-class destination rule. No peer/personal chat, automatic notifications, receipt sharing, editing or permanent deletion. Legacy unclassified rows stay untouched and excluded. Inbox notification storage remains unused; audits omit message text. Notification resource IDs and audit entity IDs are optional typed references, not polymorphic foreign keys; future API code must validate them.
 
-All domain tables have UUID primary keys with application/server generation and non-null timezone-aware created_at/updated_at fields. The session uses UTC, and database triggers maintain updated_at even for direct SQL updates. Localized display is a frontend concern. Most foreign keys use RESTRICT; deleting a conversation session or message can cascade only to its disposable message/read children. Archival/status changes are preferred to deleting referenced records. Application roles must not own schema objects or have TRUNCATE/trigger-disabling privileges.
+All domain tables have UUID primary keys with application/server generation and non-null timezone-aware created_at/updated_at fields. The session uses UTC, and database triggers maintain updated_at even for direct SQL updates. Localized display is a frontend concern. Most foreign keys use RESTRICT; legacy deletion of a conversation session or message can cascade only to its disposable message/read children; class-text-v1 sent messages and receipts reject deletion. Archival/status changes are preferred to deleting referenced records. Application roles must not own schema objects or have TRUNCATE/trigger-disabling privileges.
 
 Only the backend accesses the database. The separate research_private schema revokes PUBLIC access, but its owner/superusers still have access. Production must use distinct migration, ordinary runtime and restricted research credentials/grants; a shared owner credential is not a privacy boundary. No production roles or grants to runtime users are provisioned automatically. Coded exports need future allowlisting and auditing, and must exclude profile IDs, usernames, identity links, consent evidence, free text and credentials.
 
 ## PostgreSQL guards outside metadata
+
+- Section 09 freezes published/retired curriculum metadata, descendant links/ordering and referenced global grade/subject labels; legacy draft hierarchy referenced by assignments/progress is protected too. Root retirement preserves content/IDs and publication evidence. All structure writes and history reference changes share an exclusive advisory boundary; reads use its shared form. Future writers must lock before DML. Local PostgreSQL guard checks now execute; deployment grants/performance remain separate gates. See CURRICULUM.md and LOCAL_VERIFICATION_REPORT.md.
 
 - Locked question/assignment versions cannot change or be deleted. A question must start as a draft, have an answer key, then be locked. Assignment locking requires nonempty items with locked question revisions; attempts require a locked assignment version. Parent-row locking serializes child edits against publishing.
 - Keys/competency links and assignment items cannot change once their parent revision is locked. New revisions are the update mechanism. Grading algorithms and release/rubric policies remain future work.
@@ -33,10 +51,13 @@ These triggers are in the migration, not Alembic autogeneration. Future revision
 
 ## Complete ERD
 
-All 58 domain tables are represented below, including research_private tables (prefixed research_private_). Nodes show keys; the dictionary below documents every implemented column. Relationships derive from all foreign-key constraints, including composite constraints. Optional and unique foreign keys use optional/one cardinality where applicable. This schema does not by itself enforce per-request authorization.
+All 63 domain tables are represented below, including research_private tables (prefixed research_private_). Nodes show keys; the dictionary below documents every implemented column. Relationships derive from all foreign-key constraints, including composite constraints. Optional and unique foreign keys use optional/one cardinality where applicable. This schema does not by itself enforce per-request authorization.
 
 ```mermaid
 erDiagram
+  admin_oidc_attempts {
+    string id PK
+  }
   admin_permissions {
     string id PK
   }
@@ -59,6 +80,10 @@ erDiagram
     string id PK
   }
   users {
+    string id PK
+  }
+  admin_browser_sessions {
+    string user_id FK
     string id PK
   }
   admin_identities {
@@ -152,6 +177,7 @@ erDiagram
     string sender_id FK
     string recipient_id FK
     string class_id FK
+    string context_class_id FK
     string id PK
   }
   research_assessments {
@@ -291,6 +317,12 @@ erDiagram
     string session_id FK
     string id PK
   }
+  grading_runs {
+    string attempt_id FK
+    string assignment_version_id FK
+    string actor_id FK
+    string id PK
+  }
   student_responses {
     string attempt_id FK
     string assignment_question_id FK
@@ -302,6 +334,23 @@ erDiagram
     string scheduler_configuration_id FK
     string id PK
   }
+  assessment_result_releases {
+    string attempt_id FK
+    string run_id FK
+    string assignment_version_id FK
+    string actor_id FK
+    string id PK
+  }
+  grading_item_results {
+    string run_id FK
+    string assignment_version_id FK
+    string assignment_question_id FK
+    string question_revision_id FK
+    string response_id FK
+    string key_id FK
+    string id PK
+  }
+  users ||--o{ admin_browser_sessions : "user_id"
   users ||--o| admin_identities : "user_id"
   admin_permissions ||--o{ admin_role_permissions : "permission_id"
   admin_roles ||--o{ admin_role_permissions : "role_id"
@@ -333,6 +382,7 @@ erDiagram
   research_participants |o--o{ learning_contexts : "participant_id"
   users |o--o{ learning_contexts : "student_id"
   classes |o--o{ messages : "class_id"
+  classes |o--o{ messages : "context_class_id"
   users |o--o{ messages : "recipient_id"
   users ||--o{ messages : "sender_id"
   research_levels |o--o{ research_assessments : "level_id,study_id"
@@ -386,16 +436,56 @@ erDiagram
   scheduler_configurations ||--o{ vocabulary_review_states : "scheduler_configuration_id"
   vocabulary_items ||--o{ vocabulary_review_states : "vocabulary_item_id"
   conversation_sessions ||--o{ conversation_messages : "session_id"
+  users ||--o{ grading_runs : "actor_id"
+  assignment_versions ||--o{ grading_runs : "assignment_version_id"
+  assignment_attempts ||--o{ grading_runs : "attempt_id"
+  assignment_attempts ||--o{ grading_runs : "attempt_id,assignment_version_id"
   assignment_questions ||--o{ student_responses : "assignment_question_id,assignment_version_id"
   assignment_attempts ||--o{ student_responses : "attempt_id,assignment_version_id"
-  vocabulary_review_states ||--o{ vocabulary_review_events : "review_state_id,scheduler_configuration_id"
   vocabulary_review_states ||--o{ vocabulary_review_events : "review_state_id"
   scheduler_configurations ||--o{ vocabulary_review_events : "scheduler_configuration_id"
+  vocabulary_review_states ||--o{ vocabulary_review_events : "review_state_id,scheduler_configuration_id"
+  users ||--o{ assessment_result_releases : "actor_id"
+  assignment_versions ||--o{ assessment_result_releases : "assignment_version_id"
+  assignment_attempts ||--o{ assessment_result_releases : "attempt_id"
+  grading_runs ||--o{ assessment_result_releases : "run_id"
+  grading_runs ||--o{ assessment_result_releases : "run_id,assignment_version_id"
+  assignment_questions ||--o{ grading_item_results : "assignment_question_id"
+  assignment_versions ||--o{ grading_item_results : "assignment_version_id"
+  question_answer_keys |o--o{ grading_item_results : "key_id"
+  question_revisions ||--o{ grading_item_results : "question_revision_id"
+  student_responses |o--o{ grading_item_results : "response_id"
+  grading_runs ||--o{ grading_item_results : "run_id"
+  assignment_questions ||--o{ grading_item_results : "assignment_question_id,assignment_version_id"
+  grading_runs ||--o{ grading_item_results : "run_id,assignment_version_id"
 ```
 
 ## Data dictionary
 
 Every table includes the Entity mixin fields. Defaults shown below are server defaults; application defaults may also exist. CHECK enum lists are stored as VARCHAR + named CHECK constraints, not native PostgreSQL enum types.
+
+### admin_oidc_attempts
+
+| Column | PostgreSQL type | Required | Key / reference / server default |
+|---|---|---|---|
+| state_digest | VARCHAR(64) | yes | — |
+| binding_digest | VARCHAR(64) | yes | — |
+| expires_at | TIMESTAMP WITH TIME ZONE | yes | — |
+| consumed_at | TIMESTAMP WITH TIME ZONE | no | — |
+| id | UUID | yes | PK; Default: gen_random_uuid() |
+| created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+| updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+
+Constraints:
+
+- `ck_admin_oidc_attempts_digest_format`: state_digest ~ '^[0-9a-f]{64}$' AND binding_digest ~ '^[0-9a-f]{64}$'
+- `ck_admin_oidc_attempts_expiry_order`: expires_at > created_at
+- `pk_admin_oidc_attempts`: PrimaryKeyConstraint (id)
+- `uq_admin_oidc_attempts_state_digest`: UniqueConstraint (state_digest)
+
+Indexes:
+
+- Primary/unique constraint indexes only.
 
 ### admin_permissions
 
@@ -582,6 +672,32 @@ Indexes:
 
 - Primary/unique constraint indexes only.
 
+### admin_browser_sessions
+
+| Column | PostgreSQL type | Required | Key / reference / server default |
+|---|---|---|---|
+| user_id | UUID | yes | FK → users.id (RESTRICT) |
+| credential_digest | VARCHAR(64) | yes | — |
+| expires_at | TIMESTAMP WITH TIME ZONE | yes | — |
+| absolute_expires_at | TIMESTAMP WITH TIME ZONE | yes | — |
+| revoked_at | TIMESTAMP WITH TIME ZONE | no | — |
+| id | UUID | yes | PK; Default: gen_random_uuid() |
+| created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+| updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+
+Constraints:
+
+- `ck_admin_browser_sessions_digest_format`: credential_digest ~ '^[0-9a-f]{64}$'
+- `ck_admin_browser_sessions_expiry_order`: expires_at > created_at AND absolute_expires_at >= expires_at
+- `fk_admin_browser_sessions_user_id_users`: FK (user_id) → users.id
+- `pk_admin_browser_sessions`: PrimaryKeyConstraint (id)
+- `uq_admin_browser_sessions_credential_digest`: UniqueConstraint (credential_digest)
+
+Indexes:
+
+- `CREATE INDEX ix_admin_browser_sessions_active ON admin_browser_sessions (user_id, expires_at) WHERE revoked_at IS NULL`
+- `CREATE INDEX ix_admin_browser_sessions_user_id ON admin_browser_sessions (user_id)`
+
 ### admin_identities
 
 | Column | PostgreSQL type | Required | Key / reference / server default |
@@ -753,6 +869,7 @@ Indexes:
 | user_id | UUID | yes | FK → users.id (RESTRICT) |
 | preferred_grade_id | UUID | no | FK → grade_levels.id (RESTRICT) |
 | preferred_language | VARCHAR(7) | no | — |
+| learning_focus | JSONB | no | Learner-written topic/lesson requests; additive 0013, no activity inference |
 | id | UUID | yes | PK; Default: gen_random_uuid() |
 | created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
@@ -925,6 +1042,8 @@ Indexes:
 | instructor_id | UUID | yes | FK → users.id (RESTRICT) |
 | status | VARCHAR(9) | yes | Default: draft |
 | archived_at | TIMESTAMP WITH TIME ZONE | no | — |
+| creation_request_id | UUID | no | — |
+| creation_fingerprint | VARCHAR(64) | no | — |
 | id | UUID | yes | PK; Default: gen_random_uuid() |
 | created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
@@ -935,6 +1054,7 @@ Constraints:
 - `fk_assignments_class_id_classes`: FK (class_id) → classes.id
 - `fk_assignments_instructor_id_users`: FK (instructor_id) → users.id
 - `pk_assignments`: PrimaryKeyConstraint (id)
+- `uq_assignments_instructor_id`: UniqueConstraint (instructor_id, creation_request_id)
 
 Indexes:
 
@@ -1058,22 +1178,30 @@ Indexes:
 | message_type | VARCHAR(12) | yes | — |
 | content | TEXT | yes | — |
 | sent_at | TIMESTAMP WITH TIME ZONE | yes | — |
+| communication_contract | VARCHAR(40) | no | — |
+| context_class_id | UUID | no | FK → classes.id (RESTRICT) |
+| send_request_id | UUID | no | — |
 | id | UUID | yes | PK; Default: gen_random_uuid() |
 | created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
 
 Constraints:
 
+- `ck_messages_communication_contract`: communication_contract IS NULL OR (communication_contract = 'class-text-v1' AND context_class_id IS NOT NULL AND send_request_id IS NOT NULL AND char_length(content) BETWEEN 1 AND 4000 AND char_length(btrim(content)) > 0 AND ((message_type = 'announcement' AND class_id = context_class_id AND recipient_id IS NULL) OR (message_type = 'direct' AND class_id IS NULL AND recipient_id IS NOT NULL AND sender_id <> recipient_id)))
 - `ck_messages_message_type`: messages.message_type IN ('direct', 'announcement', 'feedback')
 - `ck_messages_one_destination`: (recipient_id IS NOT NULL) != (class_id IS NOT NULL)
 - `fk_messages_class_id_classes`: FK (class_id) → classes.id
+- `fk_messages_context_class_id_classes`: FK (context_class_id) → classes.id
 - `fk_messages_recipient_id_users`: FK (recipient_id) → users.id
 - `fk_messages_sender_id_users`: FK (sender_id) → users.id
 - `pk_messages`: PrimaryKeyConstraint (id)
+- `uq_messages_sender_request`: UniqueConstraint (sender_id, send_request_id)
 
 Indexes:
 
 - `CREATE INDEX ix_messages_class_id ON messages (class_id)`
+- `CREATE INDEX ix_messages_context_class_id ON messages (context_class_id)`
+- `CREATE INDEX ix_messages_context_time ON messages (context_class_id, sent_at, id)`
 - `CREATE INDEX ix_messages_recipient_id ON messages (recipient_id)`
 - `CREATE INDEX ix_messages_sender_id ON messages (sender_id)`
 
@@ -1374,9 +1502,9 @@ Indexes:
 
 | Column | PostgreSQL type | Required | Key / reference / server default |
 |---|---|---|---|
-| participant_id | UUID | yes | FK → research_participants.id (RESTRICT); FK → research_group_assignments.participant_id (RESTRICT) |
+| participant_id | UUID | yes | FK → research_group_assignments.participant_id (RESTRICT); FK → research_participants.id (RESTRICT) |
 | group_id | UUID | yes | FK → research_groups.id (RESTRICT) |
-| study_id | UUID | yes | FK → research_participants.study_id (RESTRICT); FK → research_groups.study_id (RESTRICT) |
+| study_id | UUID | yes | FK → research_groups.study_id (RESTRICT); FK → research_participants.study_id (RESTRICT) |
 | assignment_number | INTEGER | yes | — |
 | assigned_at | TIMESTAMP WITH TIME ZONE | yes | — |
 | allocation_metadata | JSONB | yes | Default: '{}'::jsonb |
@@ -1442,10 +1570,12 @@ Indexes:
 | starts_at | TIMESTAMP WITH TIME ZONE | no | — |
 | due_at | TIMESTAMP WITH TIME ZONE | no | — |
 | time_limit_seconds | INTEGER | no | — |
-| max_attempts | INTEGER | yes | Default: 1 |
+| max_attempts | INTEGER | no | Default: 1 |
 | grading_policy | JSONB | yes | Default: '{}'::jsonb |
 | curriculum_snapshot | JSONB | yes | Default: '{}'::jsonb |
 | locked_at | TIMESTAMP WITH TIME ZONE | no | — |
+| publication_contract | VARCHAR(40) | no | — |
+| publication_request_id | UUID | no | — |
 | id | UUID | yes | PK; Default: gen_random_uuid() |
 | created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
@@ -1536,7 +1666,7 @@ Constraints:
 - `ck_learning_competencies_positive_position`: position > 0
 - `fk_learning_competencies_lesson_id_lessons`: FK (lesson_id) → lessons.id
 - `pk_learning_competencies`: PrimaryKeyConstraint (id)
-- `uq_learning_competencies_lesson_id`: UniqueConstraint (lesson_id, code)
+- `uq_learning_competencies_lesson_code`: UniqueConstraint (lesson_id, code)
 - `uq_learning_competencies_lesson_id`: UniqueConstraint (lesson_id, position)
 
 Indexes:
@@ -1648,6 +1778,9 @@ Indexes:
 | score | NUMERIC(10, 2) | no | — |
 | maximum_score | NUMERIC(10, 2) | no | — |
 | submission_key | UUID | no | — |
+| capture_contract | VARCHAR(40) | no | — |
+| capture_state | JSONB | no | — |
+| submission_fingerprint | VARCHAR(64) | no | — |
 | id | UUID | yes | PK; Default: gen_random_uuid() |
 | created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
@@ -1678,7 +1811,7 @@ Indexes:
 | assignment_version_id | UUID | yes | FK → assignment_versions.id (RESTRICT) |
 | question_revision_id | UUID | yes | FK → question_revisions.id (RESTRICT) |
 | position | INTEGER | yes | — |
-| points | NUMERIC(10, 2) | yes | — |
+| points | NUMERIC(10, 2) | no | — |
 | id | UUID | yes | PK; Default: gen_random_uuid() |
 | created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
@@ -1690,8 +1823,8 @@ Constraints:
 - `fk_assignment_questions_question_revision_id_question_revisions`: FK (question_revision_id) → question_revisions.id
 - `pk_assignment_questions`: PrimaryKeyConstraint (id)
 - `uq_assignment_questions_assignment_version_id`: UniqueConstraint (assignment_version_id, position)
-- `uq_assignment_questions_assignment_version_id`: UniqueConstraint (assignment_version_id, question_revision_id)
 - `uq_assignment_questions_id`: UniqueConstraint (id, assignment_version_id)
+- `uq_assignment_questions_version_question`: UniqueConstraint (assignment_version_id, question_revision_id)
 
 Indexes:
 
@@ -1873,13 +2006,56 @@ Indexes:
 
 - `CREATE INDEX ix_conversation_messages_session_id ON conversation_messages (session_id)`
 
+### grading_runs
+
+| Column | PostgreSQL type | Required | Key / reference / server default |
+|---|---|---|---|
+| attempt_id | UUID | yes | FK → assignment_attempts.id (RESTRICT); FK → assignment_attempts.id (RESTRICT) |
+| assignment_version_id | UUID | yes | FK → assignment_attempts.assignment_version_id (RESTRICT); FK → assignment_versions.id (RESTRICT) |
+| actor_id | UUID | yes | FK → users.id (RESTRICT) |
+| engine_version | VARCHAR(80) | yes | — |
+| policy_version | VARCHAR(80) | yes | — |
+| policy_snapshot | JSONB | yes | Default: '{}'::jsonb |
+| evaluated_at | TIMESTAMP WITH TIME ZONE | yes | — |
+| completed_at | TIMESTAMP WITH TIME ZONE | no | — |
+| context | VARCHAR(40) | yes | — |
+| status | VARCHAR(15) | yes | — |
+| item_count | INTEGER | yes | — |
+| earned_points | NUMERIC(10, 2) | no | — |
+| possible_points | NUMERIC(10, 2) | no | — |
+| automatic_earned_points | NUMERIC(10, 2) | yes | — |
+| automatic_possible_points | NUMERIC(10, 2) | yes | — |
+| id | UUID | yes | PK; Default: gen_random_uuid() |
+| created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+| updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+
+Constraints:
+
+- `ck_grading_runs_classroom_only`: context='ordinary_classroom'
+- `ck_grading_runs_grading_run_status`: grading_runs.status IN ('COMPLETE', 'REVIEW_REQUIRED', 'NOT_APPLICABLE')
+- `ck_grading_runs_valid_subtotals`: item_count > 0 AND automatic_earned_points >= 0 AND automatic_possible_points >= automatic_earned_points
+- `ck_grading_runs_valid_totals`: (status='COMPLETE' AND earned_points IS NOT NULL AND possible_points IS NOT NULL AND earned_points >= 0 AND possible_points >= earned_points AND possible_points > 0) OR (status <> 'COMPLETE' AND earned_points IS NULL AND possible_points IS NULL)
+- `fk_grading_runs_actor_id_users`: FK (actor_id) → users.id
+- `fk_grading_runs_assignment_version_id_assignment_versions`: FK (assignment_version_id) → assignment_versions.id
+- `fk_grading_runs_attempt_id_assignment_attempts`: FK (attempt_id) → assignment_attempts.id
+- `fk_grading_runs_attempt_version`: FK (attempt_id, assignment_version_id) → assignment_attempts.id, assignment_attempts.assignment_version_id
+- `pk_grading_runs`: PrimaryKeyConstraint (id)
+- `uq_grading_runs_attempt_id`: UniqueConstraint (attempt_id, engine_version, policy_version)
+- `uq_grading_runs_version`: UniqueConstraint (id, assignment_version_id)
+
+Indexes:
+
+- `CREATE INDEX ix_grading_runs_actor_id ON grading_runs (actor_id)`
+- `CREATE INDEX ix_grading_runs_assignment_version_id ON grading_runs (assignment_version_id)`
+- `CREATE INDEX ix_grading_runs_attempt_id ON grading_runs (attempt_id)`
+
 ### student_responses
 
 | Column | PostgreSQL type | Required | Key / reference / server default |
 |---|---|---|---|
 | attempt_id | UUID | yes | FK → assignment_attempts.id (RESTRICT) |
 | assignment_question_id | UUID | yes | FK → assignment_questions.id (RESTRICT) |
-| assignment_version_id | UUID | yes | FK → assignment_questions.assignment_version_id (RESTRICT); FK → assignment_attempts.assignment_version_id (RESTRICT) |
+| assignment_version_id | UUID | yes | FK → assignment_attempts.assignment_version_id (RESTRICT); FK → assignment_questions.assignment_version_id (RESTRICT) |
 | answer | JSONB | yes | — |
 | correct | BOOLEAN | no | — |
 | awarded_points | NUMERIC(10, 2) | no | — |
@@ -1914,7 +2090,7 @@ Indexes:
 | Column | PostgreSQL type | Required | Key / reference / server default |
 |---|---|---|---|
 | review_state_id | UUID | yes | FK → vocabulary_review_states.id (RESTRICT); FK → vocabulary_review_states.id (RESTRICT) |
-| scheduler_configuration_id | UUID | yes | FK → vocabulary_review_states.scheduler_configuration_id (RESTRICT); FK → scheduler_configurations.id (RESTRICT) |
+| scheduler_configuration_id | UUID | yes | FK → scheduler_configurations.id (RESTRICT); FK → vocabulary_review_states.scheduler_configuration_id (RESTRICT) |
 | event_key | UUID | yes | — |
 | reviewed_at | TIMESTAMP WITH TIME ZONE | yes | — |
 | recall_rating | VARCHAR(5) | yes | — |
@@ -1934,9 +2110,9 @@ Constraints:
 
 - `ck_vocabulary_review_events_nonnegative_metrics`: response_duration_ms >= 0 AND previous_interval_seconds >= 0 AND resulting_interval_seconds >= 0 AND state_revision > 0
 - `ck_vocabulary_review_events_recall_rating`: vocabulary_review_events.recall_rating IN ('again', 'hard', 'good', 'easy')
-- `fk_vocabulary_review_events_review_state_id_vocabulary_review_states`: FK (review_state_id, scheduler_configuration_id) → vocabulary_review_states.id, vocabulary_review_states.scheduler_configuration_id
 - `fk_vocabulary_review_events_review_state_id_vocabulary_review_states`: FK (review_state_id) → vocabulary_review_states.id
 - `fk_vocabulary_review_events_scheduler_configuration_id_scheduler_configurations`: FK (scheduler_configuration_id) → scheduler_configurations.id
+- `fk_vocabulary_review_events_state_scheduler`: FK (review_state_id, scheduler_configuration_id) → vocabulary_review_states.id, vocabulary_review_states.scheduler_configuration_id
 - `pk_vocabulary_review_events`: PrimaryKeyConstraint (id)
 - `uq_vocabulary_review_events_event_key`: UniqueConstraint (event_key)
 - `uq_vocabulary_review_events_review_state_id`: UniqueConstraint (review_state_id, state_revision)
@@ -1946,6 +2122,90 @@ Indexes:
 - `CREATE INDEX ix_vocabulary_review_events_history ON vocabulary_review_events (review_state_id, reviewed_at)`
 - `CREATE INDEX ix_vocabulary_review_events_review_state_id ON vocabulary_review_events (review_state_id)`
 - `CREATE INDEX ix_vocabulary_review_events_scheduler_configuration_id ON vocabulary_review_events (scheduler_configuration_id)`
+
+### assessment_result_releases
+
+| Column | PostgreSQL type | Required | Key / reference / server default |
+|---|---|---|---|
+| attempt_id | UUID | yes | FK → assignment_attempts.id (RESTRICT) |
+| run_id | UUID | yes | FK → grading_runs.id (RESTRICT); FK → grading_runs.id (RESTRICT) |
+| assignment_version_id | UUID | yes | FK → assignment_versions.id (RESTRICT); FK → grading_runs.assignment_version_id (RESTRICT) |
+| actor_id | UUID | yes | FK → users.id (RESTRICT) |
+| request_key | UUID | yes | — |
+| sequence | INTEGER | yes | — |
+| released | BOOLEAN | yes | — |
+| id | UUID | yes | PK; Default: gen_random_uuid() |
+| created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+| updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+
+Constraints:
+
+- `ck_assessment_result_releases_positive_sequence`: sequence > 0
+- `fk_assessment_result_releases_actor_id_users`: FK (actor_id) → users.id
+- `fk_assessment_result_releases_assignment_version_id_assignment_versions`: FK (assignment_version_id) → assignment_versions.id
+- `fk_assessment_result_releases_attempt_id_assignment_attempts`: FK (attempt_id) → assignment_attempts.id
+- `fk_assessment_result_releases_run_id_grading_runs`: FK (run_id) → grading_runs.id
+- `fk_result_release_run_version`: FK (run_id, assignment_version_id) → grading_runs.id, grading_runs.assignment_version_id
+- `pk_assessment_result_releases`: PrimaryKeyConstraint (id)
+- `uq_result_release_request`: UniqueConstraint (actor_id, request_key)
+- `uq_result_release_sequence`: UniqueConstraint (attempt_id, sequence)
+
+Indexes:
+
+- `CREATE INDEX ix_assessment_result_releases_actor_id ON assessment_result_releases (actor_id)`
+- `CREATE INDEX ix_assessment_result_releases_assignment_version_id ON assessment_result_releases (assignment_version_id)`
+- `CREATE INDEX ix_assessment_result_releases_attempt_id ON assessment_result_releases (attempt_id)`
+- `CREATE INDEX ix_assessment_result_releases_run_id ON assessment_result_releases (run_id)`
+
+### grading_item_results
+
+| Column | PostgreSQL type | Required | Key / reference / server default |
+|---|---|---|---|
+| run_id | UUID | yes | FK → grading_runs.id (RESTRICT); FK → grading_runs.id (RESTRICT) |
+| assignment_version_id | UUID | yes | FK → assignment_questions.assignment_version_id (RESTRICT); FK → assignment_versions.id (RESTRICT); FK → grading_runs.assignment_version_id (RESTRICT) |
+| assignment_question_id | UUID | yes | FK → assignment_questions.id (RESTRICT); FK → assignment_questions.id (RESTRICT) |
+| question_revision_id | UUID | yes | FK → question_revisions.id (RESTRICT) |
+| response_id | UUID | no | FK → student_responses.id (RESTRICT) |
+| key_id | UUID | no | FK → question_answer_keys.id (RESTRICT) |
+| source_grading_version | VARCHAR(80) | no | — |
+| rubric_version | VARCHAR(80) | yes | — |
+| method | VARCHAR(40) | yes | — |
+| position | INTEGER | yes | — |
+| state | VARCHAR(22) | yes | — |
+| reason | VARCHAR(80) | yes | — |
+| correct | BOOLEAN | no | — |
+| awarded_points | NUMERIC(10, 2) | no | — |
+| max_points | NUMERIC(10, 2) | no | — |
+| evaluation_metadata | JSONB | yes | Default: '{}'::jsonb |
+| id | UUID | yes | PK; Default: gen_random_uuid() |
+| created_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+| updated_at | TIMESTAMP WITH TIME ZONE | yes | Default: now() |
+
+Constraints:
+
+- `ck_grading_item_results_grading_item_state`: grading_item_results.state IN ('AUTO_GRADABLE', 'MANUAL_REVIEW_REQUIRED', 'NOT_APPLICABLE', 'UNSUPPORTED')
+- `ck_grading_item_results_positive_position`: position > 0
+- `ck_grading_item_results_valid_outcome`: (state='AUTO_GRADABLE' AND correct IS NOT NULL AND max_points IS NOT NULL AND max_points=1.00 AND awarded_points IS NOT NULL AND awarded_points IN (0.00,1.00) AND awarded_points=CASE WHEN correct THEN 1.00 ELSE 0.00 END) OR (state <> 'AUTO_GRADABLE' AND correct IS NULL AND awarded_points IS NULL AND max_points IS NULL)
+- `fk_grading_item_results_assignment_question_id_assignment_questions`: FK (assignment_question_id) → assignment_questions.id
+- `fk_grading_item_results_assignment_version_id_assignment_versions`: FK (assignment_version_id) → assignment_versions.id
+- `fk_grading_item_results_key_id_question_answer_keys`: FK (key_id) → question_answer_keys.id
+- `fk_grading_item_results_question_revision_id_question_revisions`: FK (question_revision_id) → question_revisions.id
+- `fk_grading_item_results_response_id_student_responses`: FK (response_id) → student_responses.id
+- `fk_grading_item_results_run_id_grading_runs`: FK (run_id) → grading_runs.id
+- `fk_grading_items_question_version`: FK (assignment_question_id, assignment_version_id) → assignment_questions.id, assignment_questions.assignment_version_id
+- `fk_grading_items_run_version`: FK (run_id, assignment_version_id) → grading_runs.id, grading_runs.assignment_version_id
+- `pk_grading_item_results`: PrimaryKeyConstraint (id)
+- `uq_grading_item_results_position`: UniqueConstraint (run_id, position)
+- `uq_grading_item_results_run_id`: UniqueConstraint (run_id, assignment_question_id)
+
+Indexes:
+
+- `CREATE INDEX ix_grading_item_results_assignment_question_id ON grading_item_results (assignment_question_id)`
+- `CREATE INDEX ix_grading_item_results_assignment_version_id ON grading_item_results (assignment_version_id)`
+- `CREATE INDEX ix_grading_item_results_key_id ON grading_item_results (key_id)`
+- `CREATE INDEX ix_grading_item_results_question_revision_id ON grading_item_results (question_revision_id)`
+- `CREATE INDEX ix_grading_item_results_response_id ON grading_item_results (response_id)`
+- `CREATE INDEX ix_grading_item_results_run_id ON grading_item_results (run_id)`
 
 ## Ten method storage contracts
 

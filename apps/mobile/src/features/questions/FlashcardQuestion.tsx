@@ -1,0 +1,68 @@
+import { useEffect, useRef, useState } from "react";
+import { BackHandler, Platform, Text, View } from "react-native";
+import { Button, EmptyState, ErrorMessage, Loading, s } from "../../components/ui";
+import { flashcardResponse, initialCardState, rateCard, recallLabels, revealCard, usableBack, validDeck,
+  type FlashcardBack, type FlashcardFront, type FlashcardResponse, type FlashcardState, type PracticeCard, type Recall } from "./flashcards";
+
+/** Back props must already be authorized for practice; hiding text is not server authorization. */
+export function FlashcardQuestion({ front, back, value, onChange, disabled = false, onRetry, allowRecallRevision = false }: {
+  front: FlashcardFront; back: FlashcardBack | null; value: FlashcardState; onChange: (state: FlashcardState) => void;
+  disabled?: boolean; onRetry?: () => void; allowRecallRevision?: boolean;
+}) {
+  const available = usableBack(front, back), revealed = available && value.revealed;
+  function change(next: FlashcardState) { if (!disabled && next !== value) onChange(next); }
+  return <View style={[s.card, { gap: 16 }]}>
+    <Text accessibilityRole="header" style={s.heading}>{front.prompt}</Text>
+    {!!front.instructions && <Text style={s.body}>{front.instructions}</Text>}
+    <Text accessibilityRole="header" style={s.heading}>Front / cue</Text><Text style={s.body}>{front.cue}</Text>
+    <Text style={s.body}>Recall silently, then deliberately reveal the back. Ratings describe your recall; they are not test scores.</Text>
+    {!available && <><ErrorMessage message="The authorized back for this version is unavailable." />{onRetry && <Button label="Retry card" disabled={disabled} onPress={onRetry} />}</>}
+    <Button label="Reveal back" disabled={disabled || !available || revealed} onPress={() => change(revealCard(front, back, value))} />
+    {revealed && <View style={{ gap: 12 }}><Text accessibilityRole="header" style={s.heading}>Back</Text><Text style={s.body}>{back!.back}</Text>
+      <Text style={s.body}>{allowRecallRevision ? "Unscored assignment recall. You may revise it before final submission; use Save progress to persist it." : "Optional self-recall rating. Choose once per visit; moving to another card clears this local state."}</Text>
+      {(Object.keys(recallLabels) as Recall[]).map(rating => <Button key={rating} label={recallLabels[rating]} secondary
+        disabled={disabled || (!allowRecallRevision && value.recall !== null)} onPress={() => change(allowRecallRevision ? { ...value, recall: rating } : rateCard(value, rating))} />)}
+    </View>}
+    <Text style={s.body} accessibilityLiveRegion="polite">{revealed ? value.recall ? `${recallLabels[value.recall]}. ${allowRecallRevision ? "Use Save progress. No score or scheduler update." : "Local only; not saved, scored or scheduled."}` : "Back revealed. No rating selected." : "Back hidden."}</Text>
+  </View>;
+}
+
+function PracticeInteraction({ cards, onExit, onResponse, onRetry, disabled }: { cards: PracticeCard[]; onExit: () => void;
+  onResponse?: (revisionId: string, response: FlashcardResponse) => void; onRetry?: () => void; disabled: boolean }) {
+  const [index, setIndex] = useState(0), [state, setState] = useState(initialCardState), [confirmExit, setConfirmExit] = useState(false), [ended, setEnded] = useState(false);
+  const rated = useRef(false), exited = useRef(false);
+  useEffect(() => {
+    if (Platform.OS !== "android" || ended) return;
+    const listener = BackHandler.addEventListener("hardwareBackPress", () => { setConfirmExit(true); return true; });
+    return () => listener.remove();
+  }, [ended]);
+  if (ended) return <EmptyState title="Practice ended" description="Local card state was discarded. No review history was saved." />;
+  if (confirmExit) return <View style={s.card}><Text accessibilityRole="header" style={s.heading}>Exit practice?</Text>
+    <Text style={s.body}>Discard local reveal and recall state? Nothing has been saved.</Text>
+    <Button label="Keep practicing" onPress={() => setConfirmExit(false)} />
+    <Button label="Exit and discard" secondary onPress={() => { if (!exited.current) { exited.current = true; setState(initialCardState()); setEnded(true); onExit(); } }} />
+  </View>;
+  const card = cards[index];
+  function move(delta: number) { const next = index + delta; if (!disabled && next >= 0 && next < cards.length) { rated.current = false; setState(initialCardState()); setIndex(next); } }
+  return <View style={{ gap: 16 }}>
+    <Text style={s.body}>Card {index + 1} of {cards.length}. Authored order; no scheduler or saved history.</Text>
+    <FlashcardQuestion front={card.front} back={card.back} value={state} disabled={disabled} onRetry={onRetry} onChange={next => {
+      const response = flashcardResponse(next); if (response && rated.current) return;
+      setState(next); if (response) { rated.current = true; onResponse?.(card.front.id, response); }
+    }} />
+    <Button label="Previous card" secondary disabled={disabled || index === 0} onPress={() => move(-1)} />
+    <Button label="Next card" secondary disabled={disabled || index === cards.length - 1} onPress={() => move(1)} />
+    <Button label="Exit practice" secondary onPress={() => setConfirmExit(true)} />
+  </View>;
+}
+/** Component-only host: callers authorize pinned cards, use Screen and clear buffers on blur/session loss. */
+export function FlashcardPractice({ cards, phase = "ready", active = true, resetKey = "", disabled = false, onExit, onResponse, onRetry }: {
+  cards: PracticeCard[]; phase?: "ready" | "loading" | "error"; active?: boolean; resetKey?: string | number;
+  disabled?: boolean; onExit: () => void; onResponse?: (revisionId: string, response: FlashcardResponse) => void; onRetry?: () => void;
+}) {
+  if (!active) return null;
+  if (phase === "loading") return <Loading />;
+  if (phase === "error" || !validDeck(cards)) return <View><ErrorMessage message="Practice content could not be verified." />{onRetry && <Button label="Retry practice" onPress={onRetry} />}</View>;
+  if (!cards.length) return <EmptyState title="No flashcards to practice" description="No authorized cards were supplied. No sample cards are added." />;
+  return <PracticeInteraction key={JSON.stringify([resetKey, cards.map(card => card.front.id)])} cards={cards} onExit={onExit} onResponse={onResponse} onRetry={onRetry} disabled={disabled} />;
+}

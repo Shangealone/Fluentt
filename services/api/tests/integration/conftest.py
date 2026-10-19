@@ -44,6 +44,7 @@ def pg_engine():
         with engine.begin() as connection:
             config = Config(str(ROOT / "alembic.ini"))
             config.attributes["connection"] = connection
+            config.attributes["repair_initial_names"] = True
             command.upgrade(config, "head")
         yield engine
     except Exception as exc:

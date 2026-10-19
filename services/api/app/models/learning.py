@@ -112,6 +112,7 @@ class VocabularyReviewEvent(Entity, Base):
             ["review_state_id", "scheduler_configuration_id"],
             ["vocabulary_review_states.id", "vocabulary_review_states.scheduler_configuration_id"],
             ondelete="RESTRICT",
+            name="fk_vocabulary_review_events_state_scheduler",
         ),
         CheckConstraint(
             "response_duration_ms >= 0 AND previous_interval_seconds >= 0 AND resulting_interval_seconds >= 0 AND state_revision > 0",

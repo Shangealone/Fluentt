@@ -4,10 +4,11 @@ from collections.abc import Iterator
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from app.models.curriculum import GradeLevel
-from app.modules.identity.schemas import MobileProfile
+from app.modules.identity.schemas import LearningFocus, MobileProfile
 from sqlalchemy.orm import Session
 
 from app.models.users import InstructorProfile, LearnerProfile, User, UserSession, Classroom
+from app.modules.enrollment.queries import eligible_memberships
 
 
 class IdentityRepository:
@@ -47,6 +48,10 @@ class IdentityRepository:
 
     def mobile_profile(self, user: User) -> MobileProfile:
         result = MobileProfile.model_validate(user)
+        if user.role == "school_student":
+            enrolled = self.session.scalar(eligible_memberships(user.id).limit(1)) is not None
+            result.profile_status = "active" if enrolled else "onboarding"
+            result.onboarding_step = None if enrolled else "class_enrollment"
         if user.role == "instructor":
             has_classes = (
                 self.session.scalar(select(Classroom.id).where(Classroom.instructor_id == user.id).limit(1)) is not None
@@ -59,6 +64,9 @@ class IdentityRepository:
                 grade = self.session.get(GradeLevel, learner.preferred_grade_id) if learner.preferred_grade_id else None
                 result.grade = grade.number if grade else None
                 result.language = learner.preferred_language
+                result.learning_focus = (
+                    LearningFocus.model_validate(learner.learning_focus) if learner.learning_focus else None
+                )
         return result
 
     def update_preferences(self, user: User, payload) -> None:
@@ -75,7 +83,11 @@ class IdentityRepository:
             )
         if payload.language is not None:
             learner.preferred_language = payload.language
+        if payload.learning_focus is not None:
+            learner.learning_focus = payload.learning_focus.model_dump()
         self.session.flush()
-        complete = learner.preferred_grade_id is not None and learner.preferred_language is not None
+        complete = (
+            learner.learning_focus is not None or learner.preferred_grade_id is not None
+        ) and learner.preferred_language is not None
         user.profile_status = "active" if complete else "onboarding"
         user.onboarding_step = None if complete else "personal_preferences"

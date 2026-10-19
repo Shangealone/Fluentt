@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlalchemy import CheckConstraint, Computed, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.db.base import Base, Entity, choice, language, reference
 from app.core.usernames import normalize_username
@@ -40,6 +41,7 @@ class LearnerProfile(Entity, Base):
     user_id: Mapped[UUID] = reference("users.id", unique=True)
     preferred_grade_id: Mapped[UUID | None] = reference("grade_levels.id", nullable=True)
     preferred_language: Mapped[str | None] = mapped_column(language())
+    learning_focus: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
 class InstructorProfile(Entity, Base):

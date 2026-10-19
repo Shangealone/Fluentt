@@ -150,13 +150,20 @@ def test_real_concurrent_code_collision(pg_engine, live_classes, monkeypatch):
     def same_first_candidate():
         attempt = next(attempts)
         if attempt < 2:
-            barrier.wait(timeout=10)
             return "000010"
         return "000011"
 
     monkeypatch.setattr(service, "generate_code", same_first_candidate)
+
+    def submit(headers, grade):
+        # Start requests concurrently, before transactions acquire curriculum's
+        # shared-label guard lock. Waiting inside the generator would deadlock
+        # the test barrier against a correctly serialized second transaction.
+        barrier.wait(timeout=10)
+        return create(client, headers, None, grade)
+
     with ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(create, client, headers, None, grade) for headers, grade in ((first, 1), (second, 2))]
+        futures = [pool.submit(submit, headers, grade) for headers, grade in ((first, 1), (second, 2))]
         results = [future.result(timeout=20) for future in futures]
     assert all(result.status_code == 201 for result in results)
     assert {result.json()["join_code"] for result in results} == {"000010", "000011"}

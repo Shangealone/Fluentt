@@ -156,3 +156,22 @@ def test_live_preference_persistence(pg_engine, live_identity):
             from app.models.curriculum import GradeLevel
 
             assert db.get(GradeLevel, learner.preferred_grade_id).number == grade
+
+
+def test_live_focus_roundtrip_preserves_legacy_grade(pg_engine, live_identity):
+    client = live_identity
+    issued = client.post("/api/v1/users", json={"username": unique_name(), "role": "personal_student"}).json()
+    headers = {"Authorization": "Bearer " + issued["session"]["credential"]}
+    focus = {"topics": ["Vocabulary"], "lessons": ["Writing a paragraph"]}
+    response = client.patch("/api/v1/users/me/preferences", headers=headers, json={"learning_focus": focus, "language": "english"})
+    assert response.status_code == 200 and response.json()["grade"] is None
+    assert response.json()["profile_status"] == "active"
+    assert client.get("/api/v1/sessions/me", headers=headers).json()["learning_focus"] == focus
+    with Session(pg_engine) as db:
+        learner = db.scalar(select(LearnerProfile).where(LearnerProfile.user_id == issued["user"]["id"]))
+        assert learner.learning_focus == focus and learner.preferred_grade_id is None
+    assert client.patch("/api/v1/users/me/preferences", headers=headers, json={"grade": 6}).status_code == 200
+    changed = {"topics": ["Reading comprehension"], "lessons": []}
+    assert client.patch("/api/v1/users/me/preferences", headers=headers, json={"learning_focus": changed}).status_code == 200
+    restored = client.get("/api/v1/sessions/me", headers=headers).json()
+    assert restored["grade"] == 6 and restored["learning_focus"] == changed

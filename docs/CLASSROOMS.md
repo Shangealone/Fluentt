@@ -1,5 +1,7 @@
 # Instructor classrooms — Section 05
 
+Section 19 adds an explicit subject-binding boundary during confirmed assignment publication: the instructor chooses the saved lesson's subject, retained class content is checked for conflicts, and binding/publication commit atomically. Bound subjects cannot be silently changed. Language still never implies subject. ASSIGNMENTS.md defines this current workflow; the older Section 05 scope below is historical.
+
 Only instructors with a valid server-issued mobile session may create/list/read/edit their own classes. Ownership always comes from the authenticated user, never JSON. Other mobile roles receive 403; another instructor's UUID and a missing UUID both return 404. Expired, revoked, disabled and archived sessions/users are rejected. Session authentication and classroom mutations share one transaction and user/session lock. Class/code data is returned only after commit, with no-store headers. No student code verification or enrollment route exists yet.
 
 ## API contract
@@ -68,3 +70,7 @@ Creation adds FLUENTT_CLASS_CREATION_LIMIT=10 per peer per window to the existin
 First-class form -> confirmed POST response -> details/code confirmation -> Copy Code / Share Code -> My Classes. Additional classes reuse the form and create new records. Details/edit routes accept only class UUIDs; secrets and invitation codes are not passed as route credentials. My Classes refetches on focus and supports paginated loading. Editing reuses validation and keeps the invitation code. Native share feedback says the share sheet opened, not that a recipient received anything. Clipboard failure/cancelled sharing is reported accurately.
 
 The browser app retains Section 04's navigation-preview policy: native SecureStore is required for actual profile/session creation. The separate static visual review uses synthetic data and inert server-rendered controls; it neither creates accounts/classes nor bypasses authentication in runtime routes.
+
+## Section 06 enrollment update
+
+The statements above describe the Section 05 milestone. Authenticated student preview/confirmation and own-membership listing now exist separately; see [ENROLLMENT.md](ENROLLMENT.md). Existing instructor management routes remain instructor-only. Enrollment locks/revalidates the class before membership creation, so the existing historical-membership context restriction applies to real enrollments. Codes remain permanently unique and subject remains independent of learning language. No code rotation/archive/roster management API was added.

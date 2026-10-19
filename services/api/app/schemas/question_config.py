@@ -1,8 +1,9 @@
 """Version-one storage contracts. These validate structure, not grade answers."""
 
+import re
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StringConstraints, field_validator
 
 TextValue = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Identifier = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,80}$")]
@@ -38,8 +39,14 @@ class TextKey(StrictModel):
     case_sensitive: bool = False
 
 
-class Blanks(StrictModel):
+class IdentificationContent(StrictModel):
+    # Omit absent metadata to preserve legacy {} storage and published projections.
+    input_max_length: int | None = Field(default=None, ge=1, le=2000, exclude_if=lambda value: value is None)
+
+
+class Blanks(IdentificationContent):
     blank_ids: list[Identifier] = Field(min_length=1)
+    template_syntax: Literal["double-brace-v1"] | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class BlankKey(StrictModel):
@@ -93,7 +100,7 @@ class MatchingKey(StrictModel):
 CONFIG_MODELS = {
     "multiple_choice": (Options, SingleKey),
     "true_false": (EmptyContent, BooleanKey),
-    "identification": (EmptyContent, TextKey),
+    "identification": (IdentificationContent, TextKey),
     "fill_in_the_blank": (Blanks, BlankKey),
     "multiple_select": (Options, SelectKey),
     "flashcards": (FlashContent, FlashKey),
@@ -122,6 +129,26 @@ def validate_content(method: str, content: dict) -> StrictModel:
     return result
 
 
+def template_blank_ids(prompt: str) -> list[str]:
+    """Tagged templates reserve braces; only exact {{ASCII_identifier}} markers are valid."""
+    result, cursor = [], 0
+    for match in re.finditer(r"\{\{([A-Za-z0-9_-]{1,80})\}\}", prompt):
+        if "{" in prompt[cursor : match.start()] or "}" in prompt[cursor : match.start()]:
+            raise ValueError("Malformed blank placeholder; use {{blank_id}}")
+        result.append(match.group(1))
+        cursor = match.end()
+    if "{" in prompt[cursor:] or "}" in prompt[cursor:]:
+        raise ValueError("Malformed blank placeholder; use {{blank_id}}")
+    return result
+
+
+def validate_prompt(method: str, content: dict, prompt: str) -> None:
+    public = validate_content(method, content)
+    if isinstance(public, Blanks) and public.template_syntax is not None:
+        if template_blank_ids(prompt) != public.blank_ids:
+            raise ValueError("Template placeholders must match blank_ids exactly once in declared order")
+
+
 def validate_definition(method: str, content: dict, answer_key: dict) -> None:
     public = validate_content(method, content)
     private = CONFIG_MODELS[method][1].model_validate(answer_key)
@@ -147,6 +174,11 @@ def validate_definition(method: str, content: dict, answer_key: dict) -> None:
             raise ValueError("Matching must cover each left identifier once")
         if unique([pair.right_id for pair in private.pairs]) != {item.id for item in public.right}:
             raise ValueError("Matching must cover each right identifier once")
+    if isinstance(public, IdentificationContent) and public.input_max_length is not None:
+        answers = private.accepted_answers
+        values = [text for group in answers.values() for text in group] if isinstance(answers, dict) else answers
+        if any(len(text) > public.input_max_length for text in values):
+            raise ValueError("Expected-answer metadata exceeds input_max_length")
 
 
 class ChoiceAnswer(StrictModel):
@@ -154,12 +186,18 @@ class ChoiceAnswer(StrictModel):
 
 
 class TextAnswer(StrictModel):
-    text: TextValue
+    text: str = Field(min_length=1)
+
+    @field_validator("text")
+    @classmethod
+    def nonblank_raw_text(cls, value):
+        if not value.strip():
+            raise ValueError("Enter a nonblank response")
+        return value
 
 
-class BlankAnswer(StrictModel):
+class BlankAnswer(TextAnswer):
     blank_id: Identifier
-    text: TextValue
 
 
 class BlanksAnswer(StrictModel):
@@ -205,8 +243,8 @@ RESPONSE_MODELS = {
 }
 
 
-def validate_response(method: str, content: dict, answer: dict) -> None:
-    """Allow structurally valid partial drafts; completeness and grading are future services."""
+def validate_response(method: str, content: dict, answer: dict, *, require_complete: bool = False) -> None:
+    """Validate raw responses, optionally requiring every blank. Never interpret or grade text."""
     public = validate_content(method, content)
     response = RESPONSE_MODELS[method].model_validate(answer)
     selected, available = None, None
@@ -216,6 +254,8 @@ def validate_response(method: str, content: dict, answer: dict) -> None:
     elif isinstance(public, Blanks):
         available = set(public.blank_ids)
         selected = [blank.blank_id for blank in response.blanks]
+        if require_complete and set(selected) != available:
+            raise ValueError("A complete response must contain every blank exactly once")
     elif isinstance(public, Tokens):
         available = {item.id for item in public.tokens}
         selected = response.selected_token_ids
@@ -229,3 +269,7 @@ def validate_response(method: str, content: dict, answer: dict) -> None:
             raise ValueError("Unknown matching right identifier")
     if selected is not None and not unique(selected) <= available:
         raise ValueError("Answer references unknown identifiers")
+    if isinstance(public, IdentificationContent) and public.input_max_length is not None:
+        values = [blank.text for blank in response.blanks] if isinstance(public, Blanks) else [response.text]
+        if any(len(text) > public.input_max_length for text in values):
+            raise ValueError("Response exceeds input_max_length")

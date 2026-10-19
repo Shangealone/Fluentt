@@ -77,6 +77,9 @@ export async function request<T>(
         messages[response.status] ??
         "The request could not be completed. Please retry.";
       const safeMessages: Record<string, string> = {
+        invitation_unavailable: "Class code is invalid or unavailable. Check with your instructor.",
+        preview_changed: "Class details changed. Verify the code and review again.",
+        school_student_required: "Only school students can join classes.",
         class_context_locked:
           "Grade and language cannot change after a subject, membership or learning activity is attached.",
         idempotency_conflict:

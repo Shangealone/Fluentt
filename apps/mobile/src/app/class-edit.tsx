@@ -1,89 +1,38 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { BackHandler, Text } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { Screen, Button, Loading, ErrorMessage, s } from "../components/ui";
+import { Screen, s } from "../components/ui";
+import { AppHeader, LoadState } from "../components/navigation";
 import { ClassForm } from "../features/classes/ClassForm";
 import { useSession } from "../session/provider";
-import type { ClassDetails } from "../services/api/classes";
+import { usePagedList } from "../features/dashboard/usePagedList";
+
 export default function ClassEdit() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { classes } = useSession();
-  const [row, setRow] = useState<ClassDetails | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [revision, setRevision] = useState(0);
+  const classId = id || "demo-class-1";
   const [saving, setSaving] = useState(false);
+  const lock = useRef(false);
+  const fetchClass = useCallback(async () => {
+    return [await classes.get(classId)];
+  }, [classes, classId]);
+  const { state, reload } = usePagedList(fetchClass);
+
+  const row = state.phase === "ready" ? state.rows[0] : null;
   useEffect(() => {
-    let active = true;
-    const load = id
-      ? classes.get(id)
-      : Promise.reject(new Error("Choose a class from My Classes."));
-    load
-      .then((row) => {
-        if (active) setRow(row);
-      })
-      .catch((error) => {
-        if (active) setError(error.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [classes, id, revision]);
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => saving,
-    );
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => lock.current);
     return () => subscription.remove();
-  }, [saving]);
-  return (
-    <Screen>
-      <Button
-        secondary
-        label="← My Classes"
-        disabled={saving}
-        onPress={() => router.replace("/instructor")}
-      />
-      <Text style={s.title}>Edit your class.</Text>
-      <Text style={s.body}>
-        Renaming keeps the invitation code. Grade and language can change only
-        before a subject, membership or learning activity is attached.
-      </Text>
-      {loading ? (
-        <Loading />
-      ) : error ? (
-        <>
-          <ErrorMessage message={error} />
-          <Button
-            label="Retry loading class"
-            onPress={() => {
-              setLoading(true);
-              setError("");
-              setRevision(revision + 1);
-            }}
-          />
-        </>
-      ) : row ? (
-        <ClassForm
-          initial={row}
-          label="Save Changes"
-          onSubmit={async (draft) => {
-            setSaving(true);
-            try {
-              await classes.update(row.id, draft);
-              router.replace({
-                pathname: "/class-details",
-                params: { id: row.id },
-              });
-            } finally {
-              setSaving(false);
-            }
-          }}
-        />
-      ) : null}
-    </Screen>
-  );
+  }, []);
+  return <Screen backDisabled={saving}>
+    <AppHeader title="Edit your class" back disabled={saving} />
+    <Text style={s.body}>Renaming keeps the invitation code. Grade and language can change only before a subject, membership or learning activity is attached.</Text>
+    <LoadState phase={state.phase} error={state.error} retry={reload} />
+    {row && <ClassForm key={row.id + row.updated_at} initial={row} label="Save Changes" onSubmit={async (draft) => {
+      lock.current = true; setSaving(true);
+      try {
+        await classes.update(row.id, draft);
+        router.replace({ pathname: "/class-details", params: { id: row.id } });
+      } finally { lock.current = false; setSaving(false); }
+    }} />}
+  </Screen>;
 }

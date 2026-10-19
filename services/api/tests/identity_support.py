@@ -48,11 +48,13 @@ class MemoryIdentityRepository:
         return session, user
 
     def mobile_profile(self, user):
-        from app.modules.identity.schemas import MobileProfile
+        from app.modules.identity.schemas import LearningFocus, MobileProfile
 
         result = MobileProfile.model_validate(user)
         result.grade = getattr(user, "test_grade", None)
         result.language = getattr(user, "test_language", None)
+        focus = getattr(user, "test_focus", None)
+        result.learning_focus = LearningFocus.model_validate(focus) if focus else None
         return result
 
     def update_preferences(self, user, payload):
@@ -60,6 +62,10 @@ class MemoryIdentityRepository:
             user.test_grade = payload.grade
         if payload.language is not None:
             user.test_language = payload.language
-        complete = getattr(user, "test_grade", None) and getattr(user, "test_language", None)
+        if payload.learning_focus is not None:
+            user.test_focus = payload.learning_focus.model_dump()
+        complete = (getattr(user, "test_focus", None) or getattr(user, "test_grade", None)) and getattr(
+            user, "test_language", None
+        )
         user.profile_status = "active" if complete else "onboarding"
         user.onboarding_step = None if complete else "personal_preferences"

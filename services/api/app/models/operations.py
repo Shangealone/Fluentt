@@ -15,7 +15,18 @@ class Message(Entity, Base):
     message_type: Mapped[str] = mapped_column(choice("message_type", "direct", "announcement", "feedback"))
     content: Mapped[str] = mapped_column(Text)
     sent_at: Mapped[datetime]
-    __table_args__ = (CheckConstraint("(recipient_id IS NOT NULL) != (class_id IS NOT NULL)", name="one_destination"),)
+    communication_contract: Mapped[str | None] = mapped_column(String(40))
+    context_class_id: Mapped[UUID | None] = reference("classes.id", nullable=True)
+    send_request_id: Mapped[UUID | None]
+    __table_args__ = (
+        CheckConstraint("(recipient_id IS NOT NULL) != (class_id IS NOT NULL)", name="one_destination"),
+        UniqueConstraint("sender_id", "send_request_id", name="uq_messages_sender_request"),
+        CheckConstraint(
+            "communication_contract IS NULL OR (communication_contract = 'class-text-v1' AND context_class_id IS NOT NULL AND send_request_id IS NOT NULL AND char_length(content) BETWEEN 1 AND 4000 AND char_length(btrim(content)) > 0 AND ((message_type = 'announcement' AND class_id = context_class_id AND recipient_id IS NULL) OR (message_type = 'direct' AND class_id IS NULL AND recipient_id IS NOT NULL AND sender_id <> recipient_id)))",
+            name="communication_contract",
+        ),
+        Index("ix_messages_context_time", "context_class_id", "sent_at", "id"),
+    )
 
 
 class MessageRead(Entity, Base):

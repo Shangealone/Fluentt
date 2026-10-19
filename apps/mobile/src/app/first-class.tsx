@@ -6,6 +6,7 @@ import { Screen, Button, ErrorMessage, s } from "../components/ui";
 import { ClassForm } from "../features/classes/ClassForm";
 import { ClassSubmission } from "../features/classes/state";
 import { useSession } from "../session/provider";
+import { AppHeader } from "../components/navigation";
 export default function FirstClass() {
   const session = useSession();
   const [submission] = useState(() => new ClassSubmission());
@@ -21,8 +22,8 @@ export default function FirstClass() {
     return () => sub.remove();
   }, [submission]);
   return (
-    <Screen>
-      {session.profile?.profile_status === "active" && (
+    <Screen backDisabled={saving || checking}>
+      {session.profile?.role === "instructor" && (
         <Button
           secondary
           label="← My Classes"
@@ -30,14 +31,13 @@ export default function FirstClass() {
           onPress={() => router.replace("/instructor")}
         />
       )}
-      <Text style={s.brand}>FLUENTT</Text>
+      <AppHeader title="Create a class" disabled={saving || checking} />
       <Text style={s.eyebrow}>
         INSTRUCTOR ·{" "}
         {session.profile?.profile_status === "active"
           ? "NEW CLASS"
           : "FIRST CLASS"}
       </Text>
-      <Text style={s.title}>A place to learn together.</Text>
       <Text style={s.body}>
         Name your class and choose its learning level. FLUENTT will generate a
         six-digit invitation code when your class is saved.

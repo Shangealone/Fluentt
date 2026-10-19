@@ -50,7 +50,22 @@ def create_app(settings: Settings | None = None) -> CORSMiddleware:
         request.state.request_id = str(uuid4())
         response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
-        if request.url.path.startswith(("/api/v1/users", "/api/v1/usernames", "/api/v1/sessions", "/api/v1/classes")):
+        if request.url.path.startswith(
+            (
+                "/api/v1/users",
+                "/api/v1/usernames",
+                "/api/v1/sessions",
+                "/api/v1/classes",
+                "/api/v1/class-enrollment-previews",
+                "/api/v1/class-memberships",
+                "/api/v1/admin",
+                "/api/v1/curriculum",
+                "/api/v1/assignments",
+                "/api/v1/me/",
+                "/api/v1/instructor/",
+                "/api/v1/communication/",
+            )
+        ):
             response.headers["Cache-Control"] = "no-store"
             response.headers["Pragma"] = "no-cache"
         logger.info("request_completed request_id=%s status=%s", request.state.request_id, response.status_code)
@@ -59,7 +74,22 @@ def create_app(settings: Settings | None = None) -> CORSMiddleware:
     def error(request: Request, status: int, code: str, message: str, details=None, headers=None):
         request_id = getattr(request.state, "request_id", str(uuid4()))
         safe_headers = {**(headers or {}), "X-Request-ID": request_id}
-        if request.url.path.startswith(("/api/v1/users", "/api/v1/usernames", "/api/v1/sessions", "/api/v1/classes")):
+        if request.url.path.startswith(
+            (
+                "/api/v1/users",
+                "/api/v1/usernames",
+                "/api/v1/sessions",
+                "/api/v1/classes",
+                "/api/v1/class-enrollment-previews",
+                "/api/v1/class-memberships",
+                "/api/v1/admin",
+                "/api/v1/curriculum",
+                "/api/v1/assignments",
+                "/api/v1/me/",
+                "/api/v1/instructor/",
+                "/api/v1/communication/",
+            )
+        ):
             safe_headers.update({"Cache-Control": "no-store", "Pragma": "no-cache"})
         return JSONResponse(
             status_code=status,

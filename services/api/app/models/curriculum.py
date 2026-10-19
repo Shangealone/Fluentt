@@ -97,6 +97,6 @@ class LearningCompetency(Entity, Base):
     source_metadata: Mapped[dict] = json_object()
     __table_args__ = (
         UniqueConstraint("lesson_id", "position"),
-        UniqueConstraint("lesson_id", "code"),
+        UniqueConstraint("lesson_id", "code", name="uq_learning_competencies_lesson_code"),
         CheckConstraint("position > 0", name="positive_position"),
     )
