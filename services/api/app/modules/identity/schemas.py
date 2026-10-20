@@ -8,6 +8,7 @@ from app.core.usernames import validate_new_username
 
 MobileRole = Literal["personal_student", "school_student", "instructor"]
 MOBILE_ROLES = frozenset({"personal_student", "school_student", "instructor"})
+LearningExperience = Literal["starting_fresh", "some_words", "simple_conversations", "comfortable"]
 
 
 class CreateUserRequest(BaseModel):
@@ -16,15 +17,37 @@ class CreateUserRequest(BaseModel):
         strict=True,
         min_length=3,
         max_length=24,
-        description="ASCII letters, digits and underscores; no surrounding whitespace.",
+        description="ASCII letters, digits, underscores and internal spaces; no surrounding whitespace.",
     )
     role: MobileRole
+    password: str | None = Field(
+        default=None,
+        min_length=6,
+        max_length=128,
+        description="Optional password (minimum 6 characters) to protect the account.",
+    )
 
     @field_validator("username")
     @classmethod
     def username_policy(cls, value: str) -> str:
         validate_new_username(value)
         return value
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
+    username: str = Field(
+        strict=True,
+        min_length=1,
+        max_length=128,
+        description="Account username",
+    )
+    password: str = Field(
+        strict=True,
+        min_length=1,
+        max_length=128,
+        description="Account password",
+    )
 
 
 class UsernameAvailability(BaseModel):
@@ -68,6 +91,7 @@ class MobileProfile(BaseModel):
     grade: int | None = None
     language: Literal["english", "tagalog"] | None = None
     learning_focus: LearningFocus | None = None
+    experience: LearningExperience | None = None
 
 
 class IssuedSession(BaseModel):
@@ -87,8 +111,9 @@ class PreferenceUpdate(BaseModel):
     grade: int | None = Field(default=None, strict=True, ge=1, le=12)
     language: Literal["english", "tagalog"] | None = None
     learning_focus: LearningFocus | None = None
+    experience: LearningExperience | None = None
 
-    @field_validator("grade", "language", "learning_focus")
+    @field_validator("grade", "language", "learning_focus", "experience")
     @classmethod
     def not_null(cls, value):
         if value is None:

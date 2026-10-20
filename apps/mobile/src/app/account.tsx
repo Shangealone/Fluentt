@@ -5,6 +5,8 @@ import { Screen, Button, ErrorMessage, s } from "../components/ui";
 import { AppHeader } from "../components/navigation";
 import { useSession } from "../session/provider";
 import { destination } from "../session/routing";
+import { PersonalScreen } from "../components/PersonalScreen";
+import { p } from "../theme/personal";
 
 export default function Account() {
   const session = useSession();
@@ -13,8 +15,9 @@ export default function Account() {
   const [error, setError] = useState("");
   const profile = session.profile;
   if (!profile) return null;
-  return <Screen>
-    <AppHeader title="My account" back account={false} />
+  const Page = profile.role === "personal_student" ? PersonalScreen : Screen;
+  return <Page>
+    {profile.role === "personal_student" ? <Text accessibilityRole="header" style={p.title}>My account</Text> : <AppHeader title="My account" back account={false} />}
     <View style={s.card}>
       <Text style={s.heading}>{profile.username}</Text>
       <Text style={s.body}>{profile.role === "personal_student" ? "Personal learner" : profile.role === "school_student" ? "School student" : "Instructor"}</Text>
@@ -43,5 +46,5 @@ export default function Account() {
         <Button label="Keep my session" secondary onPress={() => setConfirm(false)} />
       </> : <Button label="Sign out of this device" secondary disabled={checking} onPress={() => setConfirm(true)} />}
     </View>
-  </Screen>;
+  </Page>;
 }

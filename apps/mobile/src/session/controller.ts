@@ -67,6 +67,23 @@ export class SessionController {
       this.busy = false;
     }
   }
+  async login(issue: () => Promise<Created>): Promise<Profile> {
+    if (this.busy) throw new Error("Please wait for the current request.");
+    const revision = this.revision;
+    this.busy = true;
+    try {
+      const issued = await issue();
+      this.assertRevision(revision);
+      await this.vault.save(issued.session.credential);
+      this.assertRevision(revision);
+      this.credential = issued.session.credential;
+      this.pending = null;
+      this.blocked = false;
+      return issued.user;
+    } finally {
+      this.busy = false;
+    }
+  }
   private assertRevision(revision: number) {
     if (revision !== this.revision) throw new SessionChangedError();
   }

@@ -1,16 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { BackHandler, Platform, Text, View } from "react-native";
 import { Button, EmptyState, ErrorMessage, Loading, s } from "../../components/ui";
+import { p, pc } from "../../theme/personal";
 import { flashcardResponse, initialCardState, rateCard, recallLabels, revealCard, usableBack, validDeck,
   type FlashcardBack, type FlashcardFront, type FlashcardResponse, type FlashcardState, type PracticeCard, type Recall } from "./flashcards";
 
 /** Back props must already be authorized for practice; hiding text is not server authorization. */
-export function FlashcardQuestion({ front, back, value, onChange, disabled = false, onRetry, allowRecallRevision = false }: {
+export function FlashcardQuestion({ front, back, value, onChange, disabled = false, onRetry, allowRecallRevision = false, practice = false }: {
   front: FlashcardFront; back: FlashcardBack | null; value: FlashcardState; onChange: (state: FlashcardState) => void;
   disabled?: boolean; onRetry?: () => void; allowRecallRevision?: boolean;
+  practice?: boolean;
 }) {
   const available = usableBack(front, back), revealed = available && value.revealed;
   function change(next: FlashcardState) { if (!disabled && next !== value) onChange(next); }
+  if (practice) return <View style={{ gap: 20 }}>
+    <View style={p.card}><Text style={p.eyebrow}>Active recall · Flashcard</Text><Text accessibilityRole="header" style={{ fontSize: 30, fontWeight: "600", letterSpacing: -0.8, color: pc.ink }}>{front.cue}</Text>
+      <Text style={p.caption}>{front.prompt}</Text><View style={p.rule} />
+      <Text style={p.eyebrow}>{revealed ? "Meaning & explanation" : "Think of your answer"}</Text>
+      <Text style={[p.body, { color: pc.ink, fontSize: 16, lineHeight: 26 }]}>{revealed ? back!.back : "Recall the meaning before revealing the card."}</Text>
+      {!revealed && <Button label="Reveal back" disabled={disabled || !available} onPress={() => change(revealCard(front, back, value))} />}
+    </View>
+    {revealed && <><View style={p.note}><Text style={[p.caption, { color: pc.teal }]}>✓ Back revealed</Text><Text style={p.body}>How did that feel? This is your own recall check, not a test score or a review schedule.</Text></View>
+      <Text style={p.eyebrow}>Choose your recall experience</Text><View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{(Object.keys(recallLabels) as Recall[]).map((rating, index) => <Button key={rating} label={rating.charAt(0).toUpperCase() + rating.slice(1)}
+        disabled={disabled || value.recall !== null} onPress={() => change(rateCard(value, rating))} style={{ flex: 1, minWidth: 65, backgroundColor: ["#F9DDE4", "#E5E8EE", pc.navy, pc.teal][index] }} textStyle={{ color: index < 2 ? pc.ink : "white", fontSize: 12 }} />)}</View>
+      <Text accessibilityLiveRegion="polite" style={p.caption}>{value.recall ? `You chose ${value.recall}. Nothing is scheduled or saved.` : "Optional · Choose once for this card visit."}</Text></>}
+  </View>;
   return <View style={[s.card, { gap: 16 }]}>
     <Text accessibilityRole="header" style={s.heading}>{front.prompt}</Text>
     {!!front.instructions && <Text style={s.body}>{front.instructions}</Text>}

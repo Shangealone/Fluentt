@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { Button, ErrorMessage, s } from "../../components/ui";
-import type { CaptureItem, RevealedBack } from "../../services/api/capture";
+import type { AssignmentItem } from "../../services/api/assignments";
+import type { RevealedBack } from "../../services/api/capture";
 import { ChoiceQuestion } from "../questions/ChoiceQuestion";
 import { choiceItemFromRevision, type ChoiceResponse } from "../questions/choice";
 import { TextQuestion } from "../questions/TextQuestion";
@@ -14,11 +15,13 @@ import { MatchingQuestion } from "../questions/MatchingQuestion";
 import { matchingItemFromRevision, type MatchPair } from "../questions/matching";
 import { FlashcardQuestion } from "../questions/FlashcardQuestion";
 import { flashcardFrontFromRevision, type Recall } from "../questions/flashcards";
+import { p, pc } from "../../theme/personal";
 
-export function CaptureQuestion({ item, answer, back, disabled, onChange, onReveal, review = false }: {
-  item: CaptureItem; answer: Record<string, unknown> | undefined; back: RevealedBack | null; disabled: boolean;
+export function CaptureQuestion({ item, answer, back, disabled, onChange, onReveal, review = false, practice = false }: {
+  item: AssignmentItem & { assignment_question_id?: string }; answer: Record<string, unknown> | undefined; back: Pick<RevealedBack, "revision_id" | "back"> | null; disabled: boolean;
   onChange: (answer: Record<string, unknown>) => void; onReveal: () => void;
   review?: boolean;
+  practice?: boolean;
 }) {
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const method = item.definition.method;
@@ -45,12 +48,12 @@ export function CaptureQuestion({ item, answer, back, disabled, onChange, onReve
     if (front && review) return <View style={s.card}><Text style={s.heading} accessibilityRole="header">{front.prompt}</Text>
       {!!front.instructions && <Text style={s.body}>{front.instructions}</Text>}<Text style={s.body}>{front.cue}</Text>
       <Text style={s.body}>Submitted recall: {typeof answer?.recall === "string" ? answer.recall : "No self-report"}. Subjective recall is not objectively scored. Card back withheld.</Text></View>;
-    if (front && !back) return <View style={s.card}><Text style={s.heading} accessibilityRole="header">{front.prompt}</Text>
-      {!!front.instructions && <Text style={s.body}>{front.instructions}</Text>}<Text style={s.body}>{front.cue}</Text>
-      <Button label="Reveal assignment card back" disabled={disabled} onPress={onReveal} />
-      <Text style={s.body}>Reveal deliberately, then optionally report recall. This is unscored classroom capture, without spaced-repetition scheduling.</Text></View>;
+    if (front && !back) return <View style={practice ? p.card : s.card}>{practice && <Text style={p.eyebrow}>Active recall · Flashcard</Text>}<Text style={practice ? p.heading : s.heading} accessibilityRole="header">{front.prompt}</Text>
+      {!!front.instructions && <Text style={s.body}>{front.instructions}</Text>}<Text style={practice ? { fontSize: 30, color: pc.ink, fontWeight: "600", paddingVertical: 12 } : s.body}>{front.cue}</Text>
+      <Button label={practice ? "Reveal card back" : "Reveal assignment card back"} disabled={disabled} onPress={onReveal} />
+      <Text style={s.body}>{practice ? "Think of your answer, reveal the card, then optionally report how it felt." : "Reveal deliberately, then optionally report recall. This is unscored classroom capture, without spaced-repetition scheduling."}</Text></View>;
     if (front && back) return <FlashcardQuestion front={front} back={back} value={{ revealed: true, recall: answer?.recall as Recall ?? null }}
-      allowRecallRevision disabled={disabled || review} onChange={next => { if (next.recall) onChange({ recall: next.recall }); }} />;
+      practice={practice} allowRecallRevision={!practice} disabled={disabled || review} onChange={next => { if (next.recall) onChange({ recall: next.recall }); }} />;
   }
-  return <ErrorMessage message="This question format could not be verified. Reload the assignment before continuing." />;
+  return <ErrorMessage message={practice ? "This question format could not be verified. Choose another lesson." : "This question format could not be verified. Reload the assignment before continuing."} />;
 }

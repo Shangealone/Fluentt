@@ -32,6 +32,7 @@ const DEMO_USERNAMES: Record<string, { handle: string; badge: string; desc: stri
     { handle: "mark_pinoy", badge: "Beginner", desc: "Tagalog Vocabulary Track" },
   ],
 };
+const DEMO_PASSWORD = "FluenttDemo123!";
 
 export default function Username() {
   const { role } = useLocalSearchParams<{ role?: string }>();
@@ -46,6 +47,9 @@ export default function Username() {
   const [attempt, setAttempt] = useState(0);
   const [sample, setSample] = useState<string | null>(null);
   const [createdUsername, setCreatedUsername] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const lock = useRef(false);
   const invalid = usernameError(name);
 
@@ -54,11 +58,13 @@ export default function Username() {
   function applyAutofill(handle: string) {
     setSample(handle);
     setName(handle);
+    setPassword(DEMO_PASSWORD);
+    setConfirmPassword(DEMO_PASSWORD);
     setChecked(handle);
     setAvailable(true);
     setChecking(false);
     setError("");
-    setFeedback("Sample username selected. No real account will be created.");
+    setFeedback("Demo username and password filled. No real account will be created.");
   }
 
   useEffect(() => {
@@ -120,11 +126,25 @@ export default function Username() {
   async function submit(overrideName?: string, preview = sample === name) {
     const finalName = overrideName ?? name;
     if (lock.current) return;
+    if (!preview && sample !== finalName) {
+      if (password.length > 0 && password.length < 6) {
+        setError("Password must be at least 6 characters.");
+        return;
+      }
+      if (password.length > 0 && password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+    }
     lock.current = true;
     setBusy(true);
     setError("");
     try {
-      await session.create(finalName, role as Role, preview);
+      if (preview || !password) {
+        await session.create(finalName, role as Role, preview);
+      } else {
+        await session.create(finalName, role as Role, preview, password);
+      }
       setCreatedUsername(finalName);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Please try again.");
@@ -160,7 +180,7 @@ export default function Username() {
           <Text style={userStyles.autofillTitle}>Autofill Demo Account</Text>
         </View>
         <Text style={userStyles.autofillSub}>
-          Choose a sample username, then press Continue to open its demo dashboard.
+          Choose a sample account to fill its username and password, then press Continue. Demo password: FluenttDemo123!
         </Text>
         <View style={userStyles.chipsContainer}>
           {suggestions.map((item) => {
@@ -198,6 +218,10 @@ export default function Username() {
         value={name}
         editable={!busy && !session.pending}
         onChangeText={(value) => {
+          if (sample !== null) {
+            setPassword("");
+            setConfirmPassword("");
+          }
           setSample(null);
           setCreatedUsername(null);
           setName(value);
@@ -210,9 +234,51 @@ export default function Username() {
         autoCapitalize="none"
         autoCorrect={false}
         maxLength={24}
-        placeholder="e.g. bright_learner"
+        placeholder="e.g. Shan Gealone"
         returnKeyType="done"
       />
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+        <Text style={s.heading}>Password</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+          onPress={() => setShowPassword(!showPassword)}
+          hitSlop={8}
+        >
+          <Text style={{ fontSize: 13, fontWeight: "700", color: theme.colors.primary }}>
+            {showPassword ? "Hide" : "Show"}
+          </Text>
+        </Pressable>
+      </View>
+      <Input
+        accessibilityLabel="Password"
+        value={password}
+        editable={!busy && !session.pending}
+        secureTextEntry={!showPassword}
+        onChangeText={(val) => {
+          setPassword(val);
+          setError("");
+        }}
+        autoCapitalize="none"
+        placeholder="At least 6 characters"
+        returnKeyType="next"
+      />
+
+      <Text style={[s.heading, { marginTop: 8 }]}>Confirm Password</Text>
+      <Input
+        accessibilityLabel="Confirm Password"
+        value={confirmPassword}
+        editable={!busy && !session.pending}
+        secureTextEntry={!showPassword}
+        onChangeText={(val) => {
+          setConfirmPassword(val);
+          setError("");
+        }}
+        autoCapitalize="none"
+        placeholder="Re-enter your password"
+        returnKeyType="done"
+      />
+
       {name && invalid ? <ErrorMessage message={invalid} /> : null}
       {checking && <Loading />}
       {checked === name && feedback ? (
@@ -261,6 +327,13 @@ export default function Username() {
               (!!invalid || (!available && !session.isDemo && Platform.OS !== "web") || checking))
           }
           onPress={() => void submit()}
+        />
+
+        <Button
+          label="Already have an account? Sign in here →"
+          variant="ghost"
+          disabled={busy || session.pending}
+          onPress={() => router.push("/login")}
         />
 
         {/* Quick Launch with Default Primary */}

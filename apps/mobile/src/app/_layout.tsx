@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Platform, Text } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -7,6 +7,7 @@ import { SessionProvider, useSession } from "../session/provider";
 import { destination, routeAllowed } from "../session/routing";
 import { Screen, Loading, ErrorMessage, Button, s } from "../components/ui";
 import { DemoNavigator } from "../components/DemoNavigator";
+import { PersonalBottomNavigation } from "../components/PersonalBottomNavigation";
 function Navigator() {
   const session = useSession();
   if (session.loading || session.error) return <Screen>
@@ -29,6 +30,7 @@ function Navigator() {
         <Stack.Screen name="school-role" />
       </Stack.Protected>
       <Stack.Screen name="username" options={{ gestureEnabled: !session.pending }} />
+      <Stack.Screen name="login" />
     </Stack.Protected>
     <Stack.Protected guard={allowed("instructor")} redirectTo={target}>
       <Stack.Screen name="instructor" />
@@ -40,7 +42,7 @@ function Navigator() {
       <Stack.Screen name="assignment-builder" />
       <Stack.Screen name="assignment-results" />
     </Stack.Protected>
-    {(["grade", "learning-focus", "language", "student"] as const).map((name) => <Stack.Protected key={name} guard={allowed(name)} redirectTo={target}>
+    {(["grade", "learning-focus", "language", "experience", "student", "question-practice", "personal-stats", "conversation", "pronunciation", "research"] as const).map((name) => <Stack.Protected key={name} guard={allowed(name)} redirectTo={target}>
       <Stack.Screen name={name} />
     </Stack.Protected>)}
     <Stack.Protected guard={allowed("class-code")} redirectTo={target}>
@@ -56,6 +58,12 @@ function Navigator() {
     </Stack.Protected>
     <Stack.Protected guard={allowed("account")} redirectTo={target}>
       <Stack.Screen name="account" />
+    </Stack.Protected>
+    <Stack.Protected guard={allowed("notifications")} redirectTo={target}>
+      <Stack.Screen name="notifications" />
+    </Stack.Protected>
+    <Stack.Protected guard={allowed("learning-materials")} redirectTo={target}>
+      <Stack.Screen name="learning-materials" />
     </Stack.Protected>
     <Stack.Protected guard={allowed("learning-history")} redirectTo={target}>
       <Stack.Screen name="learning-history" />
@@ -119,7 +127,10 @@ export default function Layout() {
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <SessionProvider>
-        <Navigator />
+        <View style={{ flex: 1 }}>
+          <View style={{ flex: 1 }}><Navigator /></View>
+          <PersonalBottomNavigation />
+        </View>
         <DemoNavigator />
       </SessionProvider>
     </SafeAreaProvider>

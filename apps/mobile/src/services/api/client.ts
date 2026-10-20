@@ -59,11 +59,17 @@ export async function request<T>(
       method,
       signal: controller.signal,
       headers: {
-        "Content-Type": "application/json",
+        ...(typeof FormData !== "undefined" && body instanceof FormData
+          ? {}
+          : { "Content-Type": "application/json" }),
         ...extraHeaders,
         ...(credential ? { Authorization: `Bearer ${credential}` } : {}),
       },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined
+        ? {}
+        : typeof FormData !== "undefined" && body instanceof FormData
+        ? { body }
+        : { body: JSON.stringify(body) }),
     });
     if (!response.ok) {
       const messages: Record<number, string> = {

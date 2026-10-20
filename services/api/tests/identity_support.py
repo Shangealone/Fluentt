@@ -27,6 +27,9 @@ class MemoryIdentityRepository:
     def username_exists(self, canonical):
         return canonical in self.users
 
+    def find_user_by_canonical_username(self, canonical):
+        return self.users.get(canonical)
+
     def add_user(self, user):
         user.canonical_username = normalize_username(user.username)
         self.users[user.canonical_username] = user

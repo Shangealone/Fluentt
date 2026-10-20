@@ -98,7 +98,7 @@ test('restored backend membership completion routes school students without chan
   assert.equal(vault.value, 'test-only');
   assert.equal(await controller.restore(async () => { throw new ApiError(401,'revoked'); }), null);
   assert.equal(vault.value, null);
-  assert.equal(destination({ role:'personal_student', grade:null, language:null }), '/grade');
+  assert.equal(destination({ role:'personal_student', grade:null, language:null }), '/learning-focus');
   assert.equal(destination({ role:'personal_student', grade:5, language:'english' }), '/student');
   assert.equal(destination({ role:'instructor', profile_status:'onboarding' }), '/first-class');
   assert.equal(destination({ role:'instructor', profile_status:'active' }), '/instructor');

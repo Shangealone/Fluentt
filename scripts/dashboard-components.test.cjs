@@ -11,12 +11,13 @@ let currentSession;
 let currentState;
 const routerEvents = [];
 let hasPreviousScreen = true;
+let currentPath = '/student';
 const originalLoad = Module._load;
 Module._load = function(name, parent, isMain) {
   if (name === 'react-native') return local('react-native-web');
   if (name === 'react-native-safe-area-context') return { SafeAreaView: local('react-native-web').View };
   if (name === 'expo-clipboard') return { setStringAsync: async () => false };
-  if (name === 'expo-router') return { router: { push() {}, replace(path) { routerEvents.push(['replace', path]); }, canGoBack() { return hasPreviousScreen; }, back() { routerEvents.push(['back']); } }, useLocalSearchParams: () => ({ id: 'synthetic' }), useFocusEffect() {} };
+  if (name === 'expo-router') return { router: { push() {}, navigate(path) { routerEvents.push(['navigate', path]); }, replace(path) { routerEvents.push(['replace', path]); }, canGoBack() { return hasPreviousScreen; }, back() { routerEvents.push(['back']); } }, usePathname: () => currentPath, useLocalSearchParams: () => ({ id: 'synthetic' }), useFocusEffect() {} };
   if (name.endsWith('/session/provider')) return { useSession: () => currentSession };
   if (name.endsWith('/dashboard/usePagedList')) return { usePagedList: () => ({ state: currentState, reload() {}, more() {} }) };
   return originalLoad.call(this, name, parent, isMain);
@@ -38,15 +39,16 @@ const owned = { id: 'synthetic-owned', class_name: 'Synthetic owned class', grad
   join_code: '000042', status: 'active', created_at: '2026-10-17T00:00:00Z' };
 function render(name, role, phase = 'ready', rows = []) {
   currentSession = { profile: { id: 'synthetic', username: 'SyntheticLearner', role, profile_status: 'active',
-    grade: role === 'personal_student' ? 6 : null, language: role === 'personal_student' ? 'tagalog' : null },
+    grade: role === 'personal_student' ? 6 : null, language: role === 'personal_student' ? 'tagalog' : null, experience: role === 'personal_student' ? 'some_words' : null },
     classes: {}, enrollment: {}, refreshProfile: async () => currentSession.profile, logout() {}, save: async () => {} };
   currentState = { phase, rows, error: phase === 'error' ? 'Backend unavailable' : null, hasMore: false };
   return renderToStaticMarkup(React.createElement(screens[name]));
 }
 
-test('personal dashboard shows saved profile/preferences, account action and explicitly future modules', () => {
+test('personal dashboard has exactly the three learning activities and essential account access', () => {
   const html = render('student', 'personal_student');
-  for (const text of ['SyntheticLearner', 'Your learning focus', 'Topics:', 'Lessons:', 'Tagalog', 'Edit learning preferences', 'My account', 'not yet available']) assert.ok(html.includes(text), text);
+  for (const text of ['SyntheticLearner', 'Conversation simulator', 'Learn pronunciation', 'Questions &amp; activities', 'My account', 'difficulty']) assert.ok(html.includes(text), text);
+  for (const text of ['Research', 'Notifications', 'Learning history', 'Your learning focus', 'not yet available']) assert.ok(!html.includes(text), text);
   assert.ok(!html.includes('Grade 6'));
   assert.ok(!html.includes('Create a class'));
   assert.ok(!html.includes('Join another class'));
@@ -87,7 +89,7 @@ test('preference editor renders supported saved choices and no unsupported ident
   const html = render('preferences', 'personal_student');
   assert.ok(html.includes('Save preferences')); assert.ok(!html.includes('Grade 6'));
   assert.ok(html.includes('Topics I need help with')); assert.ok(html.includes('Lessons I want to work on'));
-  assert.ok(html.includes('Tagalog')); assert.ok(html.includes('aria-checked="true"'));
+  assert.ok(html.includes('Tagalog')); assert.ok(html.includes('Change language or starting level'));
   assert.ok(!html.includes('Change username')); assert.ok(!html.includes('Change role'));
 });
 test('class details hide old class data when current read fails', () => {
@@ -107,4 +109,39 @@ test('shared back control uses real history, with a safe entry fallback for dire
   hasPreviousScreen = true;
   for (const name of ['student', 'instructor', 'account', 'preferences', 'class-details'])
     assert.ok(render(name, name === 'instructor' || name === 'class-details' ? 'instructor' : 'personal_student').includes('Go back to the previous screen'), name);
+});
+
+test('personal bottom tabs expose every activity, select the current page, and avoid duplicate navigation', () => {
+  const { PersonalBottomNavigation } = local(path.join(mobile, 'src/components/PersonalBottomNavigation.tsx'));
+  render('student', 'personal_student');
+  currentPath = '/question-practice';
+  const html = renderToStaticMarkup(React.createElement(PersonalBottomNavigation));
+  for (const name of ['Home', 'Conversation simulator', 'Pronunciation practice', 'Questions and activities', 'Personal learning statistics']) assert.ok(html.includes(`aria-label="${name}"`), name);
+  assert.equal((html.match(/role="tab"/g) ?? []).length, 5);
+  assert.equal((html.match(/aria-selected="true"/g) ?? []).length, 1);
+  const tabElements = PersonalBottomNavigation().props.children.props.children;
+  routerEvents.length = 0;
+  tabElements[1].props.onPress(); assert.deepEqual(routerEvents, []);
+  tabElements[3].props.onPress(); assert.deepEqual(routerEvents, [['navigate', '/conversation']]);
+  tabElements[4].props.onPress(); assert.deepEqual(routerEvents.at(-1), ['navigate', '/personal-stats']);
+  for (const state of [{loading:true},{error:'Session unavailable'},{profile:null}]) {
+    const previous = currentSession; currentSession = {...previous,...state};
+    assert.equal(PersonalBottomNavigation(), null); currentSession = previous;
+  }
+  for (const route of ['/username','/learning-focus','/preferences']) {
+    currentPath = route; assert.equal(PersonalBottomNavigation(), null);
+  }
+  currentPath = '/student'; render('student', 'school_student'); assert.equal(PersonalBottomNavigation(), null);
+});
+
+test('reference-style Stats honestly withholds unsupported personal measurements', () => {
+  render('student', 'personal_student');
+  const Stats = local(path.join(mobile, 'src/app/personal-stats.tsx')).default;
+  const html = renderToStaticMarkup(React.createElement(Stats));
+  assert.ok(html.includes('Personal tracking unavailable'));
+  assert.equal((html.match(/Not measured/g) ?? []).length, 4);
+  for (const claim of ['84%', '88%', '14 days', 'ESR v4.2', 'Native 94%', 'Mastered']) assert.ok(!html.includes(claim), claim);
+  const {routeAllowed} = local(path.join(mobile,'src/session/routing.ts'));
+  assert.equal(routeAllowed(currentSession.profile, 'personal-stats'), true);
+  assert.equal(routeAllowed({...currentSession.profile,role:'school_student'}, 'personal-stats'), false);
 });

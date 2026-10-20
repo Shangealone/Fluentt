@@ -78,7 +78,7 @@ def test_check_and_duplicate_do_not_claim_profile(identity_api):
         "a" * 25,
         " leading",
         "trailing ",
-        "with spaces",
+        "with\tspaces",
         "bad!",
         "éclair",
         "ADMIN",

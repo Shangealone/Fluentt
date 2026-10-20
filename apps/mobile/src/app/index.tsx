@@ -28,9 +28,16 @@ export default function Welcome() {
       <View style={[s.card, styles.path]}>
         <View style={[styles.step, { backgroundColor: "#FFF2DC" }]}><Text style={[styles.stepText, { color: "#80581F" }]}>02</Text></View>
         <Text accessibilityRole="header" style={s.heading}>Set up personal learning</Text>
-        <Text style={s.body}>Tell us the lessons and topics you need, and choose your language. Personal learning activities are coming later.</Text>
+        <Text style={s.body}>Practise conversations, learn pronunciation, and explore lessons and topics by difficulty.</Text>
         <Button label="Create a personal profile" secondary onPress={() => router.push({ pathname: "/username", params: { role: "personal_student" } })} />
       </View>
+    </View>
+    <View style={[s.card, styles.loginCard]}>
+      <View style={styles.loginCardLeft}>
+        <Text accessibilityRole="header" style={s.subheading}>Already have an account?</Text>
+        <Text style={s.body}>Sign in with your username and password to access your classes and history.</Text>
+      </View>
+      <Button label="Sign In with Password →" secondary onPress={() => router.push("/login")} />
     </View>
     <View style={[s.card, styles.preview]}>
       <Badge label="Sample data only" variant="neutral" />
@@ -53,6 +60,8 @@ const styles = StyleSheet.create({
   step: { height: 44, width: 44, borderRadius: 12, backgroundColor: theme.colors.primaryLight, justifyContent: "center", alignItems: "center" },
   stepText: { color: theme.colors.primary, fontSize: 16, fontWeight: "800" },
   preview: { backgroundColor: "#EEF1F8", gap: 12 },
+  loginCard: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12, backgroundColor: "#F0F4FF", borderColor: "#D0DBF5" },
+  loginCardLeft: { flex: 1, minWidth: 200, gap: 4 },
   demoActions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   footer: { color: theme.colors.muted, textAlign: "center", fontSize: 13, paddingVertical: 16 },
 });

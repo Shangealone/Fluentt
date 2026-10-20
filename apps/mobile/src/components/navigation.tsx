@@ -65,10 +65,41 @@ export function AppHeader({
         )}
       </View>
 
-      {navigation && profile && <View style={navStyles.quickNav}>
+      {navigation && profile && profile.role !== "personal_student" && <View style={navStyles.quickNav}>
         <Button label="Home" icon="⌂" size="sm" variant="outline" disabled={disabled} onPress={() => router.push(profile.role === "instructor" ? "/instructor" : destination(profile))} />
-        {profile.role !== "personal_student" && <Button label="Messages" icon="✉" size="sm" variant="ghost" disabled={disabled} onPress={() => router.push("/communication")} />}
-        <Button icon={profile.role === "instructor" ? "▥" : profile.role === "school_student" ? "◷" : "⚙"} label={profile.role === "instructor" ? "Class monitoring" : profile.role === "school_student" ? "Learning history" : "Learning focus"} size="sm" variant="ghost" disabled={disabled} onPress={() => router.push(profile.role === "instructor" ? "/instructor-monitoring" : profile.role === "school_student" ? "/learning-history" : "/preferences")} />
+        <Button label="Messages" icon="✉" size="sm" variant="ghost" disabled={disabled} onPress={() => router.push("/communication")} />
+        <Button label="Notifications" icon="🔔" size="sm" variant="ghost" disabled={disabled} onPress={() => router.push("/notifications")} />
+        {profile.role !== "instructor" && (
+          <Button
+            label="Pronunciation"
+            icon="🎙"
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            onPress={() => router.push("/pronunciation")}
+          />
+        )}
+        {profile.role !== "instructor" && (
+          <Button
+            label="Conversation"
+            icon="💬"
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            onPress={() => router.push("/conversation")}
+          />
+        )}
+        {profile.role === "school_student" && (
+          <Button
+            label="Research"
+            icon="🔬"
+            size="sm"
+            variant="ghost"
+            disabled={disabled}
+            onPress={() => router.push("/research")}
+          />
+        )}
+        <Button icon={profile.role === "instructor" ? "▥" : "◷"} label={profile.role === "instructor" ? "Class monitoring" : "Learning history"} size="sm" variant="ghost" disabled={disabled} onPress={() => router.push(profile.role === "instructor" ? "/instructor-monitoring" : "/learning-history")} />
       </View>}
 
       {/* Main Title Section */}
@@ -113,14 +144,11 @@ export function LoadState({
 export function UpcomingLearning({ school = false }: { school?: boolean }) {
   return (
     <View style={[s.card, navStyles.upcomingCard]}>
-      <Text style={s.subheading}>More ways to learn are on the way</Text>
+      <Text style={s.subheading}>More ways to learn</Text>
       <Text style={s.body}>
-        Independent practice and pronunciation activities are not yet available.
-      </Text>
-      <Text style={[s.body, { fontSize: 13, color: theme.colors.subtle }]}>
         {school
-          ? "Classroom assignments, released objective results, and submission counts are active for your enrolled classes."
-          : "Your learning preferences are saved to your profile. No classroom code is needed."}
+          ? "Classroom assignments, released objective results, and spoken pronunciation practice are active."
+          : "Personal learning pathway, learning materials, and spoken pronunciation practice are active."}
       </Text>
     </View>
   );

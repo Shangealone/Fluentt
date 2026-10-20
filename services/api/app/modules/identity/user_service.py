@@ -4,7 +4,7 @@ from uuid import uuid4
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import Settings
-from app.core.security import issue_credential
+from app.core.security import hash_password, issue_credential, verify_password
 from app.core.usernames import UsernameValidationError, validate_new_username
 from app.models.users import User, UserSession
 from app.modules.identity.errors import IdentityError, username_taken
@@ -13,6 +13,7 @@ from app.modules.identity.schemas import (
     CreatedUser,
     CreateUserRequest,
     IssuedSession,
+    LoginRequest,
     MobileProfile,
     UsernameAvailability,
     MOBILE_ROLES,
@@ -51,9 +52,11 @@ def create_user(repository: IdentityRepository, request: CreateUserRequest, sett
         with repository.transaction():
             if repository.username_exists(canonical):
                 raise username_taken()
+            password_hash = hash_password(request.password) if request.password else None
             user = User(
                 id=uuid4(),
                 username=request.username,
+                password_hash=password_hash,
                 role=request.role,
                 profile_status="onboarding",
                 onboarding_step=ONBOARDING_STEPS[request.role],
@@ -85,3 +88,37 @@ def create_user(repository: IdentityRepository, request: CreateUserRequest, sett
         if getattr(exc.orig, "sqlstate", None) == "23505" and constraint == "uq_users_canonical_username":
             raise username_taken() from None
         raise
+
+
+def login_user(repository: IdentityRepository, request: LoginRequest, settings: Settings) -> CreatedUser:
+    canonical = request.username.strip().lower()
+    now = datetime.now(timezone.utc)
+    with repository.transaction():
+        user = repository.find_user_by_canonical_username(canonical)
+        if user is None:
+            raise IdentityError(401, "invalid_credentials", "Invalid username or password.")
+        if not user.password_hash or not verify_password(request.password, user.password_hash):
+            raise IdentityError(401, "invalid_credentials", "Invalid username or password.")
+        if user.profile_status in ("disabled", "archived"):
+            raise IdentityError(403, "account_inactive", "This account is inactive.")
+
+        issued = issue_credential()
+        expires = now + timedelta(days=settings.mobile_session_idle_days)
+        absolute = now + timedelta(days=settings.mobile_session_absolute_days)
+        session = UserSession(
+            id=uuid4(),
+            user_id=user.id,
+            credential_digest=issued.digest,
+            created_at=now,
+            updated_at=now,
+            expires_at=expires,
+            absolute_expires_at=absolute,
+        )
+        repository.add_session(session)
+        repository.flush()
+        profile = repository.mobile_profile(user)
+        return CreatedUser(
+            user=profile,
+            session=IssuedSession(credential=issued.raw, expires_at=expires, absolute_expires_at=absolute),
+        )
+

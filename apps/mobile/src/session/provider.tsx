@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { identity, type Profile, type Role, type PreferenceSettings } from "../services/api/identity";
+import { identity, type Profile, type Role, type PreferenceSettings, type LearningExperience } from "../services/api/identity";
 import { secureVault } from "./vault";
 import { SessionChangedError, SessionController } from "./controller";
 import { classApi, type ClassAccess } from "../services/api/classes";
@@ -14,6 +14,18 @@ import { progressAccess, type ProgressAccess } from "../services/api/progress";
 import { monitoringAccess, type MonitoringAccess } from "../services/api/monitoring";
 
 import { communicationAccess, type CommunicationAccess } from "../services/api/communications";
+import { pathwayAccess, type PathwayAccess } from "../services/api/pathways";
+import {
+  materialsAccess,
+  notificationsAccess,
+  type MaterialsAccess,
+  type NotificationsAccess,
+} from "../services/api/materials";
+import { pronunciationAccess, type PronunciationAccess } from "../services/api/pronunciation";
+import { conversationAccess, type ConversationAccess } from "../services/api/conversation";
+import { researchAccess, type ResearchAccess } from "../services/api/research";
+import { practiceAccess, type PracticeAccess } from "../services/api/practice";
+import { createDemoPracticeApi } from "../demo/personalPractice";
 import {
   DEMO_PROFILES,
   createDemoClassesApi,
@@ -24,10 +36,43 @@ import {
   createDemoProgressApi,
   createDemoMonitoringApi,
   createDemoCommunicationApi,
+  createDemoPathwayApi,
+  createDemoMaterialsApi,
+  createDemoNotificationsApi,
+  createDemoPronunciationApi,
+  createDemoConversationApi,
+  createDemoResearchApi,
   demoStore,
 } from "../demo/demoData";
 
-const vault = secureVault(SecureStore, Platform.OS);
+let webMemoryToken: string | null = null;
+const webVault = {
+  read: async () => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        return window.localStorage.getItem("fluentt.device-session");
+      }
+    } catch {}
+    return webMemoryToken;
+  },
+  save: async (credential: string) => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem("fluentt.device-session", credential);
+      }
+    } catch {}
+    webMemoryToken = credential;
+  },
+  clear: async () => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem("fluentt.device-session");
+      }
+    } catch {}
+    webMemoryToken = null;
+  },
+};
+const vault = Platform.OS === "web" ? webVault : secureVault(SecureStore, Platform.OS);
 type Recovery = "restore" | "logout" | "clear";
 export type DemoRole = "instructor" | "student" | "personal";
 
@@ -37,7 +82,8 @@ type Session = {
   error: string | null;
   recovery: Recovery;
   retry: () => void;
-  create: (username: string, role: Role, preview?: boolean) => Promise<void>;
+  create: (username: string, role: Role, preview?: boolean, password?: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   save: (settings: PreferenceSettings) => Promise<void>;
   logout: () => void;
   pending: boolean;
@@ -49,6 +95,13 @@ type Session = {
   progress: ProgressAccess;
   monitoring: MonitoringAccess;
   communication: CommunicationAccess;
+  pathway: PathwayAccess;
+  materials: MaterialsAccess;
+  notifications: NotificationsAccess;
+  pronunciation: PronunciationAccess;
+  conversation: ConversationAccess;
+  research: ResearchAccess;
+  practice: PracticeAccess;
   refreshProfile: () => Promise<Profile | null>;
   isDemo: boolean;
   demoRole: DemoRole;
@@ -66,6 +119,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [demoRole, setDemoRole] = useState<DemoRole>("instructor");
   const [demoProfiles, setDemoProfiles] = useState(() => ({ ...DEMO_PROFILES }));
   const [demoVersion, setDemoVersion] = useState(0);
+  const demoExperience = useRef<Record<string, LearningExperience>>({ tagalog: "some_words" });
 
   const [pending, setPending] = useState(false);
   const [recovery, setRecovery] = useState<Recovery>("restore");
@@ -153,6 +207,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const liveCommunication = useMemo(() => communicationAccess(authenticated), [authenticated]);
   const liveMonitoring = useMemo(() => monitoringAccess(authenticated), [authenticated]);
   const liveProgress = useMemo(() => progressAccess(authenticated), [authenticated]);
+  const livePathway = useMemo(() => pathwayAccess(authenticated), [authenticated]);
+  const liveMaterials = useMemo(() => materialsAccess(authenticated), [authenticated]);
+  const liveNotifications = useMemo(() => notificationsAccess(authenticated), [authenticated]);
+  const livePronunciation = useMemo(() => pronunciationAccess(authenticated), [authenticated]);
+  const liveConversation = useMemo(() => conversationAccess(authenticated), [authenticated]);
+  const liveResearch = useMemo(() => researchAccess(authenticated), [authenticated]);
+  const livePractice = useMemo(() => practiceAccess(authenticated), [authenticated]);
+
 
   const demoClasses = useMemo(() => createDemoClassesApi(), [demoVersion]);
   const demoEnrollment = useMemo(() => createDemoEnrollmentApi(), [demoVersion]);
@@ -162,6 +224,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const demoProgress = useMemo(() => createDemoProgressApi(), [demoVersion]);
   const demoMonitoring = useMemo(() => createDemoMonitoringApi(), [demoVersion]);
   const demoCommunication = useMemo(() => createDemoCommunicationApi(), [demoVersion]);
+  const demoPathway = useMemo(() => createDemoPathwayApi(), [demoVersion]);
+  const demoMaterials = useMemo(() => createDemoMaterialsApi(), [demoVersion]);
+  const demoNotifications = useMemo(() => createDemoNotificationsApi(), [demoVersion]);
+  const demoPronunciation = useMemo(() => createDemoPronunciationApi(), [demoVersion]);
+  const demoConversation = useMemo(() => createDemoConversationApi(), [demoVersion]);
+  const demoResearch = useMemo(() => createDemoResearchApi(), [demoVersion]);
+  const demoLanguage = demoProfiles[demoRole].language;
+  const demoPractice = useMemo(() => createDemoPracticeApi(demoLanguage ?? "tagalog"), [demoLanguage]);
+
 
   const activeProfile = isDemo ? demoProfiles[demoRole] : profile;
   const classes = isDemo ? demoClasses : liveClasses;
@@ -172,6 +243,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const progress = isDemo ? demoProgress : liveProgress;
   const monitoring = isDemo ? demoMonitoring : liveMonitoring;
   const communication = isDemo ? demoCommunication : liveCommunication;
+  const pathway = isDemo ? demoPathway : livePathway;
+  const materials = isDemo ? demoMaterials : liveMaterials;
+  const notifications = isDemo ? demoNotifications : liveNotifications;
+  const pronunciation = isDemo ? demoPronunciation : livePronunciation;
+  const conversation = isDemo ? demoConversation : liveConversation;
+  const research = isDemo ? demoResearch : liveResearch;
+  const practice = isDemo ? demoPractice : livePractice;
 
   const switchDemoRole = useCallback((role: DemoRole) => {
     setIsDemo(true);
@@ -180,13 +258,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetDemoData = useCallback(() => {
+    demoExperience.current = { tagalog: "some_words" };
     demoStore.reset();
     setDemoProfiles({ ...DEMO_PROFILES });
     setDemoVersion((v) => v + 1);
   }, []);
 
   return <Context.Provider value={{
-    profile: activeProfile, classes, enrollment, assignments, capture, results, progress, monitoring, communication, refreshProfile, loading, error, recovery, pending,
+    profile: activeProfile, classes, enrollment, assignments, capture, results, progress, monitoring, communication, pathway, materials, notifications, pronunciation, conversation, research, practice, refreshProfile, loading, error, recovery, pending,
     isDemo,
     demoRole,
     setDemoMode: setIsDemo,
@@ -201,8 +280,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
       void recover("logout");
     },
-    create: async (username, role, preview = false) => {
-      if (preview || isDemo || Platform.OS === "web") {
+    create: async (username, role, preview = false, password?: string) => {
+      if (preview || isDemo) {
         setIsDemo(true);
         const canon = username.toLowerCase();
         if (role === "instructor") {
@@ -226,16 +305,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
-      try { setProfile(await controller.create(() => identity.create(username, role))); }
+      try { setProfile(await controller.create(() => identity.create(username, role, password))); }
       finally { setPending(controller.pending !== null); }
+    },
+    login: async (username: string, password: string) => {
+      setIsDemo(false);
+      try {
+        setProfile(await controller.login(() => identity.login(username, password)));
+      } finally {
+        setPending(controller.pending !== null);
+      }
     },
     save: async (settings) => {
       if (isDemo) {
+        const language = settings.language ?? demoProfiles.personal.language;
+        if (settings.experience && language) demoExperience.current[language] = settings.experience;
         setDemoProfiles((prev) => ({
           ...prev,
           personal: {
             ...prev.personal,
             ...settings,
+            experience: language ? demoExperience.current[language] ?? null : null,
           },
         }));
         return;

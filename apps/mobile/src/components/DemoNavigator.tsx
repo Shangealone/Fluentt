@@ -205,6 +205,9 @@ export function DemoNavigator() {
     else router.replace("/preferences");
   };
 
+  // Personal learning uses the product tabs; keep the preview launcher off its content.
+  if (session.profile?.role === "personal_student") return null;
+
   return (
     <>
       {/* Floating Demo Hub Button */}

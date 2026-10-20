@@ -22,6 +22,41 @@ from app.modules.identity.user_service import create_user
 pytestmark = pytest.mark.postgresql
 
 
+def test_personal_language_first_experience_restores_independently(live_identity):
+    client = live_identity
+    created = client.post("/api/v1/users", json={"username": "Start " + uuid4().hex[:9], "role": "personal_student"}).json()
+    auth = {"Authorization": "Bearer " + created["session"]["credential"]}
+    url = "/api/v1/users/me/preferences"
+    assert client.patch(url, headers=auth, json={"experience": "starting_fresh"}).status_code == 409
+    first = client.patch(url, headers=auth, json={"language": "english"}).json()
+    assert first["experience"] is None and first["profile_status"] == "onboarding"
+    ready = client.patch(url, headers=auth, json={"experience": "comfortable"}).json()
+    assert ready["experience"] == "comfortable" and ready["profile_status"] == "active"
+    assert ready["grade"] is None and ready["learning_focus"] is None
+    assert client.get("/api/v1/sessions/me", headers=auth).json()["experience"] == "comfortable"
+    changed = client.patch(url, headers=auth, json={"language": "tagalog"}).json()
+    assert changed["experience"] is None and changed["profile_status"] == "onboarding"
+    assert client.patch(url, headers=auth, json={"experience": "some_words"}).json()["profile_status"] == "active"
+    restored = client.patch(url, headers=auth, json={"language": "english"}).json()
+    assert restored["experience"] == "comfortable"
+    for experience in (None, "expert", 5):
+        assert client.patch(url, headers=auth, json={"experience": experience}).status_code == 422
+
+
+def test_spaced_username_creation_login_and_case_insensitive_collision(live_identity):
+    client = live_identity
+    name = "Space " + uuid4().hex[:10]
+    body = {"username": name, "role": "personal_student", "password": "SyntheticPass123!"}
+    created = client.post("/api/v1/users", json=body)
+    assert created.status_code == 201, created.text
+    assert created.json()["user"]["canonical_username"] == name.lower()
+    duplicate = client.post("/api/v1/users", json=body | {"username": name.upper()})
+    assert duplicate.status_code == 409
+    assert client.get("/api/v1/usernames/check", params={"username": name.upper()}).json()["available"] is False
+    login = client.post("/api/v1/sessions/login", json={"username": name.upper(), "password": body["password"]})
+    assert login.status_code == 200, login.text
+
+
 @pytest.fixture
 def live_identity(pg_engine):
     settings = Settings(
@@ -175,3 +210,44 @@ def test_live_focus_roundtrip_preserves_legacy_grade(pg_engine, live_identity):
     assert client.patch("/api/v1/users/me/preferences", headers=headers, json={"learning_focus": changed}).status_code == 200
     restored = client.get("/api/v1/sessions/me", headers=headers).json()
     assert restored["grade"] == 6 and restored["learning_focus"] == changed
+
+
+def test_live_postgresql_password_creation_and_login(pg_engine, live_identity):
+    client = live_identity
+    name = unique_name()
+    password = "LivePostgresPassword123!"
+
+    # 1. Register with password
+    create_res = client.post(
+        "/api/v1/users",
+        json={"username": name, "role": "school_student", "password": password},
+    )
+    assert create_res.status_code == 201
+
+    # Verify password hash exists in live DB and uses scrypt
+    with Session(pg_engine) as db:
+        user = db.scalar(select(User).where(User.canonical_username == name.lower()))
+        assert user.password_hash is not None
+        assert user.password_hash.startswith("scrypt:")
+
+    # 2. Login with correct password
+    login_res = client.post(
+        "/api/v1/sessions/login",
+        json={"username": name, "password": password},
+    )
+    assert login_res.status_code == 200
+    token = login_res.json()["session"]["credential"]
+    assert token.startswith("flt_")
+
+    # 3. Access profile with new token
+    me_res = client.get("/api/v1/sessions/me", headers={"Authorization": f"Bearer {token}"})
+    assert me_res.status_code == 200
+    assert me_res.json()["username"] == name
+
+    # 4. Login with wrong password
+    bad_login = client.post(
+        "/api/v1/sessions/login",
+        json={"username": name, "password": "WrongPassword!"},
+    )
+    assert bad_login.status_code == 401
+

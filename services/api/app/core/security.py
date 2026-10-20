@@ -25,3 +25,23 @@ def credential_digest(raw: str) -> str:
 
 def valid_credential_format(raw: str) -> bool:
     return CREDENTIAL_FORMAT.fullmatch(raw) is not None
+
+
+def hash_password(password: str) -> str:
+    """Hash password using scrypt with unique salt."""
+    salt = secrets.token_hex(16)
+    key = hashlib.scrypt(password.encode("utf-8"), salt=salt.encode("ascii"), n=16384, r=8, p=1).hex()
+    return f"scrypt:{salt}:{key}"
+
+
+def verify_password(password: str, hashed: str | None) -> bool:
+    """Verify password against scrypt hash in constant time."""
+    if not hashed:
+        return False
+    parts = hashed.split(":")
+    if len(parts) != 3 or parts[0] != "scrypt":
+        return False
+    salt, expected_key = parts[1], parts[2]
+    candidate_key = hashlib.scrypt(password.encode("utf-8"), salt=salt.encode("ascii"), n=16384, r=8, p=1).hex()
+    return secrets.compare_digest(candidate_key, expected_key)
+

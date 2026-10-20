@@ -23,6 +23,9 @@ class IdentityRepository:
     def username_exists(self, canonical: str) -> bool:
         return self.session.scalar(select(User.id).where(User.canonical_username == canonical).limit(1)) is not None
 
+    def find_user_by_canonical_username(self, canonical: str) -> User | None:
+        return self.session.scalar(select(User).where(User.canonical_username == canonical).limit(1))
+
     def add_user(self, user: User) -> None:
         self.session.add(user)
         self.session.flush()
@@ -67,6 +70,9 @@ class IdentityRepository:
                 result.learning_focus = (
                     LearningFocus.model_validate(learner.learning_focus) if learner.learning_focus else None
                 )
+                result.experience = (learner.learning_experience or {}).get(learner.preferred_language)
+                result.profile_status = "active" if result.language and result.experience else "onboarding"
+                result.onboarding_step = None if result.profile_status == "active" else "personal_preferences"
         return result
 
     def update_preferences(self, user: User, payload) -> None:
@@ -85,9 +91,12 @@ class IdentityRepository:
             learner.preferred_language = payload.language
         if payload.learning_focus is not None:
             learner.learning_focus = payload.learning_focus.model_dump()
+        if payload.experience is not None:
+            if not learner.preferred_language:
+                from app.modules.identity.errors import IdentityError
+                raise IdentityError(409, "language_required", "Choose a learning language first.")
+            learner.learning_experience = {**(learner.learning_experience or {}), learner.preferred_language: payload.experience}
         self.session.flush()
-        complete = (
-            learner.learning_focus is not None or learner.preferred_grade_id is not None
-        ) and learner.preferred_language is not None
+        complete = learner.preferred_language is not None and (learner.learning_experience or {}).get(learner.preferred_language) is not None
         user.profile_status = "active" if complete else "onboarding"
         user.onboarding_step = None if complete else "personal_preferences"

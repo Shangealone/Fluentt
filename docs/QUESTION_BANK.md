@@ -182,3 +182,7 @@ Reader grants read; editor grants read+write; publisher grants read+publish. Pub
 - Arrangement alternative orders, distractor quality, randomization/seed retention and answer-release/feedback policy remain unresolved.
 - Flashcard self-reported recall is ungraded practice, not measured correctness. A rubric reference does not make it an approved scored research instrument.
 - No method calculates scores, performs NLP/AI, publishes grades or executes research. Future evaluation needs immutable approved algorithm/rubric versions, snapshots, server-bound attempts and approved release/access policies before controlled scored use.
+
+## Personal practice — user-authorized 2026-10-20
+
+Personal learning now has a published-content practice projection at `/me/practice`. It lists lessons/topics across school grades by authored question difficulty and profile language, then returns only public definitions from the latest locked revision per published question. A newer draft is never delivered automatically. Personal answers are local, temporary, and ungraded; no capture, progress, history, or scheduler records are written. Deliberate individual Flashcard reveal is the sole private-back exception and revalidates exact locked revision eligibility; no general answer-key or rubric endpoint is added. See PERSONAL_LEARNING.md for authorization, lifecycle, and verification details.

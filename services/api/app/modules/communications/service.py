@@ -280,6 +280,18 @@ def execute(
                         safe_metadata={"contract": CONTRACT, "class_id": str(class_id), "kind": kind},
                     )
                 )
+                if kind == "announcement":
+                    from app.modules.curriculum.notification_service import create_notification_for_class_members
+
+                    create_notification_for_class_members(
+                        db,
+                        class_id=classroom.id,
+                        event_type="class_announcement",
+                        title=f"Announcement in {classroom.class_name}",
+                        message=payload.content[:100] + ("…" if len(payload.content) > 100 else ""),
+                        related_resource_type="message",
+                        related_resource_id=message.id,
+                    )
                 db.flush()
                 return view(db.execute(statement.where(Message.id == message.id)).one(), user)
             if message_id:

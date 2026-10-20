@@ -20,7 +20,7 @@ export default function Preference() {
     setError("");
     try {
       await session.save({ language: value });
-      router.push("/student");
+      router.push("/experience");
     } catch (error) {
       setError(error instanceof Error ? error.message : "Please retry.");
     } finally {
@@ -31,7 +31,7 @@ export default function Preference() {
   return (
     <Screen backDisabled={busy}>
       <Text style={s.brand}>FLUENTT</Text>
-      <Text style={s.eyebrow}>PERSONAL SETUP · 2 OF 2</Text>
+      <Text style={s.eyebrow}>PERSONAL SETUP · 1 OF 2</Text>
       <Text style={s.title}>Choose Your Learning Language</Text>
       <Text style={s.body}>Which language would you like to practice?</Text>
       <Choices
@@ -40,7 +40,7 @@ export default function Preference() {
         onChange={setValue}
         label={(item) => (item === "english" ? "English" : "Tagalog")}
       />
-      {error && <ErrorMessage message={error} />}
+      {!!error && <ErrorMessage message={error} />}
       <Button
         label={busy ? "Saving…" : "Save and continue"}
         disabled={busy || value === null}

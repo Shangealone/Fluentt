@@ -1,3 +1,5 @@
+import { useContext } from "react";
+import { PersonalDesign, pc } from "../theme/personal";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -151,6 +153,7 @@ export function Button({
   textStyle?: StyleProp<TextStyle>;
 }) {
   const activeVariant: ButtonVariant = variant ?? (secondary ? "secondary" : "primary");
+  const personal = useContext(PersonalDesign);
   const visualIcon = icon ?? actionIcon(label);
 
   return (
@@ -164,6 +167,9 @@ export function Button({
         s.buttonBase,
         btnVariantStyles[activeVariant],
         btnSizeStyles[size],
+        personal && { borderRadius: 10, minHeight: 44, boxShadow: "none" },
+        personal && activeVariant === "primary" && { backgroundColor: pc.navy },
+        personal && activeVariant === "secondary" && { backgroundColor: pc.soft, borderColor: pc.soft },
         {
           opacity: disabled ? 0.45 : pressed ? 0.88 : 1,
           transform: [{ scale: pressed && !disabled ? 0.985 : 1 }],

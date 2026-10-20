@@ -18,12 +18,13 @@ from app.modules.identity.repository import IdentityRepository
 from app.modules.identity.schemas import (
     CreatedUser,
     CreateUserRequest,
+    LoginRequest,
     MobileProfile,
     UsernameAvailability,
     PreferenceUpdate,
 )
 from app.modules.identity.session_service import AuthenticatedMobileUser, resolve_session
-from app.modules.identity.user_service import check_username, create_user
+from app.modules.identity.user_service import check_username, create_user, login_user
 
 router = APIRouter(tags=["mobile identity"], dependencies=[Depends(require_secure_transport)])
 
@@ -55,6 +56,22 @@ def register_user(
 def current_profile(principal: Annotated[AuthenticatedMobileUser, Depends(get_current_mobile_user)]) -> MobileProfile:
     """Restore a returning mobile profile using its existing credential."""
     return principal.profile
+
+
+@router.post(
+    "/sessions/login",
+    response_model=CreatedUser,
+    status_code=200,
+    dependencies=[Depends(throttle_sessions)],
+)
+def login_session(
+    payload: LoginRequest,
+    repository: Annotated[IdentityRepository, Depends(get_identity_repository)],
+    settings: Annotated[Settings, Depends(get_identity_settings)],
+) -> CreatedUser:
+    """Log in an existing user with username and password, issuing a device session."""
+    return login_user(repository, payload, settings)
+
 
 
 @router.post("/sessions/revoke", status_code=204, dependencies=[Depends(throttle_sessions)])

@@ -45,6 +45,7 @@ def test_mapper_configuration_and_unchanged_frozen_tables_match():
             "assignment_attempts",
             "messages",
             "learner_profiles",
+            "users",
         }:
             assert str(CreateTable(table).compile(dialect=dialect())).strip() in snapshot
         for index in table.indexes:

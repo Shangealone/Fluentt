@@ -28,6 +28,8 @@ def test_legacy_storage_and_new_registration_policy_are_explicit():
     assert normalize_username("  Shan123 ") == "shan123"
     assert normalize_username("A" * 32) == "a" * 32
     assert validate_new_username("A" * 24) == "a" * 24
+    assert validate_new_username("Shan Gealone") == "shan gealone"
+    assert normalize_username("Shan Gealone") == "shan gealone"
     for value in ["A" * 25, "  Shan123 ", "support"]:
         with pytest.raises(ValueError):
             validate_new_username(value)

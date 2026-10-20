@@ -125,6 +125,17 @@ def publish(db, classroom, item, user, payload, expected, key, request_id):
             },
         )
     )
+    from app.modules.curriculum.notification_service import create_notification_for_class_members
+
+    create_notification_for_class_members(
+        db,
+        class_id=classroom.id,
+        event_type="assignment_published",
+        title=f"New Assignment: {version.title}",
+        message=f"An assignment has been published for {classroom.class_name}.",
+        related_resource_type="assignment",
+        related_resource_id=item.id,
+    )
     db.flush()
     return describe(db, classroom, item)
 

@@ -1,5 +1,5 @@
 import type { AdminProfile } from "./admin-contract";
-import type { CurriculumNode, CurriculumPage } from "./curriculum-contract";
+import type { CurriculumNode } from "./curriculum-contract";
 
 export const DEMO_ADMIN_COOKIE = "fluentt_demo_admin";
 
@@ -16,6 +16,8 @@ export const DEMO_ADMIN_PROFILE: AdminProfile = {
     "questions.publish",
     "grading.read",
     "grading.run",
+    "research.read",
+    "research.manage",
   ],
   csrf_token: "c".repeat(43),
   expires_at: new Date(Date.now() + 86400000).toISOString(),
@@ -482,3 +484,161 @@ export const DEMO_QUESTIONS = [
     },
   },
 ];
+
+export const DEMO_RESEARCH_STUDIES = [
+  {
+    id: "56ebb7d6-e282-4e96-9638-74beb3cccc22",
+    code: "FLUENTT-EXP-TAG-2026",
+    title: "Tagalog Vocabulary Acquisition & Retention via Spaced Repetition (SM-2 vs ESR)",
+    target_language: "tagalog",
+    protocol_version: "v1.2-irb-approved",
+    status: "active",
+    target_participants: 30,
+    enrolled_count: 24,
+    active_count: 22,
+    withdrawn_count: 2,
+    starts_at: "2026-09-01T00:00:00Z",
+    ends_at: "2026-11-30T23:59:59Z",
+    created_at: "2026-08-15T08:00:00Z",
+  },
+  {
+    id: "88fbb7d6-e282-4e96-9638-74beb3cccc44",
+    code: "FLUENTT-EXP-ENG-2026",
+    title: "English Academic Vocabulary Acquisition & Pronunciation Fluency (SM-2 vs ESR)",
+    target_language: "english",
+    protocol_version: "v1.0-irb-approved",
+    status: "approved",
+    target_participants: 30,
+    enrolled_count: 18,
+    active_count: 17,
+    withdrawn_count: 1,
+    starts_at: "2026-10-01T00:00:00Z",
+    ends_at: "2026-12-15T23:59:59Z",
+    created_at: "2026-09-10T10:00:00Z",
+  },
+];
+
+export const DEMO_RESEARCH_ANALYTICS = {
+  study_id: "56ebb7d6-e282-4e96-9638-74beb3cccc22",
+  study_code: "FLUENTT-EXP-TAG-2026",
+  study_title: "Tagalog Vocabulary Acquisition & Retention via Spaced Repetition (SM-2 vs ESR)",
+  target_language: "tagalog",
+  protocol_version: "v1.2-irb-approved",
+  flow: {
+    target_participants: 30,
+    total_enrolled: 24,
+    allocated_control: 12,
+    allocated_experimental: 12,
+    active_in_progress: 22,
+    completed_study: 16,
+    total_withdrawn: 2,
+    withdrawn_by_reason: {
+      voluntary_withdrawal: 1,
+      scheduling_conflict: 1,
+    },
+    completion_rate_pct: 66.67,
+    dropout_rate_pct: 8.33,
+  },
+  assessments: [
+    {
+      assessment_id: "a1010101-1111-4111-8111-111111111111",
+      kind: "pre_test",
+      title: "Pre-Intervention Baseline Vocabulary Assessment",
+      instrument_version: "tag-baseline-v1.0",
+      maximum_possible: 10.0,
+      control_stats: { count: 12, mean: 4.8, median: 5.0, std_dev: 1.35, min_value: 3.0, max_value: 7.0, mean_percentage: 48.0, is_small_cell: false },
+      experimental_stats: { count: 12, mean: 4.75, median: 4.5, std_dev: 1.4, min_value: 2.0, max_value: 7.0, mean_percentage: 47.5, is_small_cell: false },
+      overall_stats: { count: 24, mean: 4.78, median: 5.0, std_dev: 1.35, min_value: 2.0, max_value: 7.0, mean_percentage: 47.8, is_small_cell: false },
+    },
+    {
+      assessment_id: "a2020202-2222-4222-8222-222222222222",
+      kind: "learning_level",
+      title: "Curriculum Progression Assessment (Level 2)",
+      instrument_version: "tag-lvl2-v1.0",
+      maximum_possible: 10.0,
+      control_stats: { count: 10, mean: 7.1, median: 7.0, std_dev: 1.1, min_value: 5.0, max_value: 9.0, mean_percentage: 71.0, is_small_cell: false },
+      experimental_stats: { count: 11, mean: 8.0, median: 8.0, std_dev: 0.95, min_value: 6.0, max_value: 10.0, mean_percentage: 80.0, is_small_cell: false },
+      overall_stats: { count: 21, mean: 7.57, median: 7.5, std_dev: 1.12, min_value: 5.0, max_value: 10.0, mean_percentage: 75.7, is_small_cell: false },
+    },
+    {
+      assessment_id: "a3030303-3333-4333-8333-333333333333",
+      kind: "post_test",
+      title: "Immediate Post-Intervention Assessment",
+      instrument_version: "tag-post-v1.0",
+      maximum_possible: 10.0,
+      control_stats: { count: 8, mean: 7.9, median: 8.0, std_dev: 1.15, min_value: 6.0, max_value: 9.5, mean_percentage: 79.0, is_small_cell: false },
+      experimental_stats: { count: 8, mean: 8.85, median: 9.0, std_dev: 0.95, min_value: 7.0, max_value: 10.0, mean_percentage: 88.5, is_small_cell: false },
+      overall_stats: { count: 16, mean: 8.38, median: 8.5, std_dev: 1.15, min_value: 6.0, max_value: 10.0, mean_percentage: 83.8, is_small_cell: false },
+    },
+    {
+      assessment_id: "a4040404-4444-4444-8444-444444444444",
+      kind: "delayed_retention",
+      title: "Delayed Retention Evaluation (14 Days Post-Study)",
+      instrument_version: "tag-ret-v1.0",
+      maximum_possible: 10.0,
+      control_stats: { count: 4, mean: 6.8, median: 7.0, std_dev: 1.25, min_value: 5.0, max_value: 8.0, mean_percentage: 68.0, is_small_cell: true },
+      experimental_stats: { count: 4, mean: 8.4, median: 8.5, std_dev: 1.05, min_value: 7.0, max_value: 9.5, mean_percentage: 84.0, is_small_cell: true },
+      overall_stats: { count: 8, mean: 7.6, median: 7.5, std_dev: 1.4, min_value: 5.0, max_value: 9.5, mean_percentage: 76.0, is_small_cell: false },
+    },
+    {
+      assessment_id: "a5050505-5555-4555-8555-555555555555",
+      kind: "pronunciation",
+      title: "Automated Pronunciation & Acoustic Assessment",
+      instrument_version: "tag-pron-v1.0",
+      maximum_possible: 10.0,
+      control_stats: { count: 6, mean: 7.2, median: 7.0, std_dev: 1.1, min_value: 5.5, max_value: 8.5, mean_percentage: 72.0, is_small_cell: false },
+      experimental_stats: { count: 7, mean: 8.1, median: 8.0, std_dev: 0.9, min_value: 6.8, max_value: 9.4, mean_percentage: 81.0, is_small_cell: false },
+      overall_stats: { count: 13, mean: 7.68, median: 7.8, std_dev: 1.08, min_value: 5.5, max_value: 9.4, mean_percentage: 76.8, is_small_cell: false },
+    },
+  ],
+  paired: {
+    absolute_gain_control: { count: 8, mean: 3.1, median: 3.0, std_dev: 0.95, min_value: 1.5, max_value: 4.5, is_small_cell: false },
+    absolute_gain_experimental: { count: 8, mean: 4.1, median: 4.0, std_dev: 0.85, min_value: 2.5, max_value: 5.5, is_small_cell: false },
+    normalized_gain_control: { count: 8, mean: 0.6, median: 0.58, std_dev: 0.16, min_value: 0.35, max_value: 0.85, is_small_cell: false },
+    normalized_gain_experimental: { count: 8, mean: 0.78, median: 0.79, std_dev: 0.12, min_value: 0.55, max_value: 0.95, is_small_cell: false },
+    retention_loss_control: { count: 4, mean: 1.1, median: 1.0, std_dev: 0.35, min_value: 0.5, max_value: 1.5, is_small_cell: true },
+    retention_loss_experimental: { count: 4, mean: 0.45, median: 0.5, std_dev: 0.25, min_value: 0.0, max_value: 0.8, is_small_cell: true },
+  },
+  engagement_control: {
+    total_review_events: 340,
+    active_learners: 12,
+    mean_reviews_per_learner: 28.3,
+    retention_accuracy_pct: 78.5,
+    mean_duration_ms: 2950,
+    total_lapses: 42,
+    rating_counts: { again: 42, hard: 68, good: 160, easy: 70 },
+  },
+  engagement_experimental: {
+    total_review_events: 365,
+    active_learners: 12,
+    mean_reviews_per_learner: 30.4,
+    retention_accuracy_pct: 88.2,
+    mean_duration_ms: 2400,
+    total_lapses: 18,
+    rating_counts: { again: 18, hard: 45, good: 192, easy: 110 },
+  },
+  data_integrity_notice: "Descriptive reporting directly reflects actual participant records. No unverified inferential claims (p-values, effect sizes) or artificial conclusions are asserted. Cells with N < 5 are flagged for privacy protection per educational research standards.",
+  ethics_disclaimer: "All participants enrolled under institutional ethics protocol IRB-2026-FL-001. Consent and assent records are strictly tracked; identity links are pseudonymized and isolated from learning telemetry.",
+};
+
+export const DEMO_PARTICIPANTS_CSV = `participant_code,study_code,condition,enrollment_status,enrolled_at,withdrawn_at,withdrawal_reason,pre_test_score,level_tests_completed,post_test_score,delayed_retention_score,pronunciation_score,absolute_learning_gain,normalized_learning_gain,retention_loss
+P-TAG-001001,FLUENTT-EXP-TAG-2026,esr_experimental,enrolled,2026-09-02T08:00:00Z,,,4.5,2,9.0,8.5,8.8,4.5,0.82,0.5
+P-TAG-001002,FLUENTT-EXP-TAG-2026,sm2_control,enrolled,2026-09-02T08:15:00Z,,,5.0,2,8.0,7.0,7.2,3.0,0.60,1.0
+P-TAG-001003,FLUENTT-EXP-TAG-2026,esr_experimental,enrolled,2026-09-02T08:30:00Z,,,4.0,2,8.5,8.0,8.2,4.5,0.75,0.5
+P-TAG-001004,FLUENTT-EXP-TAG-2026,sm2_control,enrolled,2026-09-02T08:45:00Z,,,5.5,2,7.5,6.5,7.0,2.0,0.44,1.0
+`;
+
+export const DEMO_ASSESSMENTS_CSV = `result_id,participant_code,study_code,condition,assessment_kind,assessment_title,instrument_version,attempt_number,status,score,maximum_score,percentage,response_duration_ms,completed_at
+res-001,P-TAG-001001,FLUENTT-EXP-TAG-2026,esr_experimental,pre_test,Pre-Intervention Baseline Vocabulary Assessment,tag-baseline-v1.0,1,completed,4.5,10.0,45.0,32000,2026-09-03T09:00:00Z
+res-002,P-TAG-001001,FLUENTT-EXP-TAG-2026,esr_experimental,post_test,Immediate Post-Intervention Assessment,tag-post-v1.0,1,completed,9.0,10.0,90.0,28000,2026-09-28T14:00:00Z
+res-003,P-TAG-001002,FLUENTT-EXP-TAG-2026,sm2_control,pre_test,Pre-Intervention Baseline Vocabulary Assessment,tag-baseline-v1.0,1,completed,5.0,10.0,50.0,35000,2026-09-03T09:15:00Z
+res-004,P-TAG-001002,FLUENTT-EXP-TAG-2026,sm2_control,post_test,Immediate Post-Intervention Assessment,tag-post-v1.0,1,completed,8.0,10.0,80.0,31000,2026-09-28T14:30:00Z
+`;
+
+export const DEMO_REVIEWS_CSV = `event_id,participant_code,study_code,condition,vocabulary_term,vocabulary_language,recall_rating,is_correct,response_duration_ms,previous_interval_days,resulting_interval_days,reviewed_at
+rev-001,P-TAG-001001,FLUENTT-EXP-TAG-2026,esr_experimental,aklat,tagalog,good,true,2200,1.0,3.5,2026-09-04T10:00:00Z
+rev-002,P-TAG-001001,FLUENTT-EXP-TAG-2026,esr_experimental,mesa,tagalog,easy,true,1800,2.0,6.0,2026-09-04T10:01:00Z
+rev-003,P-TAG-001002,FLUENTT-EXP-TAG-2026,sm2_control,aklat,tagalog,hard,true,3400,1.0,2.2,2026-09-04T10:15:00Z
+rev-004,P-TAG-001002,FLUENTT-EXP-TAG-2026,sm2_control,mesa,tagalog,again,false,4100,2.0,1.0,2026-09-04T10:16:00Z
+`;
+

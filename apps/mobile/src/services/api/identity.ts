@@ -2,8 +2,14 @@ import { request, ApiError } from "./client.ts";
 export { ApiError } from "./client.ts";
 export type Role = "personal_student" | "school_student" | "instructor";
 export type Language = "english" | "tagalog";
+export const experienceOptions = ["starting_fresh", "some_words", "simple_conversations", "comfortable"] as const;
+export type LearningExperience = typeof experienceOptions[number];
+export const experienceLabels: Record<LearningExperience, string> = { starting_fresh: "I’m starting from scratch", some_words: "I know a few words", simple_conversations: "I can have simple conversations", comfortable: "I’ve used the language for some time" };
+export function startingDifficulty(experience?: LearningExperience | null): "easy" | "medium" | "hard" {
+  return experience === "comfortable" ? "hard" : experience === "simple_conversations" ? "medium" : "easy";
+}
 export type LearningFocus = { topics: string[]; lessons: string[] };
-export type PreferenceSettings = { grade?: number; language?: Language; learning_focus?: LearningFocus };
+export type PreferenceSettings = { grade?: number; language?: Language; learning_focus?: LearningFocus; experience?: LearningExperience };
 export function validLearningFocus(value: unknown): value is LearningFocus {
   if (!value || typeof value !== "object") return false;
   const focus = value as LearningFocus;
@@ -19,6 +25,7 @@ export type Profile = {
   grade: number | null;
   language: Language | null;
   learning_focus?: LearningFocus | null;
+  experience?: LearningExperience | null;
 };
 export type Created = {
   user: Profile;
@@ -43,7 +50,8 @@ function profile(value: Profile): Profile {
       (Number.isInteger(value.grade) && value.grade >= 1 && value.grade <= 12)
     ) ||
     ![null, "english", "tagalog"].includes(value.language) ||
-    (value.learning_focus != null && !validLearningFocus(value.learning_focus))
+    (value.learning_focus != null && !validLearningFocus(value.learning_focus)) ||
+    (value.experience != null && !experienceOptions.includes(value.experience))
   )
     throw new ApiError(
       0,
@@ -57,10 +65,11 @@ export const identity = {
     request<{ username: string; available: boolean; message: string }>(
       `/usernames/check?username=${encodeURIComponent(username)}`,
     ),
-  create: async (username: string, role: Role) => {
+  create: async (username: string, role: Role, password?: string) => {
     const created = await request<Created>("/users", "POST", {
       username,
       role,
+      ...(password ? { password } : {}),
     });
     profile(created.user);
     if (
@@ -70,6 +79,19 @@ export const identity = {
       throw new ApiError(
         0,
         "Unexpected session response. Please contact support before creating another profile.",
+      );
+    return created;
+  },
+  login: async (username: string, password: string) => {
+    const created = await request<Created>("/sessions/login", "POST", {
+      username,
+      password,
+    });
+    profile(created.user);
+    if (!/^flt_[A-Za-z0-9_-]{43}$/.test(created.session?.credential))
+      throw new ApiError(
+        0,
+        "Unexpected session response. Please contact support before logging in.",
       );
     return created;
   },

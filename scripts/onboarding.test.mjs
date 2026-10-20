@@ -7,16 +7,19 @@ const profile={id:'synthetic',username:'Learner',canonical_username:'learner',ro
 const issued={user:profile,session:{credential:'flt_'+'a'.repeat(43)}};
 function vault(value=null){return {value,async read(){return this.value;},async save(v){this.value=v;},async clear(){this.value=null;}};}
 test('routes incomplete and completed profiles using backend values',()=>{
- assert.equal(destination(profile),'/grade');
+ assert.equal(destination(profile),'/language');
  for(let grade=1;grade<=12;grade++)assert.equal(destination({...profile,grade}),'/language');
- for(const language of ['english','tagalog'])assert.equal(destination({...profile,grade:12,language,profile_status:'active'}),'/student');
+ for(const language of ['english','tagalog']){
+  assert.equal(destination({...profile,language}),'/experience');
+  assert.equal(destination({...profile,grade:12,language,experience:'some_words',profile_status:'active'}),'/student');
+ }
  assert.equal(destination({...profile,role:'school_student'}),'/class-code');
  assert.equal(destination({...profile,role:'instructor'}),'/first-class');
  assert.equal(destination({...profile,role:'instructor',profile_status:'active'}),'/instructor');
 });
 test('username and six-digit string validation',()=>{
- for(const name of ['ab','a b',' admin','ADMIN','abc!','école','x'.repeat(25)])assert.ok(usernameError(name));
- for(const name of ['abc','A_B123','x'.repeat(24)])assert.equal(usernameError(name),null);
+ for(const name of ['ab','a\tb',' admin','ADMIN','abc!','école','x'.repeat(25)])assert.ok(usernameError(name));
+ for(const name of ['abc','a b','Shan Gealone','A_B123','x'.repeat(24)])assert.equal(usernameError(name),null);
  assert.equal(validClassCode('000001'),true);
  for(const code of ['12345','1234567','12a456',' 12345','１２３４５６'])assert.equal(validClassCode(code),false);
 });

@@ -46,8 +46,16 @@ function harness() {
     try { const tree=Username(); queue.forEach(effect => effect()); return tree; } finally {Object.assign(React,saved);}
   }, cleanup() {effects.forEach(effect => effect?.cleanup?.());} };
 }
-function profile(username) { return {id:'synthetic',username,canonical_username:username.toLowerCase(),role,profile_status:'active',grade:null,language:'english',learning_focus:{topics:['Vocabulary'],lessons:[]}}; }
+function profile(username) { return {id:'synthetic',username,canonical_username:username.toLowerCase(),role,profile_status:'active',grade:null,language:'english',experience:'some_words',learning_focus:{topics:['Vocabulary'],lessons:[]}}; }
 const nextTurn = () => new Promise(resolve => setImmediate(resolve));
+test('editing a demo username clears the public sample password from real-account fields',()=>{
+  role='personal_student';session={profile:null,isDemo:false,pending:false};
+  const h=harness();
+  nodes(h.render(),node=>node.props?.accessibilityLabel==='Use demo username @learner_kat')[0].props.onPress();
+  nodes(h.render(),node=>node.props?.accessibilityLabel==='Username')[0].props.onChangeText('Shan Gealone');
+  for(const label of ['Password','Confirm Password'])assert.equal(nodes(h.render(),node=>node.props?.accessibilityLabel===label)[0].props.value,'');
+  h.cleanup();
+});
 for (const [selectedRole, handle, target] of [['school_student','clara_reyes','/student'],['instructor','teacher_elena','/instructor'],['personal_student','learner_kat','/student']]) {
   test(`autofill + Continue enters the ${selectedRole} dashboard and skips real availability`, async () => {
     role=selectedRole; routes.length=0; availabilityCalls=0; const calls=[];
@@ -56,6 +64,8 @@ for (const [selectedRole, handle, target] of [['school_student','clara_reyes','/
     nodes(h.render(),node => node.props?.accessibilityLabel === `Use demo username @${handle}`)[0].props.onPress();
     h.render();
     assert.equal(nodes(h.render(),node => node.props?.accessibilityLabel === 'Username')[0].props.value,handle);
+    assert.equal(nodes(h.render(),node => node.props?.accessibilityLabel === 'Password')[0].props.value,'FluenttDemo123!');
+    assert.equal(nodes(h.render(),node => node.props?.accessibilityLabel === 'Confirm Password')[0].props.value,'FluenttDemo123!');
     nodes(h.render(),node => node.props?.label === `Continue as @${handle} →`)[0].props.onPress();
     await nextTurn(); h.render();
     assert.deepEqual(calls,[[handle,role,true]]); assert.deepEqual(routes,[target]);

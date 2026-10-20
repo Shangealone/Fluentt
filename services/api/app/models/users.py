@@ -17,6 +17,7 @@ class User(Entity, Base):
     canonical_username: Mapped[str] = mapped_column(
         String(32), Computed('lower(btrim(username) COLLATE "C")', persisted=True), unique=True
     )
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(
         choice("role", "personal_student", "school_student", "instructor", "administrator")
     )
@@ -28,7 +29,7 @@ class User(Entity, Base):
     onboarding_step: Mapped[str | None] = mapped_column(String(80))
     archived_at: Mapped[datetime | None]
     sessions: Mapped[list["UserSession"]] = relationship(back_populates="user", passive_deletes="all")
-    __table_args__ = (CheckConstraint("username ~ '^[A-Za-z0-9_]{3,32}$'", name="username_format"),)
+    __table_args__ = (CheckConstraint("username ~ '^[A-Za-z0-9_][A-Za-z0-9_ ]{1,30}[A-Za-z0-9_]$'", name="username_format"),)
 
     @validates("username")
     def validate_username(self, key, value):
@@ -42,6 +43,7 @@ class LearnerProfile(Entity, Base):
     preferred_grade_id: Mapped[UUID | None] = reference("grade_levels.id", nullable=True)
     preferred_language: Mapped[str | None] = mapped_column(language())
     learning_focus: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    learning_experience: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
 class InstructorProfile(Entity, Base):
