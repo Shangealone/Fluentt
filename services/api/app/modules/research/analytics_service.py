@@ -28,6 +28,7 @@ from app.models.research import (
 )
 from app.modules.administration.repository import AdminRepository
 from app.modules.identity.errors import IdentityError
+from .reporting_service import assert_legacy_reporting_allowed
 from app.modules.research.schemas import (
     ETHICS_DISCLAIMER,
     AssessmentComparisonDTO,
@@ -108,6 +109,7 @@ def calculate_descriptive_stats(values: list[float], max_possible: float | None 
 
 def compute_study_participant_flow(db: Session, study: ResearchStudy) -> ParticipantFlowDTO:
     """Computes exact CONSORT participant flow counts derived from immutable database records."""
+    assert_legacy_reporting_allowed(study)
     participants = db.scalars(
         select(ResearchParticipant).where(ResearchParticipant.study_id == study.id)
     ).all()
@@ -199,6 +201,7 @@ def compute_study_participant_flow(db: Session, study: ResearchStudy) -> Partici
 
 def compute_study_assessment_metrics(db: Session, study: ResearchStudy) -> tuple[list[AssessmentComparisonDTO], PairedComparisonsDTO]:
     """Computes condition-separated descriptive metrics and paired learning gain / retention loss."""
+    assert_legacy_reporting_allowed(study)
     assessments = db.scalars(
         select(ResearchAssessment).where(ResearchAssessment.study_id == study.id)
     ).all()
@@ -316,6 +319,7 @@ def compute_study_assessment_metrics(db: Session, study: ResearchStudy) -> tuple
 
 def compute_study_engagement_metrics(db: Session, study: ResearchStudy) -> tuple[EngagementSummaryDTO, EngagementSummaryDTO]:
     """Computes spaced repetition learning engagement and retention metrics by condition."""
+    assert_legacy_reporting_allowed(study)
     participants = db.scalars(select(ResearchParticipant).where(ResearchParticipant.study_id == study.id)).all()
     p_map = {p.id: p for p in participants}
     groups = {g.id: g for g in db.scalars(select(ResearchGroup).where(ResearchGroup.study_id == study.id)).all()}
@@ -414,6 +418,7 @@ def get_study_analytics_summary(db: Session, admin_repo: AdminRepository, token:
     study = db.get(ResearchStudy, study_id)
     if not study:
         raise IdentityError(404, "study_not_found", "Research study not found.")
+    assert_legacy_reporting_allowed(study)
 
     flow = compute_study_participant_flow(db, study)
     assessments, paired = compute_study_assessment_metrics(db, study)
@@ -456,6 +461,7 @@ def export_participants_longitudinal_csv(
     study = db.get(ResearchStudy, study_id)
     if not study:
         raise IdentityError(404, "study_not_found", "Research study not found.")
+    assert_legacy_reporting_allowed(study)
 
     participants = db.scalars(
         select(ResearchParticipant).where(ResearchParticipant.study_id == study_id).order_by(ResearchParticipant.participant_code)
@@ -586,6 +592,7 @@ def export_assessment_results_csv(
     study = db.get(ResearchStudy, study_id)
     if not study:
         raise IdentityError(404, "study_not_found", "Research study not found.")
+    assert_legacy_reporting_allowed(study)
 
     participants = {p.id: p for p in db.scalars(select(ResearchParticipant).where(ResearchParticipant.study_id == study_id)).all()}
     groups = {g.id: g for g in db.scalars(select(ResearchGroup).where(ResearchGroup.study_id == study_id)).all()}
@@ -683,6 +690,7 @@ def export_review_events_csv(
     study = db.get(ResearchStudy, study_id)
     if not study:
         raise IdentityError(404, "study_not_found", "Research study not found.")
+    assert_legacy_reporting_allowed(study)
 
     participants = {p.id: p for p in db.scalars(select(ResearchParticipant).where(ResearchParticipant.study_id == study_id)).all()}
     groups = {g.id: g for g in db.scalars(select(ResearchGroup).where(ResearchGroup.study_id == study_id)).all()}

@@ -2,7 +2,15 @@
 
 This document defines the Section 32 implementation for learner pronunciation audio recording, client-side capture pipelines, permission management, server upload endpoints, binary inspection, and private audio retention policies.
 
-## Current personal Voice follow-up — 2026-10-21
+## Current personal Voice: optional whole-recording English assessment — 2026-10-21
+
+Later History follow-up: completed personal phrases now produce a separate activity metadata receipt for Stats → History. Reference phrase/version and time are saved; audio, learner transcripts and provider scores remain excluded. The Azure assessment endpoint itself remains nonpersistent/default-off. See [PERSONAL_HISTORY.md](PERSONAL_HISTORY.md).
+
+The latest user request adds a separate default-off Azure Speech integration for Personal Learning English. With configured server credentials, independently reviewed audio-processing authorization and deliberate learner permission, it assesses the finished recording once and displays the provider's overall PronScore plus accuracy/fluency/completeness. It never derives a pronunciation score from green-word counts or simulated evaluators. Tagalog remains unscored. No audio, score, attempt, progress or research record is persisted by this feature. **Prepared, not activated or live-model verified.** See [WHOLE_PHRASE_PRONUNCIATION.md](WHOLE_PHRASE_PRONUNCIATION.md) for setup, tests and limitations.
+
+Recognition stays on-device. Without scoring permission, native recording persistence remains disabled and no upload occurs. With permission and a ready server, browser audio is captured in memory; native audio uses an owned temporary WAV with best-effort deletion on release/cancel. Local practice retains its 60-second cap. Scoring requests stop at 29 seconds and the server validates actual PCM duration at 0.5–30 seconds. It waits for final recognition and finished audio before assessment; manual finish also supports independent whole-clip assessment when recognition missed words. The school pronunciation flow and historical simulated services are unchanged.
+
+## Earlier local-only Voice follow-up — 2026-10-21
 
 The personal portal now uses LivePronunciationPractice rather than the historical recording/upload/assessment UI described below. Recognition highlights target words from interim transcripts and completes this local practice only after a final transcript contains all target words in order. It neither grades pronunciation nor writes backend activity/progress/assessment records. The school portal retains PronunciationPractice and its existing recording APIs. Existing simulated backend assessment behavior is not promoted to real acoustic scoring by this change.
 

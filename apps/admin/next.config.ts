@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       { source: "/dashboard/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
       { source: "/curriculum/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
       { source: "/questions/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
+      { source: "/research/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
     ];
   },
 };

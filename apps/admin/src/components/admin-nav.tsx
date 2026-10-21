@@ -9,6 +9,6 @@ export function AdminNav({ profile, current }: { profile: AdminProfile; current:
     {profile.permissions.includes("questions.read") &&
       <Link href="/questions" aria-current={current === "questions" ? "page" : undefined}><span aria-hidden="true">✎ </span>Question Bank</Link>}
     {profile.permissions.includes("research.read") &&
-      <Link href="/research" aria-current={current === "research" ? "page" : undefined}><span aria-hidden="true">🔬 </span>Research & Analytics</Link>}
+      <Link href="/research" aria-current={current === "research" ? "page" : undefined}><span aria-hidden="true">🔬 </span>Research Management</Link>}
   </nav>;
 }

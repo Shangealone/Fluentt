@@ -9,12 +9,14 @@ import { useSession } from "../session/provider";
 import { difficulties, type Difficulty, type PracticeBack, type PracticeLesson, type PracticePage, type PracticeQuestion } from "../services/api/practice";
 import { startingDifficulty } from "../services/api/identity";
 import { BeginnerPractice } from "../features/learning/BeginnerPractice";
+import { hasPracticeAnswer, useActivityHistory } from "../features/history/useActivityHistory";
+import { HistorySaveNotice } from "../features/history/HistorySaveNotice";
 
 const labels = { easy: "Easy", medium: "Medium", hard: "Hard" };
 const s = { ...sharedStyles, card: p.card, heading: p.heading, body: p.body, eyebrow: p.eyebrow,
   input: { ...sharedStyles.input, backgroundColor: "white", borderColor: pc.line, borderRadius: 12, fontSize: 14 } };
 export default function QuestionPractice() {
-  const { profile, practice, isDemo } = useSession();
+  const { profile, practice, isDemo, activityHistory } = useSession();
   const profileId = profile?.id, role = profile?.role;
   const [search, setSearch] = useState(""), [query, setQuery] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty | undefined>(() => startingDifficulty(profile?.experience));
@@ -27,6 +29,7 @@ export default function QuestionPractice() {
   const [backs, setBacks] = useState<Record<string, PracticeBack>>({});
   const [loading, setLoading] = useState(true), [revealing, setRevealing] = useState(false), [error, setError] = useState("");
   const generation = useRef(0), revealLock = useRef(false);
+  const activity = useActivityHistory(activityHistory, profile?.role === "personal_student" ? profile.id : undefined, `${lesson?.id ?? "catalog"}:${offset}:${reload}`);
   useEffect(() => { setDifficulty(startingDifficulty(profile?.experience)); setLesson(null); setOffset(0); }, [profile?.experience, profile?.language]);
   useFocusEffect(useCallback(() => {
     const current = ++generation.current;
@@ -64,7 +67,7 @@ export default function QuestionPractice() {
   const difficultyPicker = <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{([undefined, ...difficulties] as const).map(level => <Button key={level ?? "all"} label={level ? labels[level] : "All difficulties"} secondary={difficulty !== level}
     onPress={() => { setDifficulty(level); setOffset(0); }} />)}</View>;
   if (difficulty === "easy" && !lesson) return <PersonalScreen title="Listen. Recognise. Build." eyebrow="Learn · Easy starter practice" description={`Build your first ${profile.language === "english" ? "English" : "Tagalog"} words and sentences, one sound at a time.`}>
-    {difficultyPicker}<BeginnerPractice key={`${profileId}-${profile.language}`} language={profile.language ?? "english"} />
+    {difficultyPicker}<BeginnerPractice key={`${profileId}-${profile.language}`} language={profile.language ?? "english"} history={activityHistory} owner={profileId} />
   </PersonalScreen>;
   return <PersonalScreen title={lesson ? undefined : "Find your next discovery."} eyebrow="Learn · Lessons & topics" description={lesson ? undefined : "Build your vocabulary. Explore an idea. Choose a difficulty that feels right for you."}>
     {isDemo && <View style={[p.chip, { alignSelf: "flex-start" }]}><Text style={p.chipText}>Demo · Sample lessons and questions</Text></View>}
@@ -83,13 +86,13 @@ export default function QuestionPractice() {
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{offset > 0 && <Button secondary label="Previous lessons" onPress={() => setOffset(value => Math.max(0, value - 20))} />}
         {catalog?.has_more && <Button label="More lessons" onPress={() => setOffset(value => value + 20)} />}</View>
     </> : finished ? <View style={s.card}><Text accessibilityRole="header" style={s.heading}>Practice finished</Text>
-      <Text style={s.body}>You reached the end of this set. Your answers stay in this visit only; no grade is recorded.</Text>
+      <Text style={s.body}>You reached the end of this set. Answered questions appear in History; typed answers and grades are not saved.</Text><HistorySaveNotice error={activity.error} retry={activity.retry} />
       <Button label="Choose another lesson" onPress={leaveLesson} /><Button secondary label="Practise this set again" onPress={() => setReload(value => value + 1)} />
       {questions?.has_more && <Button secondary label="Next question set" onPress={() => setOffset(value => value + 20)} />}</View>
       : item ? <>
         <View style={p.row}><Text style={s.eyebrow}>Card {position + 1} of {questions!.items.length}</Text><View style={[p.chip, { backgroundColor: pc.pink }]}><Text style={[p.chipText, { color: pc.rose }]}>{labels[item.definition.difficulty]} · Personal practice</Text></View></View>
         <View accessibilityRole="progressbar" accessibilityLabel="Position in this practice set" accessibilityValue={{ min: 1, max: questions!.items.length, now: position + 1 }} style={{ height: 5, backgroundColor: pc.line, borderRadius: 6 }}><View style={{ height: 5, backgroundColor: pc.navy, borderRadius: 6, width: `${((position + 1) / questions!.items.length) * 100}%` }} /></View>
-        <Text style={s.body}>Your answers stay only while this page is open. No grade is recorded.</Text>
+        <Text style={s.body}>Use Next or Finish to add answered questions to History. Typed answers stay on this page only; no grade is recorded.</Text>
         <CaptureQuestion key={item.id} practice item={item} answer={answers[item.id]} back={backs[item.id] ?? null} disabled={revealing}
           onChange={answer => setAnswers(previous => ({ ...previous, [item.id]: answer }))} onReveal={() => {
             if (revealLock.current) return;
@@ -99,7 +102,13 @@ export default function QuestionPractice() {
               .finally(() => { if (current === generation.current) { revealLock.current = false; setRevealing(false); } });
           }} />
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}><Button secondary label="Previous question" disabled={position === 0 || revealing} onPress={() => setPosition(value => value - 1)} />
-          <Button label={position === questions!.items.length - 1 ? "Finish practice" : "Next question"} disabled={revealing} onPress={() => position === questions!.items.length - 1 ? setFinished(true) : setPosition(value => value + 1)} /></View>
+          <Button label={position === questions!.items.length - 1 ? "Finish practice" : "Next question"} disabled={revealing} onPress={() => {
+            if (hasPracticeAnswer(item.definition.method, answers[item.id])) activity.recordOnce(item.id, { kind: "learn_question", source_id: item.id, content_version: item.version, title: lesson.title, prompt: item.definition.prompt, language: profile.language ?? "english" });
+            if (position === questions!.items.length - 1) {
+              if (questions!.items.some(row => hasPracticeAnswer(row.definition.method, answers[row.id]))) activity.recordOnce(`lesson-${lesson.id}-${offset}`, { kind: "learn_lesson", source_id: lesson.id, title: lesson.title, language: profile.language ?? "english" });
+              setFinished(true);
+            } else setPosition(position + 1);
+          }} /></View><HistorySaveNotice error={activity.error} retry={activity.retry} />
       </> : <View style={s.card}><Text style={s.heading}>No questions available</Text><Text style={s.body}>Choose another lesson or difficulty.</Text><Button label="Choose a lesson" onPress={leaveLesson} /></View>}
   </PersonalScreen>;
 }

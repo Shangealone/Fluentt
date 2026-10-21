@@ -1,4 +1,5 @@
 import { request, ApiError } from "./client.ts";
+import { wholePhraseApi, type WholePhraseCapability, type WholePhraseScore } from "./wholePhrase.ts";
 
 export type PronunciationLanguage = "tagalog" | "english";
 
@@ -142,6 +143,9 @@ export type AudioUploadPayload =
     };
 
 export type PronunciationAccess = {
+  // Absent in synthetic demo adapters: never fabricate provider readiness or scores.
+  scoringCapabilities?: (language: PronunciationLanguage) => Promise<WholePhraseCapability>;
+  assessWholePhrase?: (activity: PronunciationActivityView, audio: AudioUploadPayload) => Promise<WholePhraseScore>;
   activities: (language?: string) => Promise<PronunciationActivitiesResponse>;
   activity: (activityId: string) => Promise<PronunciationActivityView>;
   submitAttempt: (
@@ -246,6 +250,8 @@ export function pronunciationAccess(
   run: <T>(operation: (credential: string) => Promise<T>) => Promise<T>
 ): PronunciationAccess {
   return {
+    scoringCapabilities: language => run(secret => wholePhraseApi.capabilities(secret, language)),
+    assessWholePhrase: (activity, audio) => run(secret => wholePhraseApi.assess(secret, activity, audio)),
     activities: (language?: string) => run(secret => pronunciationApi.getActivities(secret, language)),
     activity: (activityId: string) => run(secret => pronunciationApi.getActivity(secret, activityId)),
     submitAttempt: (activityId: string, audio: AudioUploadPayload, durationMs: number) =>

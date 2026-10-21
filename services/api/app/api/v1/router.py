@@ -23,17 +23,27 @@ from app.modules.monitoring.router import router as monitoring_router
 
 from app.modules.communications.router import router as communications_router
 from app.modules.pronunciation.router import router as pronunciation_router
+from app.modules.pronunciation.whole_phrase_router import router as whole_phrase_router
+from app.modules.personal_history.router import router as personal_history_router
 from app.modules.conversation.router import router as conversation_router
 from app.modules.research.router import student_router as research_student_router, admin_router as research_admin_router
+from app.modules.research.classroom_router import (
+    admin_router as research_classroom_admin_router,
+    mobile_router as research_classroom_mobile_router,
+)
 
 router = APIRouter()
 router.include_router(personal_practice_router)
 router.include_router(research_student_router)
 router.include_router(research_admin_router)
+router.include_router(research_classroom_admin_router)
+router.include_router(research_classroom_mobile_router)
 router.include_router(conversation_router)
 router.include_router(material_router)
 router.include_router(spaced_repetition_router)
 router.include_router(pronunciation_router)
+router.include_router(whole_phrase_router)
+router.include_router(personal_history_router)
 router.include_router(communications_router)
 router.include_router(monitoring_router)
 router.include_router(classrooms_router)

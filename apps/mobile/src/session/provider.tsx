@@ -25,6 +25,8 @@ import { pronunciationAccess, type PronunciationAccess } from "../services/api/p
 import { conversationAccess, type ConversationAccess } from "../services/api/conversation";
 import { researchAccess, type ResearchAccess } from "../services/api/research";
 import { practiceAccess, type PracticeAccess } from "../services/api/practice";
+import { personalHistoryAccess, type PersonalHistoryAccess } from "../services/api/personalHistory";
+import { createDemoPersonalHistory } from "../demo/personalHistory";
 import { createDemoPracticeApi } from "../demo/personalPractice";
 import {
   DEMO_PROFILES,
@@ -102,6 +104,7 @@ type Session = {
   conversation: ConversationAccess;
   research: ResearchAccess;
   practice: PracticeAccess;
+  activityHistory: PersonalHistoryAccess;
   refreshProfile: () => Promise<Profile | null>;
   isDemo: boolean;
   demoRole: DemoRole;
@@ -214,6 +217,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const liveConversation = useMemo(() => conversationAccess(authenticated), [authenticated]);
   const liveResearch = useMemo(() => researchAccess(authenticated), [authenticated]);
   const livePractice = useMemo(() => practiceAccess(authenticated), [authenticated]);
+  const liveActivityHistory = useMemo(() => personalHistoryAccess(authenticated), [authenticated]);
+  const demoActivityHistory = useMemo(() => ({ generation: demoVersion, api: createDemoPersonalHistory() }), [demoVersion]).api;
 
 
   const demoClasses = useMemo(() => createDemoClassesApi(), [demoVersion]);
@@ -250,6 +255,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const conversation = isDemo ? demoConversation : liveConversation;
   const research = isDemo ? demoResearch : liveResearch;
   const practice = isDemo ? demoPractice : livePractice;
+  const activityHistory = isDemo ? demoActivityHistory : liveActivityHistory;
 
   const switchDemoRole = useCallback((role: DemoRole) => {
     setIsDemo(true);
@@ -265,7 +271,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return <Context.Provider value={{
-    profile: activeProfile, classes, enrollment, assignments, capture, results, progress, monitoring, communication, pathway, materials, notifications, pronunciation, conversation, research, practice, refreshProfile, loading, error, recovery, pending,
+    profile: activeProfile, classes, enrollment, assignments, capture, results, progress, monitoring, communication, pathway, materials, notifications, pronunciation, conversation, research, practice, activityHistory, refreshProfile, loading, error, recovery, pending,
     isDemo,
     demoRole,
     setDemoMode: setIsDemo,

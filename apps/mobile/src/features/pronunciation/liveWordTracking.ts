@@ -11,10 +11,17 @@ export function spokenWordCount(target: string, transcript: string): number {
   return position;
 }
 
+export type WholePhraseRecording = {
+  audio: import("../../services/api/pronunciation").AudioUploadPayload;
+  durationMs: number;
+  release: () => void | Promise<void>;
+};
+export type LiveSpeechOptions = { captureAudio?: boolean };
 export type LiveSpeechCallbacks = {
   onStart: () => void;
   onResult: (transcript: string, final: boolean) => void;
   onError: (message: string) => void;
   onEnd: () => void;
+  onRecording?: (recording: WholePhraseRecording) => void;
 };
 export type LiveSpeechSession = { start: () => Promise<void>; stop: () => void; dispose: () => void };

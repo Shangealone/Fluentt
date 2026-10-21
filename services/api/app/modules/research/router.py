@@ -4,6 +4,9 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
+from app.models.research import ResearchStudy
+from .reporting_service import guard_legacy_reporting
+from .execution_guard import assert_no_managed_execution
 
 from app.modules.administration.repository import AdminRepository
 from app.modules.administration.router import credential, origin_required, request_id
@@ -117,6 +120,7 @@ def get_study(
     """Retrieves full descriptive information and protocol status for a specific study."""
     with authenticated_session(repo, credential, request.app.state.settings) as (_, user):
         study = get_study_or_fail(repo.session, study_id)
+        assert_no_managed_execution(study)
         studies = get_available_studies(repo.session, user)
         for s in studies:
             if s.id == study.id:
@@ -261,6 +265,7 @@ def admin_participants(
     token: AdminToken,
 ):
     """Lists participants under pseudonymous codes without revealing personal identity (requires 'research.read')."""
+    guard_legacy_reporting(admin, token, study_id)
     return admin_list_participants(admin, token, study_id, request_id=request_id(request))
 
 
@@ -332,6 +337,7 @@ def participant_allocate_group(
 ):
     """Assigns the enrolled participant to an experimental group (permuted block randomization). Condition is blinded."""
     with authenticated_session(repo, credential, request.app.state.settings) as (_, user):
+        assert_no_managed_execution(repo.session.get(ResearchStudy, study_id))
         from app.models.research import ResearchIdentityLink
         link = repo.session.scalar(
             select(ResearchIdentityLink).where(
@@ -428,6 +434,7 @@ def admin_groups(
     token: AdminToken,
 ):
     """Lists unblinded study groups, conditions, and enrollments (requires 'research.read')."""
+    guard_legacy_reporting(admin, token, study_id)
     return admin_list_study_groups(admin.session, admin, token, study_id)
 
 
@@ -463,6 +470,7 @@ def admin_results(
     token: AdminToken,
 ):
     """Lists unblinded assessment scores across conditions for authorized research analysis (requires 'research.read')."""
+    guard_legacy_reporting(admin, token, study_id)
     return admin_list_assessment_results(admin.session, admin, token, study_id)
 
 
@@ -478,6 +486,7 @@ def admin_study_analytics(
     token: AdminToken,
 ):
     """Computes descriptive research analytics, CONSORT flow, and condition comparisons (requires 'research.read')."""
+    guard_legacy_reporting(admin, token, study_id)
     return get_study_analytics_summary(admin.session, admin, token, study_id)
 
 
@@ -489,6 +498,7 @@ def admin_export_participants(
     token: AdminToken,
 ):
     """Exports de-identified participant-level longitudinal CSV dataset with formula injection protection (requires 'research.read')."""
+    guard_legacy_reporting(admin, token, study_id, export=True)
     csv_content = export_participants_longitudinal_csv(
         admin.session,
         admin,
@@ -516,6 +526,7 @@ def admin_export_assessments(
     token: AdminToken,
 ):
     """Exports de-identified assessment attempts CSV dataset with formula injection protection (requires 'research.read')."""
+    guard_legacy_reporting(admin, token, study_id, export=True)
     csv_content = export_assessment_results_csv(
         admin.session,
         admin,
@@ -543,6 +554,7 @@ def admin_export_reviews(
     token: AdminToken,
 ):
     """Exports de-identified spaced repetition review event log CSV dataset with formula injection protection (requires 'research.read')."""
+    guard_legacy_reporting(admin, token, study_id, export=True)
     csv_content = export_review_events_csv(
         admin.session,
         admin,
@@ -570,6 +582,7 @@ def admin_export_data_dictionary(
     token: AdminToken,
 ):
     """Returns thesis-compliant research data dictionary and variable codebook (requires 'research.read')."""
+    guard_legacy_reporting(admin, token, study_id, export=True)
     admin.resolve_session(token)
     admin.require_permission(token, "research.read")
     return get_research_data_dictionary()

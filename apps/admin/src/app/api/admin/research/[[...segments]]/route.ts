@@ -1,5 +1,6 @@
+import { proxyResearchSetup } from "@/services/research-proxy";
 import { NextRequest } from "next/server";
-import { backend } from "@/services/admin-server";
+import { backend, webOrigin, adminCookieNames } from "@/services/admin-server";
 import {
   DEMO_RESEARCH_STUDIES,
   DEMO_RESEARCH_ANALYTICS,
@@ -15,6 +16,7 @@ export async function GET(
   context: { params: Promise<{ segments?: string[] }> }
 ) {
   const { segments = [] } = await context.params;
+  if (segments[0] === "classrooms") return proxyResearchSetup(request, segments.slice(1), { backend, webOrigin, adminCookieNames });
   const headers = new Headers({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
   const fail = (status: number, message: string) =>
     Response.json({ error: { message } }, { status, headers });
@@ -141,3 +143,10 @@ export async function GET(
 
   return fail(404, "Research endpoint not found.");
 }
+
+
+async function mutation(request: NextRequest, context: { params: Promise<{ segments?: string[] }> }) {
+  const { segments = [] } = await context.params;
+  return proxyResearchSetup(request, segments[0] === "classrooms" ? segments.slice(1) : [], { backend, webOrigin, adminCookieNames });
+}
+export { mutation as POST, mutation as PUT, mutation as PATCH, mutation as DELETE };

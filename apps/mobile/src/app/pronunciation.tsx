@@ -13,7 +13,7 @@ import { LivePronunciationPractice } from "../features/pronunciation/LivePronunc
 const theme = { colors: { ...baseTheme.colors, primary: pc.navy, ink: pc.ink, muted: pc.muted, border: pc.line } };
 
 export default function PronunciationScreen() {
-  const { profile, pronunciation } = useSession();
+  const { profile, pronunciation, activityHistory } = useSession();
   const [activities, setActivities] = useState<PronunciationActivityView[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<PronunciationActivityView | null>(null);
   const [languageFilter, setLanguageFilter] = useState<string>(profile?.role === "personal_student" ? profile.language ?? "all" : "all");
@@ -113,7 +113,7 @@ export default function PronunciationScreen() {
         </View>
       ) : selectedActivity ? (
         <View style={{ gap: 16 }}>
-          {personal ? <LivePronunciationPractice key={selectedActivity.id} activity={selectedActivity} onDone={() => setSelectedActivity(null)} /> : <PronunciationPractice key={selectedActivity.id}
+          {personal ? <LivePronunciationPractice key={selectedActivity.id} activity={selectedActivity} api={pronunciation} history={activityHistory} owner={profile.id} onDone={() => setSelectedActivity(null)} /> : <PronunciationPractice key={selectedActivity.id}
             activity={selectedActivity}
             api={pronunciation}
             onDone={() => setSelectedActivity(null)}

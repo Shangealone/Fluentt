@@ -1,13 +1,13 @@
 import { useCallback, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { Button, Badge, EmptyState, s } from "../../components/ui";
+import { Button, EmptyState } from "../../components/ui";
+import { PersonalIcon } from "../../components/PersonalIcon";
 import { LoadState } from "../../components/navigation";
-import { Choices } from "../../components/onboarding";
 import { useSession } from "../../session/provider";
 import { usePagedList } from "../dashboard/usePagedList";
 import { selectedClass } from "../dashboard/paging";
-import { theme } from "../../theme/tokens";
+import { pc, p } from "../../theme/personal";
 
 export function MyClasses() {
   const { enrollment, refreshProfile } = useSession();
@@ -23,208 +23,60 @@ export function MyClasses() {
   const { state, reload, more } = usePagedList(fetchPage);
   const selected = selectedClass(state, selection);
 
-  return (
-    <View style={myClassStyles.container}>
-      {/* Header and Quick Actions Row */}
-      <View style={myClassStyles.headerRow}>
-        <View style={{ gap: 2 }}>
-          <Text accessibilityRole="header" style={s.heading}>
-            Your classes
-          </Text>
-          <Text style={s.body}>Choose a class, then open its assignments.</Text>
-        </View>
-        <View style={myClassStyles.actionRow}>
-          <Button
-            label="Join another class"
-            size="sm"
-            variant="primary"
-            onPress={() => router.push("/class-code")}
-          />
-          <Button
-            label="Refresh"
-            size="sm"
-            variant="secondary"
-            disabled={state.phase === "loading"}
-            onPress={reload}
-          />
-        </View>
+  return <View style={p.section}>
+    <View style={p.row}>
+      <View style={{ gap: 4 }}><Text accessibilityRole="header" style={p.heading}>Your classes</Text><Text style={p.body}>Your next lesson starts here.</Text></View>
+      <View style={styles.actions}>
+        <Button label="Join another class" size="sm" secondary onPress={() => router.push("/class-code")} />
+        <Button label="Refresh" size="sm" variant="ghost" textStyle={{ color: pc.muted }} disabled={state.phase === "loading"} onPress={reload} />
       </View>
-
-      <LoadState phase={state.phase} error={state.error} retry={reload} />
-
-      {state.phase === "ready" && state.rows.length === 0 && (
-        <EmptyState
-          icon="🎒"
-          title="No classes joined yet"
-          description="Enter an invitation code from your instructor to join a classroom."
-          action={
-            <Button
-              label="Enter Class Invitation Code →"
-              variant="primary"
-              onPress={() => router.push("/class-code")}
-            />
-          }
-        />
-      )}
-
-      {state.phase === "ready" && selected && (
-        <>
-          {state.rows.length > 1 && (
-            <View style={{ gap: 8 }}>
-              <Text style={[s.eyebrow, { color: theme.colors.muted }]}>
-                Choose a class
-              </Text>
-              <Choices
-                values={state.rows.map((row) => row.id)}
-                value={selected.id}
-                onChange={setSelection}
-                label={(id) => {
-                  const row = state.rows.find((r) => r.id === id);
-                  return row
-                    ? `${row.class_name} · Grade ${row.grade_level} · ${
-                        row.language === "english" ? "English" : "Tagalog"
-                      }`
-                    : "Class";
-                }}
-              />
-            </View>
-          )}
-
-          {/* Active Class Card */}
-          <View style={[s.card, myClassStyles.classCard]}>
-            {/* Badges Row */}
-            <View style={myClassStyles.badgeRow}>
-              <Badge
-                label={`GRADE ${selected.grade_level}`}
-                variant="info"
-              />
-              <Badge
-                label={selected.language === "english" ? "ENGLISH" : "TAGALOG"}
-                variant="purple"
-              />
-              <Badge label="Enrollment: active" variant="success" icon="✓" />
-            </View>
-
-            <Text accessibilityRole="header" style={s.heading}>
-              {selected.class_name}
-            </Text>
-
-            {/* Instructor Details Bar */}
-            <View style={myClassStyles.instructorBox}>
-              <Text style={myClassStyles.instructorIcon}>👨‍🏫</Text>
-              <View>
-                <Text style={myClassStyles.instructorLabel}>Instructor</Text>
-                <Text style={myClassStyles.instructorName}>
-                  {selected.instructor_display_name || "Instructor"}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={[s.body, { fontSize: 13, color: theme.colors.subtle }]}>
-              Joined on {new Date(selected.joined_at).toLocaleDateString()} • Verified School Member
-            </Text>
-
-            {/* Primary Action */}
-            <Button
-              label="View assignments"
-              variant="primary"
-              onPress={() =>
-                router.push({
-                  pathname: "/published-assignments",
-                  params: { classId: selected.class_id },
-                })
-              }
-            />
-
-            {/* Secondary Actions Row */}
-            <View style={myClassStyles.cardBtnGrid}>
-              <Button
-                label="Class messages"
-                variant="secondary"
-                style={{ flex: 1 }}
-                onPress={() =>
-                  router.push({
-                    pathname: "/communication",
-                    params: { classId: selected.class_id },
-                  })
-                }
-              />
-              <Button
-                label="Learning history"
-                variant="secondary"
-                style={{ flex: 1 }}
-                onPress={() =>
-                  router.push({
-                    pathname: "/learning-history",
-                    params: { classId: selected.class_id },
-                  })
-                }
-              />
-            </View>
-          </View>
-
-          {state.hasMore && (
-            <Button
-              label="Load more classes"
-              variant="secondary"
-              onPress={more}
-            />
-          )}
-        </>
-      )}
     </View>
-  );
+    <LoadState phase={state.phase} error={state.error} retry={reload} />
+    {state.phase === "ready" && state.rows.length === 0 && <View style={p.card}>
+      <EmptyState title="No classes joined yet" description="Enter an invitation code from your instructor to join a classroom."
+        action={<Button label="Enter Class Invitation Code →" onPress={() => router.push("/class-code")} />} />
+    </View>}
+    {state.phase === "ready" && selected && <>
+      {state.rows.length > 1 && <View style={{ gap: 10 }}>
+        <Text style={p.eyebrow}>Choose a class</Text>
+        <View style={p.grid}>{state.rows.map(row => <Pressable key={row.id} accessibilityRole="button"
+          accessibilityLabel={`${row.class_name} · Grade ${row.grade_level} · ${row.language === "english" ? "English" : "Tagalog"}`}
+          accessibilityState={{ selected: selected.id === row.id }} onPress={() => setSelection(row.id)}
+          style={({ pressed }) => [styles.choice, selected.id === row.id && styles.selectedChoice, { opacity: pressed ? 0.7 : 1 }]}>
+          <Text style={[styles.choiceText, selected.id === row.id && { color: pc.surface }]}>{row.class_name}</Text>
+          <Text style={[p.caption, selected.id === row.id && { color: "#DDE4F1" }]}>{row.language === "english" ? "English" : "Tagalog"} · Grade {row.grade_level}</Text>
+        </Pressable>)}</View>
+      </View>}
+      <View style={[p.card, { gap: 18 }]}>
+        <View style={p.row}>
+          <View style={styles.classIcon}><PersonalIcon name="learn" color={pc.teal} size={26} /></View>
+          <View style={[p.chip, { backgroundColor: pc.aqua }]}><Text style={[p.chipText, { color: pc.teal }]}>Enrollment: active</Text></View>
+        </View>
+        <View style={{ gap: 8 }}>
+          <Text accessibilityRole="header" style={p.heading}>{selected.class_name}</Text>
+          <View style={styles.actions}><View style={p.chip}><Text style={p.chipText}>{selected.language === "english" ? "English" : "Tagalog"}</Text></View><View style={p.chip}><Text style={p.chipText}>Grade {selected.grade_level}</Text></View></View>
+        </View>
+        <View style={styles.instructor}>
+          <View style={styles.avatar}><Text style={{ color: pc.rose, fontWeight: "700" }}>{(selected.instructor_display_name || "Instructor").charAt(0).toUpperCase()}</Text></View>
+          <View style={{ flex: 1, gap: 3 }}><Text style={p.caption}>YOUR INSTRUCTOR</Text><Text style={styles.choiceText}>{selected.instructor_display_name || "Instructor"}</Text></View>
+        </View>
+        <Button label="View assignments" icon="→" onPress={() => router.push({ pathname: "/published-assignments", params: { classId: selected.class_id } })} />
+        <View style={p.grid}>
+          <Button label="Class messages" secondary style={styles.secondary} onPress={() => router.push({ pathname: "/communication", params: { classId: selected.class_id } })} />
+        </View>
+        <Text style={p.caption}>Joined {new Date(selected.joined_at).toLocaleDateString()}</Text>
+      </View>
+      {state.hasMore && <Button label="Load more classes" secondary onPress={more} />}
+    </>}
+  </View>;
 }
-
-const myClassStyles = StyleSheet.create({
-  container: {
-    gap: 16,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    flexWrap: "wrap",
-  },
-  actionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  classCard: {
-    gap: 14,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  instructorBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: theme.colors.surfaceSubtle,
-    padding: 12,
-    borderRadius: 12,
-  },
-  instructorIcon: {
-    fontSize: 24,
-  },
-  instructorLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: theme.colors.subtle,
-    textTransform: "uppercase",
-  },
-  instructorName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: theme.colors.ink,
-  },
-  cardBtnGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
+const styles = StyleSheet.create({
+  actions: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  choice: { backgroundColor: pc.surface, borderColor: pc.line, borderWidth: 1, borderRadius: 14, padding: 14, minHeight: 64, gap: 5, flexGrow: 1, flexBasis: 180 },
+  selectedChoice: { backgroundColor: pc.navy, borderColor: pc.navy },
+  choiceText: { fontSize: 14, fontWeight: "600", color: pc.ink },
+  classIcon: { width: 50, height: 50, borderRadius: 15, backgroundColor: pc.aqua, alignItems: "center", justifyContent: "center" },
+  instructor: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: pc.soft, padding: 12, borderRadius: 12 },
+  avatar: { width: 38, height: 38, borderRadius: 20, backgroundColor: pc.pink, alignItems: "center", justifyContent: "center" },
+  secondary: { flexGrow: 1, flexBasis: 180 },
 });

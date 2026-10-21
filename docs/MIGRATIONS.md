@@ -1,5 +1,17 @@
 # PostgreSQL setup and migrations
 
+## Personal history — 0018_personal_history
+
+Current source head is `0018_personal_history` (71 tables). It adds one owner-only immutable personal activity ledger and indexes/guards after frozen 0017. No old table or historical row is rewritten. An empty-ledger downgrade to 0017 works; retained history blocks downgrade. Disposable PostgreSQL migration/authorization/isolation tests passed before applying the normal cumulative 0016→0018 upgrade to the verified localhost development database. That local upgrade also applies the pending 0017 structural prerequisite without creating research enrollment or approval data. Counts of pre-existing tables were unchanged. No production database was touched. See [PERSONAL_HISTORY.md](PERSONAL_HISTORY.md) for exact commands and limitations; prior migration statements below are historical milestones.
+
+## Section 38B Prompt 02 — 0017_research_classrooms
+
+Current source head is `0017_research_classrooms` (70 domain tables), following frozen `0016_learning_experience`. Seven new private tables and invoker guards add explicit study/class binding, immutable configuration, independent authorization evidence and contextual replay history. Existing personal/classroom records and all earlier migrations are unchanged; no backfill, seed, stamp or startup migration is added.
+
+Only generated `fluentt_test_<UUID>` PostgreSQL databases were migrated in this prompt. Fresh upgrade, empty 0017 → 0016 → 0017 roundtrip, and retained-record downgrade refusal passed. No configured application/production database was upgraded, downgraded or reset. Before any later authorized deployment, review backups and the normal forward upgrade using a migrator credential; use the existing initial-name adapter only for a fresh empty database as documented below.
+
+New tables/functions revoke PUBLIC access. The runtime must be a separately reviewed **non-owner** role; clearance records must be SELECT-only to HTTP services and writable only by independently authorized operators/verifiers. No runtime grants, real clearance, operator evidence workflow or institution permission is provisioned by this migration. Do not infer approval from an evidence reference or UI affirmation. Downgrade refuses if any new table retains data; it does not delete configurations, consent references or audit history. See [SECTION_38B_02_REPORT.md](SECTION_38B_02_REPORT.md). Older head/count notes below are historical.
+
 ## Section 25 — 0012_class_communication
 
 Current head is 0012_class_communication, still 63 tables. Add only nullable Message.communication_contract/context_class_id/send_request_id, a RESTRICT class-context FK, sender/request uniqueness, context/time indexes and class-text-v1 shape checks. Existing recipient-XOR-class destinations, values and timestamps are retained; legacy unclassified messages remain unserved by new APIs. Invoker guards validate owner/student roles and membership, prevent sent content/identity mutation and protect new read records; PUBLIC access to messages/message_reads is revoked. Runtime/operator grants remain a deployment task. Downgrade refuses any retained new context/request/contract; empty-new-contract rollback preserves old records. Frozen 0001–0011 are unchanged. COMMUNICATIONS.md and SECTION_25_REPORT.md record actual PostgreSQL tests, backup/forward-upgrade and limitations.

@@ -38,6 +38,7 @@ export function routeAllowed(profile: Profile | null, route: string, pending = f
   if (route === "question-practice" || route === "personal-stats") return profile.role === "personal_student" && destination(profile) === "/student";
   if (["conversation", "pronunciation"].includes(route)) return profile.role !== "instructor" && destination(profile) === "/student";
   if (route === "research") return profile.role === "school_student" && destination(profile) === "/student";
+  if (route === "my-classes") return profile.role === "school_student" && destination(profile) === "/student";
   if (route === "communication") return profile.role === "instructor" || (profile.role === "school_student" && destination(profile) === "/student");
   if (route === "account" || route === "notifications") return true;
   if (route === "learning-materials") return destination(profile) === "/student" || profile.role === "instructor";

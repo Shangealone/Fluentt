@@ -38,7 +38,7 @@ const {FlashcardQuestion} = local(path.join(mobile,'src/features/questions/Flash
 const Experience = local(path.join(mobile,'src/app/experience.tsx')).default;
 const {startingDifficulty} = local(path.join(mobile,'src/services/api/identity.ts'));
 const {BeginnerPractice,StarterExerciseView} = local(path.join(mobile,'src/features/learning/BeginnerPractice.tsx'));
-const {starterLessons,starterMatches,starterReady,exercisesFor} = local(path.join(mobile,'src/features/learning/beginnerLessons.ts'));
+const {starterLessons,starterMatches,starterReady,exercisesFor,sentenceChallenge} = local(path.join(mobile,'src/features/learning/beginnerLessons.ts'));
 const {voiceMatches} = local(path.join(mobile,'src/features/learning/useLessonSpeech.ts'));
 const {SentenceCards,DraggableWordCard,placeSentenceCard,sentenceDropIndex} = local(path.join(mobile,'src/features/learning/SentenceCards.tsx'));
 const {renderToStaticMarkup} = local('react-dom/server');
@@ -167,10 +167,10 @@ test('sentence tiles retain authored jumble, can be cleared, and match exact aut
     assert.equal(starterMatches(row,[]),false);
   }
 });
-test('sentence library adds ten per language, with unused distractors and exact duplicate-word identities',()=>{
+test('sentence library has 23 per language, with three authored distractors and exact word identities',()=>{
   for(const language of ['english','tagalog']){
-    const items=exercisesFor(language,'sentence');assert.equal(items.length,13);
-    assert.equal(new Set(items.map(item=>item.id)).size,13);
+    const items=exercisesFor(language,'sentence');assert.equal(items.length,23);
+    assert.equal(new Set(items.map(item=>item.id)).size,23);
     for(const item of items){
       assert.ok(item.tokens.every(token=>typeof token.text==='string'&&token.text.length));
       assert.equal(new Set(item.tokens.map(token=>token.id)).size,item.tokens.length);
@@ -179,19 +179,68 @@ test('sentence library adds ten per language, with unused distractors and exact 
       assert.equal(starterMatches(item,item.orderedIds),true);
     }
     for(const item of items.slice(3)){
-      assert.equal(item.tokens.length,item.orderedIds.length+1);
+      assert.equal(item.tokens.length,item.orderedIds.length+3);
+      assert.equal(item.distractorIds.length,3);
+      const words=item.orderedIds.map(id=>item.tokens.find(token=>token.id===id).text.toLowerCase());
+      const extras=item.distractorIds.map(id=>item.tokens.find(token=>token.id===id).text.toLowerCase());
+      assert.equal(new Set(extras).size,3);assert.ok(extras.every(text=>!words.includes(text)));
       const extra=item.tokens.find(token=>!item.orderedIds.includes(token.id)).id;
       const wrong=[extra,...item.orderedIds.slice(1)];
       assert.equal(starterReady(item,wrong),true);assert.equal(starterMatches(item,wrong),false);
       assert.equal(starterReady(item,item.tokens.map(token=>token.id)),false);
     }
     const h=harness(()=>BeginnerPractice({language}));press(h,'Start sentence practice');
-    for(let index=0;index<13;index++){
+    for(let index=0;index<23;index++){
       const player=nodes(h.render(),node=>node.type===StarterExerciseView)[0];
-      assert.equal(player.props.item.id,items[index].id);assert.equal(player.props.last,index===12);player.props.onNext();
+      assert.equal(player.props.item.id,items[index].id);assert.equal(player.props.last,index===22);player.props.onNext();
     }
     assert.ok(nodes(h.render(),node=>node.props?.label==='Choose another activity').length);h.blur();
   }
+});
+
+test('sentence challenges grow after correct answers, keep retries stable and reset after finishing',()=>{
+  for(const language of ['english','tagalog']){
+    const h=harness(()=>BeginnerPractice({language}));press(h,'Start sentence practice');
+    for(let index=0;index<23;index++){
+      const player=nodes(h.render(),node=>node.type===StarterExerciseView)[0];
+      const item=player.props.item,expected=index<3?0:index<7?1:index<12?2:3;
+      assert.equal(item.distractorIds.length,expected);assert.equal(item.tokens.length,item.orderedIds.length+expected);
+      assert.equal(starterMatches(item,item.orderedIds),true);
+      const child=harness(()=>StarterExerciseView(player.props));press(child,'Show transcript');
+      const change=answer=>nodes(child.render(),node=>node.type===SentenceCards)[0].props.onChange(answer);
+      if(index===3){
+        const bank=item.tokens.map(token=>token.id);change([item.orderedIds[0],item.distractorIds[0],...item.orderedIds.slice(2)]);press(child,'Check answer');
+        assert.equal(nodes(child.render(),node=>node.props?.label==='Next exercise').length,0);
+        assert.equal(nodes(h.render(),node=>node.type===StarterExerciseView)[0].props.item.id,item.id);
+        assert.deepEqual(nodes(h.render(),node=>node.type===StarterExerciseView)[0].props.item.tokens.map(token=>token.id),bank);
+      }
+      change(item.orderedIds);press(child,'Check answer');press(child,index===22?'Finish activity':'Next exercise');
+      // Repeated delivery of one Next press cannot skip an unsolved sentence.
+      player.props.onNext();child.blur();
+    }
+    assert.ok(nodes(h.render(),node=>node.props?.label==='Practise again').length);
+    press(h,'Practise again');const first=nodes(h.render(),node=>node.type===StarterExerciseView)[0];assert.equal(first.props.item.distractorIds.length,0);
+    h.blur();assert.ok(nodes(h.render(),node=>node.props?.label==='Start sentence practice').length);
+  }
+});
+
+test('I want water accepts the heard sentence and rejects the plausible I like water distractor',()=>{
+  const original=exercisesFor('english','sentence').find(item=>item.id==='en-want-water');
+  const item=sentenceChallenge(original,3),id=text=>item.tokens.find(token=>token.text===text).id;
+  assert.deepEqual(item.tokens.map(token=>token.text).sort(),['I','like','want','water']);
+  assert.equal(item.spoken,'I want water');assert.equal(starterMatches(item,[id('I'),id('want'),id('water')]),true);
+  assert.equal(starterReady(item,[id('I'),id('like'),id('water')]),true);assert.equal(starterMatches(item,[id('I'),id('like'),id('water')]),false);
+  assert.equal(sentenceChallenge(original,7).distractorIds.length,2);assert.equal(sentenceChallenge(original,12).distractorIds.length,3);
+  assert.equal(original.tokens.length,6);assert.equal(original.distractorIds.length,3);
+});
+
+test('starter history records an answer check once, never a visit or typed/private answer',async()=>{
+  const calls=[];const history={async record(body){calls.push(body);return body;}};
+  const item=exercisesFor('english','word')[0];const h=harness(()=>StarterExerciseView({item,language:'english',last:true,onNext(){},history,owner:'qa'}));
+  h.render();await next();assert.equal(calls.length,0);press(h,'Show transcript');
+  nodes(h.render(),n=>n.props?.accessibilityLabel==='water')[0].props.onPress();press(h,'Check answer');await next();assert.equal(calls.length,1);
+  nodes(h.render(),n=>n.props?.accessibilityLabel==='hello')[0].props.onPress();press(h,'Check answer');await next();assert.equal(calls.length,1);
+  assert.equal(calls[0].kind,'learn_question');assert.equal(calls[0].prompt,'hello');assert.equal('answer' in calls[0],false);h.blur();
 });
 test('sentence drag/drop inserts, reorders, removes, cancels outside drops and respects capacity',()=>{
   const item=exercisesFor('english','sentence')[3];let answer=[];

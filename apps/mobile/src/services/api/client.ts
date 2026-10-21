@@ -48,12 +48,13 @@ export async function request<T>(
   body?: unknown,
   credential?: string,
   extraHeaders: Record<string, string> = {},
+  timeoutMs = 8000,
 ): Promise<T> {
   const base = process.env.EXPO_PUBLIC_API_URL;
   if (!base || !/^https?:\/\//.test(base))
     throw new ApiError(0, "Configure the backend address before continuing.");
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`${base.replace(/\/$/, "")}/api/v1${path}`, {
       method,
@@ -83,6 +84,13 @@ export async function request<T>(
         messages[response.status] ??
         "The request could not be completed. Please retry.";
       const safeMessages: Record<string, string> = {
+        whole_phrase_scoring_unavailable: "Genuine pronunciation scoring is not configured for this language. No score was generated.",
+        whole_phrase_permission_required: "Allow this recording to be sent to Microsoft Azure before requesting a score.",
+        whole_phrase_audio_invalid: "Use one complete 16 kHz mono recording of 0.5 to 30 seconds.",
+        whole_phrase_no_speech: "The full recording could not be assessed. Check your microphone and try the sentence again.",
+        whole_phrase_provider_unavailable: "The scoring service did not finish. No score is available. Requests are not retried automatically.",
+        whole_phrase_provider_invalid: "The service returned an incomplete assessment. No score is available.",
+        whole_phrase_version_changed: "The phrase changed. Reload it before recording again.",
         invitation_unavailable: "Class code is invalid or unavailable. Check with your instructor.",
         preview_changed: "Class details changed. Verify the code and review again.",
         school_student_required: "Only school students can join classes.",

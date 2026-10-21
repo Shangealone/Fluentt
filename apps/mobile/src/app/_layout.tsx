@@ -8,6 +8,7 @@ import { destination, routeAllowed } from "../session/routing";
 import { Screen, Loading, ErrorMessage, Button, s } from "../components/ui";
 import { DemoNavigator } from "../components/DemoNavigator";
 import { PersonalBottomNavigation } from "../components/PersonalBottomNavigation";
+import { ClassroomBottomNavigation } from "../components/ClassroomBottomNavigation";
 function Navigator() {
   const session = useSession();
   if (session.loading || session.error) return <Screen>
@@ -42,7 +43,7 @@ function Navigator() {
       <Stack.Screen name="assignment-builder" />
       <Stack.Screen name="assignment-results" />
     </Stack.Protected>
-    {(["grade", "learning-focus", "language", "experience", "student", "question-practice", "personal-stats", "conversation", "pronunciation", "research"] as const).map((name) => <Stack.Protected key={name} guard={allowed(name)} redirectTo={target}>
+    {(["grade", "learning-focus", "language", "experience", "student", "my-classes", "question-practice", "personal-stats", "conversation", "pronunciation", "research"] as const).map((name) => <Stack.Protected key={name} guard={allowed(name)} redirectTo={target}>
       <Stack.Screen name={name} />
     </Stack.Protected>)}
     <Stack.Protected guard={allowed("class-code")} redirectTo={target}>
@@ -130,6 +131,7 @@ export default function Layout() {
         <View style={{ flex: 1 }}>
           <View style={{ flex: 1 }}><Navigator /></View>
           <PersonalBottomNavigation />
+          <ClassroomBottomNavigation />
         </View>
         <DemoNavigator />
       </SessionProvider>

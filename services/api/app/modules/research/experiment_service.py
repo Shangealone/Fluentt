@@ -361,7 +361,7 @@ ENGLISH_PRONUNCIATION_ITEMS = [
 
 def ensure_study_experiment_infrastructure(db: Session, study: ResearchStudy):
     """Guarantees scheduler configurations, groups, levels, and assessment instruments exist for the study."""
-    if study.locked_at is not None:
+    if study.locked_at is not None or (study.conditions or {}).get("research_contract") == "research-classrooms-v1":
         return
 
     # 1. Schedulers
@@ -884,6 +884,14 @@ def admin_reassign_participant_group(
 # =========================================================================
 
 def _resolve_participant_for_user(db: Session, user: User, study_id: UUID) -> ResearchParticipant:
+    study = db.get(ResearchStudy, study_id)
+    if study and (study.conditions or {}).get("research_contract") == "research-classrooms-v1":
+        # Managed research must never fall through to the legacy timer/scoring runner.
+        raise fail(
+            409,
+            "research_assessment_publication_blocked",
+            "Research Classroom assessments are draft-only; approved instruments, timing and authorization are required.",
+        )
     link = db.scalar(
         select(ResearchIdentityLink).where(
             ResearchIdentityLink.user_id == user.id,

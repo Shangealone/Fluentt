@@ -1,139 +1,48 @@
 # FLUENTT Project Handoff
 
-> Prepared from the current repository state on 2026-10-20 (Asia/Manila) upon completion of **Section 39: Security Hardening, Comprehensive QA, Integration and Deployment Readiness**. This document records verified repository facts, supported workflows, and architectural boundaries.
+Updated 2026-10-21 (Asia/Manila), Section 38B Prompt 08. Current evidence: [SECTION_38B_FINAL_REPORT.md](docs/SECTION_38B_FINAL_REPORT.md). Earlier Section 36-39 completion claims are historical reports, not proof of approved or executable human research.
 
----
+Later personal History follow-up (2026-10-21): **Stats → History** now logs personal Learn/Voice/Tutor activity metadata from actual interaction callbacks. Source/local development head is **0018_personal_history, 71 tables**; the verified localhost development DB received its tested cumulative 0016→0018 upgrade with old table counts preserved. Real history is owner-only and durable; demo history starts empty/in-memory. No raw responses/recordings/dialogue, grades, mastery, scheduler or research outcomes are added. Client checks: 65 passed; selected disposable PostgreSQL checks: 11 + 1 passed; full non-PostgreSQL backend: 775 passed / 1 existing failure / 204 deselected. Mobile typecheck/lint (29 existing warnings) and web/iOS/Android JS exports passed. Exact files, local CORS configuration and remaining limitations: [PERSONAL_HISTORY.md](docs/PERSONAL_HISTORY.md). Research remains blocked; the snapshot below predates these later personal changes.
 
-## 1. Current Repository State
+## Section 38B checkout and verification snapshot
 
-- **Current Path:** `c:\Users\Shan Gealone\Desktop\Backup\Fluentt`
-- **Git Branch:** `main`, tracking `origin/main`
-- **Milestone Reached:** Section 39 (Security Hardening, Comprehensive QA, Integration and Deployment Readiness)
-- **Database Status:** PostgreSQL 17 at Alembic head `0014_user_passwords` (with password protection).
-- **Verification Status:** All automated suites passing (669 backend unit tests, 26 live PostgreSQL integration tests, Next.js build/lint, Expo mobile typecheck/lint, 193 contract tests across 27 suites).
+- Workspace: `C:/Users/Shan Gealone/Desktop/Backup/Fluentt`.
+- Branch: `codex/personal-learning-voice-updates`; HEAD `6e2d7167e7f36e79172852d73c267a5dc84e13e5`. Prior work and Section 38B modifications remain uncommitted. No commit, push, deployment or application database migration occurred during verification.
+- Source migration head: `0017_research_classrooms`; registered metadata: 70 domain tables. Fresh migration and isolated 0017 roundtrip/guard tests pass in generated UUID PostgreSQL databases. Application database version/data and deployed grants were not inspected.
+- Backend non-PostgreSQL suite: **728 passed, 1 existing failure, 199 deselected**. Selected real PostgreSQL integration: **55 passed**. Client regression/setup suite: **98 passed, 2 existing failures**. The three assertion disagreements are documented in the final report; Personal Learning was not changed to conceal them.
+- Admin typecheck, lint and production build passed; isolated actual Next.js/Chrome research UI: **6 passed**. Mobile typecheck passed; lint: 0 errors/29 existing warnings. Expo Android/iOS/web JavaScript exports passed. These are not native binaries, device/provider checks or production certification.
 
----
+## Research status: NOT READY FOR HUMAN DATA COLLECTION
 
-## 2. Project Overview & Thesis Scope
+The classroom-only foundation supports explicit designation, authorized draft configuration, immutable protocol revisions, activation blockers, assessment delivery proposals and monitoring availability. Admin route: `/research`, fixed BFF `/api/admin/research/classrooms/...`. Backend: `/api/v1/admin/research-classrooms`; read-only mobile metadata: `/api/v1/me/research-classrooms/classes/{class_id}`. No new mobile execution screen exists.
 
-FLUENTT is the master's thesis application **“FLUENTT: An Adaptive Language Learning System with Enhanced Spaced Repetition and NLP-Driven Pronunciation Modeling”** for NE Learning Inc. The system supports adaptive English/Tagalog language learning, classroom learning, versioned curriculum and assessments, spaced repetition, pronunciation/conversation integrations, and a controlled research evaluation framework.
+Live enrollment/allocation, genuine pre/post/delayed tests, authoritative timers, weekday/weekend treatment, questionnaire collection, observed analytics and thesis CSV release remain **BLOCKED**. Prompt 04 has clarification only; `docs/SECTION_38B_04_REPORT.md` is absent. Planned 30 students / 15:15 SM-2:ESR are a proposal, not an actual authorized cohort.
 
-The architecture separates:
-1. **Expo/React Native Mobile App (`apps/mobile`)**: For students and instructors, supporting onboarding, classroom enrollment, adaptive focus, 10 interactive question methods, spaced repetition (SM-2, FSRS-6, FIFAKT), pronunciation practice, and guided conversation.
-2. **Next.js Administrator Website (`apps/admin`)**: For administrators, curriculum publishers, and educational researchers, supporting curriculum hierarchy authoring, question bank publishing, CONSORT participant flow, and de-identified CSV data exports.
-3. **FastAPI Backend (`services/api`)**: For business logic, authentication, transaction boundaries, objective grading (`objective-exact-v1`), spaced-repetition scheduling, audio validation, and research analytics.
-4. **PostgreSQL Database (`infra`)**: Single source of truth with 63 domain tables covering users, sessions, classrooms, curriculum, assessments, spaced repetition reviews, pronunciation attempts, and research protocols.
+Managed roots carry `research_contract=research-classrooms-v1`. Placeholder consent/study/eligibility/enrollment/allocation and generic research review routes refuse these roots; managed legacy assessments/disclosure were already blocked. Withdrawal code was not changed. The shared reviews router has one default-off guard: non-research requests make no research query and retain their scheduler calls. All mobile source and pure algorithms remain unchanged.
 
----
+Before collection, supply independently approved Chapter 3/protocol and applicable ethics/institution/site authorization; study-information/data-use/privacy/consent materials; minor/guardian/assent rules; allocation/concealment/withdrawal policy; versioned assessment/questionnaire instruments and scoring; calendar/timer/follow-up/measurement policies; statistical/disclosure/retention rules. Establish independent clearance verification, non-owner runtime database grants and deployed OIDC/MFA/TLS. UI references and synthetic test-only clearance entries confer no institutional permission.
 
-## 3. Technology Stack & Directory Structure
+Registry: `sm2`, `fsrs6`, `fifakt`. ESR currently uses `fifakt-simulated-v1`, with `simulated=true`; no trained/calibrated artifact or approved treatment was verified. SM-2 uses updated ease and half-up interval rounding; approve its research control definition rather than changing Personal Learning. No verified Tagalog pronunciation measurement, human outcome or statistical superiority is claimed.
 
-### Stack
-- **Mobile Client**: Expo SDK 58, React Native 0.88, React 19.3, TypeScript 5.8, Expo Router, React Native Web, Safe Area Context, SecureStore, Crypto.
-- **Administrator Portal**: Next.js 16.4.2 (App Router, Turbopack), React 19.3, TypeScript, Vanilla CSS design tokens.
-- **Backend Service**: Python 3.11, FastAPI 0.119, Pydantic 2.14, SQLAlchemy 2.0 (synchronous sessions), psycopg 3.2, Alembic, Uvicorn.
-- **Database**: PostgreSQL 17 (production/local). Disposable test databases generated per test suite.
+## Actual repository map and boundaries
 
-### Directory Layout
-```text
-apps/mobile/         Expo Router application, student & instructor portals, audio recording, widgets
-apps/admin/          Next.js admin portal, curriculum authoring, researcher dashboard, export center
-services/api/        FastAPI backend application, domain modules, models, and migrations
-services/api/app/modules/
-  ├── identity/          Username availability, device sessions, and role management
-  ├── classrooms/        Instructor class creation, student enrollment, and codes
-  ├── curriculum/        Curriculum hierarchy, versioning, authoring, and materials
-  ├── questions/         Question bank (10 question methods), keys, and revisions
-  ├── assignments/       Assignment drafting, distribution-only publication, and captures
-  ├── grading/           Objective-exact-v1 grading engine and immutable run ledgers
-  ├── progress/          Progress aggregation, learning pathways, and competencies
-  ├── spaced_repetition/ SM-2, FSRS-6, and FIFAKT scheduling algorithms and review events
-  ├── pronunciation/     Audio validation, phoneme scoring, and Goodness of Pronunciation (GOP)
-  ├── conversation/      Guided pedagogical conversation agent and dialogue state machine
-  └── research/          Participant assent/consent, 3-arm allocation, analytics, and CSV exports
-docs/                Architecture, decisions, deployment, demo guide, and milestone reports (00–39)
-scripts/             Node contract and integration test runner (26 test files)
-```
+| Surface | Paths and responsibility |
+| --- | --- |
+| Expo student/instructor app | `apps/mobile/src/app`; role/session authority in `src/session`. Personal screens/navigation/state/history and normal classroom flows are protected from Section 38B changes. |
+| Next.js administrator | `apps/admin/src/app`, `src/components`, `src/services`; research uses existing navigation, separate browser authentication and explicit permissions. |
+| FastAPI | `services/api/app/modules`; classroom/enrollment, curriculum/questions, assignments/capture, grading/results, progress/monitoring, communications and learning services. Only backend accesses database/providers. |
+| Research foundation | `research/classroom_{router,schemas,service}.py`, `assessment_draft_service.py`, `reporting_{schemas,service}.py`, `execution_guard.py`; private models in `app/models/research_classrooms.py`. |
+| Database | `services/api/app/models`, `app/db/base.py`, immutable `migrations/versions`. Never reset/stamp/downgrade an existing database for QA. |
+| Evidence | `docs/SECTION_38B_01_AUDIT.md`, reports 02/03/05/06/07, final report, `SECTION_38B_PROGRESS.md`, `RESEARCH_EXPORT_DATA_DICTIONARY.md`, `DECISIONS.md`. Missing report 04 is not completed work. |
 
----
+Research learning contexts use coded participants, excluding ordinary user/class identifiers; identity mappings remain private. Class membership does not grant consent. Monitoring returns 18 unavailable metrics with null counts/denominators/windows, not zero-valued observations. Exports refuse disclosure; the dictionary documents availability, not a released CSV schema. Screenshots/API doubles and disposable database records are explicitly synthetic.
 
-## 4. Completed Section Implementation Inventory (00–39)
+## Verification and local use
 
-All milestones from Section 00 through Section 39 are completed and audited:
+Exact commands, fixture scope, failures and platform limitations are in the final report. PostgreSQL fixtures create/migrate/drop only generated `fluentt_test_<UUID>` databases through a reviewed maintenance connection. Keep credentials in ignored environment files and out of logs.
 
-- **Section 00–05**: Architecture baseline, full-stack shells, PostgreSQL schema, username/session engine, mobile onboarding, instructor class management.
-- **Section 06–08**: Student classroom enrollment, school student navigation, isolated administrator session portal.
-- **Section 09–10**: 7-tier curriculum hierarchy, draft/publish lifecycle with transactional advisory locking (`78090001`).
-- **Section 11–17**: Question bank supporting all 10 assessment methods (Multiple Choice, True/False, Identification, Fill Blanks, Multiple Select, Error Identification, Word Arrangement, Sentence Arrangement, Matching, and Flashcards) with key-free learner DTOs.
-- **Section 18–22**: Assignment authoring, distribution publication, unscored response capture, objective-exact-v1 grading, and instructor-controlled result release.
-- **Section 23–26**: Student progress metrics, instructor classroom monitoring, announcements/communications, and adaptive learning focus.
-- **Section 27–32**: Spaced repetition engines (SM-2, FSRS-6, FIFAKT), review telemetry, adaptive learning pathways DAG, and multimedia learning materials.
-- **Section 33–35**: Audio upload pipeline, Goodness of Pronunciation (GOP) scoring, and guided conversational AI tutor.
-- **Section 36–38**: Controlled research participant consent, 3-arm protocol allocation, descriptive analytics, and formula-injection-safe CSV exports.
-- **Section 39**: Security hardening, full test suite QA, cross-platform build validation, demo guide, deployment guide, and thesis evidence documentation.
+From `services/api`: `.venv/Scripts/python.exe -m pytest -m 'not postgresql' -q --tb=short --maxfail=20`. From each client directory: `npm run typecheck`, `npm run lint`; admin additionally `npm run build`. Run the admin build sequentially with browser tests: their synthetic workspace is under `.next`. Selected passes do not establish a passing historical/wildcard suite.
 
----
+Refer to `README.md` for local development and `docs/MIGRATIONS.md` before any separately authorized application migration. The earlier demo guide is illustrative; do not seed participants or enable placeholder approvals to demonstrate research. Native device/provider and approved positive research execution checks remain outstanding.
 
-## 5. Verification Commands & Test Suites
-
-Execute the following commands from the repository root to verify system integrity:
-
-```powershell
-# 1. Backend Unit & Algorithm Tests (FastAPI / pytest)
-services/api/.venv/Scripts/pytest.exe -m "not postgresql"
-# Output: 662 passed in ~35s
-
-# 2. Live PostgreSQL Integration Tests
-services/api/.venv/Scripts/pytest.exe tests/test_bootstrap_postgresql.py tests/test_identity_postgresql.py tests/test_classrooms_postgresql.py tests/test_enrollment_postgresql.py
-# Output: 25 passed in ~18s
-
-# 3. Next.js Admin Website Verification
-npm --prefix apps/admin run lint
-npm --prefix apps/admin run build
-node --test scripts/admin-web.test.mjs
-# Output: 12 passed in ~17s
-
-# 4. Expo Mobile Verification
-npm --prefix apps/mobile run typecheck
-npm --prefix apps/mobile run lint
-
-# 5. Node End-to-End Contract Tests (26 test files)
-node --test scripts/*.test.mjs scripts/*.test.cjs
-# Output: 189 passed (100% pass rate)
-```
-
----
-
-## 6. How to Run the Local Demo
-
-Refer to [docs/FLUENTT_DEMO_GUIDE.md](file:///c:/Users/Shan%20Gealone/Desktop/Backup/Fluentt/docs/FLUENTT_DEMO_GUIDE.md) for detailed role-by-role demonstration walkthroughs.
-
-1. **Start Backend**:
-   ```powershell
-   Set-Location services/api
-   .\.venv\Scripts\Activate.ps1
-   alembic upgrade head
-   uvicorn app.main:app --port 8000 --reload
-   ```
-2. **Start Admin Portal**:
-   ```powershell
-   Set-Location apps/admin
-   npm run dev
-   # Open http://localhost:3000
-   ```
-3. **Start Mobile App**:
-   ```powershell
-   Set-Location apps/mobile
-   npm start
-   # Press 'w' for web preview at http://localhost:8081
-   ```
-
----
-
-## 7. Critical Academic & Thesis Constraints
-
-1. **No Unverified Claims**: Never claim official Department of Education (DepEd) accreditation or that human research trials have been completed.
-2. **Synthetic Data**: All participant cohort analytics and CONSORT flow visualizations in the demo portal are generated from synthetic test fixtures.
-3. **Algorithm Integrity**: SM-2, FSRS-6, and FIFAKT formulas are fully implemented and unit-tested according to published literature.
-4. **Machine Learning Adapters**: ASR and LLM services use deterministic local heuristic providers by default for reliable offline demonstration without cloud dependencies. Live cloud providers can be connected via API keys.
-5. **Database Preservation**: Alembic head is `0013_learning_focus` with 63 tables. Applied migrations are immutable.
+**STOP after Prompt 08.** Future implementation requires missing approved inputs and an explicit next scope; this handoff does not authorize live research or deployment.

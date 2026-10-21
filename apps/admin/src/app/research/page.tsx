@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { requireAdmin } from "@/services/admin-server";
 import { AdminNav } from "@/components/admin-nav";
-import { ResearchDashboard } from "@/components/research-dashboard";
+import { ResearchManager } from "@/components/research-manager";
+import { cookies } from "next/headers";
 
 async function Research() {
   const profile = await requireAdmin();
@@ -17,14 +18,14 @@ async function Research() {
       <main className="dashboard-content">
         <AdminNav profile={profile} current="research" />
         <div style={{ marginBottom: "24px" }}>
-          <p className="eyebrow" style={{ margin: "0 0 6px" }}>Empirical Thesis Reporting</p>
-          <h1 style={{ margin: 0 }}>Research Analytics &amp; Exports</h1>
+          <p className="eyebrow" style={{ margin: "0 0 6px" }}>Research Administration</p>
+          <h1 style={{ margin: 0 }}>Research Management</h1>
           <p style={{ margin: "6px 0 0", color: "var(--muted)" }}>
-            Inspect protocol progress, descriptive group outcomes, paired gains, and export de-identified experimental datasets.
+            Set up explicitly designated research classrooms, review requirements, and inspect retained study configurations.
           </p>
         </div>
         {profile.permissions.includes("research.read") ? (
-          <ResearchDashboard initialProfile={profile} />
+          <ResearchManager initial={profile} previewOnly={(await cookies()).get("fluentt_demo_admin")?.value === "1"} />
         ) : (
           <section role="alert">
             <h2>Research access required</h2>

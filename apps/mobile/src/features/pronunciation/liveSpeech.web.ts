@@ -1,5 +1,6 @@
 import type { PronunciationLanguage } from "../../services/api/pronunciation";
-import type { LiveSpeechCallbacks, LiveSpeechSession } from "./liveWordTracking";
+import type { LiveSpeechCallbacks, LiveSpeechSession, LiveSpeechOptions } from "./liveWordTracking";
+import { startWholePhraseCapture } from "./wholePhraseAudio.web";
 
 type Result = { isFinal: boolean; [index: number]: { transcript: string } };
 type BrowserRecognition = {
@@ -33,8 +34,9 @@ export async function prepareOfflineSpeech(language: PronunciationLanguage): Pro
 }
 
 /** Never silently enable a browser vendor's remote speech service. */
-export function createLiveSpeech(language: PronunciationLanguage, callbacks: LiveSpeechCallbacks): LiveSpeechSession {
+export function createLiveSpeech(language: PronunciationLanguage, callbacks: LiveSpeechCallbacks, options: LiveSpeechOptions = {}): LiveSpeechSession {
   let recognition: BrowserRecognition | null = null, disposed = false;
+  let capture: Awaited<ReturnType<typeof startWholePhraseCapture>> | null = null;
   return {
     async start() {
       const browser = typeof window === "undefined" ? undefined : window as unknown as { SpeechRecognition?: RecognitionConstructor; webkitSpeechRecognition?: RecognitionConstructor };
@@ -59,12 +61,24 @@ export function createLiveSpeech(language: PronunciationLanguage, callbacks: Liv
         callbacks.onResult(results.map(result => result[0]?.transcript ?? "").join(" "), results.every(result => result.isFinal));
       };
       recognition.onerror = event => { if (!disposed) callbacks.onError(event.error === "not-allowed" ? "Microphone access was denied. Allow this site to use the microphone, then retry." : event.error === "no-speech" ? "No speech was heard. Check your microphone and try again." : "Live speech stopped. Check your offline speech language and microphone, then retry."); };
-      recognition.onend = () => { if (!disposed) callbacks.onEnd(); };
+      recognition.onend = () => {
+        if (disposed) return;
+        if (!capture) { callbacks.onEnd(); return; }
+        void capture.finish().then(recording => {
+          if (disposed) { void recording.release(); return; }
+          callbacks.onRecording?.(recording); callbacks.onEnd();
+        }).catch(() => { if (!disposed) { callbacks.onError("The complete audio recording could not be prepared. No score was requested; please record again."); callbacks.onEnd(); } });
+      };
+      if (options.captureAudio) {
+        capture = await startWholePhraseCapture();
+        if (disposed) { capture.dispose(); return; }
+      }
       recognition.start();
     },
     stop() { recognition?.stop(); },
     dispose() {
       disposed = true;
+      capture?.dispose(); capture = null;
       if (recognition) { recognition.onstart = null; recognition.onresult = null; recognition.onerror = null; recognition.onend = null; recognition.abort(); recognition = null; }
     },
   };

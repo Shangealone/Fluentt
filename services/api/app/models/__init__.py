@@ -5,3 +5,5 @@ from app.models import admin_sessions  # noqa: F401
 from app.models import grading  # noqa: F401
 from app.models import result_release  # noqa: F401
 from app.models import validation  # noqa: F401, E402
+from app.models import research_classrooms  # noqa: F401, E402
+from app.models import personal_history  # noqa: F401, E402

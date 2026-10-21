@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Text, View } from "react-native";
 import { router } from "expo-router";
 import { PersonalScreen } from "../components/PersonalScreen";
@@ -5,13 +6,17 @@ import { Button } from "../components/ui";
 import { useSession } from "../session/provider";
 import { p, pc } from "../theme/personal";
 import { PersonalIcon, type PersonalIconName } from "../components/PersonalIcon";
+import { PersonalHistory } from "../features/history/PersonalHistory";
 
 export default function PersonalStats() {
-  const { profile } = useSession();
+  const { profile, activityHistory, isDemo } = useSession();
+  const [tab, setTab] = useState<"overview" | "history">("overview");
   if (profile?.role !== "personal_student") return null;
-  return <PersonalScreen title="Your learning overview" eyebrow="Personal insights" description="A little perspective on your learning space. Practice freely, without chasing a score.">
-    <View style={[p.note, { backgroundColor: pc.aqua }]}><Text style={[p.eyebrow, { color: pc.teal }]}>Personal tracking unavailable</Text>
-      <Text style={p.body}>Your personal practice is not yet tracked. Retention, fluency, streaks, and mastery cannot be measured from the activity available here.</Text></View>
+  return <PersonalScreen title={tab === "history" ? "Your learning history" : "Your learning overview"} eyebrow="Personal insights" description="Look back at what you practised in Learn, Voice and Tutor.">
+    <View style={{ flexDirection: "row", gap: 10 }}><Button label="Overview" secondary={tab !== "overview"} onPress={() => setTab("overview")} /><Button label="History" secondary={tab !== "history"} onPress={() => setTab("history")} /></View>
+    {tab === "history" ? <PersonalHistory api={activityHistory} owner={profile.id} demo={isDemo} /> : <>
+    <View style={[p.note, { backgroundColor: pc.aqua }]}><Text style={[p.eyebrow, { color: pc.teal }]}>Ability metrics unavailable</Text>
+      <Text style={p.body}>History records your practice activity. Retention, fluency, streaks, and mastery are not measured by this log.</Text></View>
     <View style={p.grid}>{[
       { title: "Vocabulary", icon: "learn", note: "Explore lessons and word activities" },
       { title: "Pronunciation", icon: "voice", note: "Record, listen, and practise" },
@@ -25,5 +30,6 @@ export default function PersonalStats() {
     <View style={[p.card, { backgroundColor: pc.navy, gap: 18 }]}><Text style={[p.eyebrow, { color: "#F2CBD6" }]}>Your next step</Text>
       <Text style={[p.heading, { color: "white" }]}>Keep your curiosity going.</Text><Text style={[p.body, { color: "#BCC5D9" }]}>Choose a lesson or practise an everyday conversation. You decide what comes next.</Text>
       <Button style={{ backgroundColor: pc.rose }} label="Explore lessons" onPress={() => router.push("/question-practice")} /></View>
+    </>}
   </PersonalScreen>;
 }

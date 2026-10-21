@@ -29,6 +29,8 @@ from app.models.research import (
 from app.models.users import User
 from app.modules.administration.service import resolve_session
 from app.modules.identity.errors import IdentityError
+from .reporting_service import assert_legacy_reporting_allowed
+from .execution_guard import assert_no_managed_execution
 from app.modules.research.schemas import (
     AdminAssessmentResultRowDTO,
     AdminIdentityRevealDTO,
@@ -241,6 +243,7 @@ def get_study_or_fail(db: Session, study_id: UUID) -> ResearchStudy:
 def get_consent_document(db: Session, study_id: UUID) -> ConsentDocumentDTO:
     """Provides the full informed consent document and protocol version for review prior to enrollment."""
     study = get_study_or_fail(db, study_id)
+    assert_no_managed_execution(study)
     cond = study.conditions or {}
 
     return ConsentDocumentDTO(
@@ -274,6 +277,7 @@ def get_consent_document(db: Session, study_id: UUID) -> ConsentDocumentDTO:
 def check_participant_eligibility(db: Session, user: User, study_id: UUID) -> ParticipantEligibilityDTO:
     """Verifies whether the student qualifies for recruitment under protocol inclusion/exclusion criteria."""
     study = get_study_or_fail(db, study_id)
+    assert_no_managed_execution(study)
     now = utcnow()
     reasons: list[str] = []
 
@@ -353,6 +357,7 @@ def enroll_participant(
 ) -> EnrollmentReceiptDTO:
     """Atomically executes informed consent verification, pseudonymous code issuance, and enrollment."""
     study = get_study_or_fail(db, study_id)
+    assert_no_managed_execution(study)
     now = utcnow()
 
     # Protocol version check
@@ -635,6 +640,8 @@ def admin_list_studies(
         studies = list(db.scalars(select(ResearchStudy).order_by(ResearchStudy.created_at.asc())).all())
         results = []
         for s in studies:
+            if (s.conditions or {}).get("research_contract") == "research-classrooms-v1":
+                continue  # Managed studies use the owner-scoped readiness DTO, never legacy participant counts.
             enrolled = db.scalar(
                 select(func.count(ResearchParticipant.id)).where(
                     ResearchParticipant.study_id == s.id,
@@ -817,6 +824,7 @@ def admin_list_participants(
         study = db.get(ResearchStudy, study_id)
         if not study:
             raise fail(404, "study_not_found", "Research study not found.")
+        assert_legacy_reporting_allowed(study)
 
         participants = list(
             db.scalars(
@@ -875,6 +883,9 @@ def admin_reveal_identity(
         participant = db.get(ResearchParticipant, participant_id)
         if not participant:
             raise fail(404, "participant_not_found", "Research participant not found.")
+        study = db.get(ResearchStudy, participant.study_id)
+        if study:
+            assert_legacy_reporting_allowed(study)
 
         link = db.scalar(
             select(ResearchIdentityLink).where(ResearchIdentityLink.participant_id == participant.id)

@@ -27,7 +27,7 @@ export function PersonalHome() {
       <View style={p.row}><Text accessibilityRole="header" style={p.heading}>Your learning studio</Text><Text style={[p.caption, { color: pc.rose }]}>Three ways to practise</Text></View>
       <View style={p.grid}>{[
         { title: "Questions & activities", tag: "LESSONS & TOPICS", text: "Vocabulary, word activities, matching, and flashcards. Find your level with easy, medium, or hard lessons.", icon: "▤", route: "/question-practice", action: "Answer questions", color: pc.teal, bg: pc.aqua },
-        { title: "Learn pronunciation", tag: "VOICE STUDIO", text: "Choose a phrase. Record yourself, listen back, and practise clear, confident speech.", icon: "♩", route: "/pronunciation", action: "Practise pronunciation", color: pc.rose, bg: pc.pink },
+        { title: "Learn pronunciation", tag: "VOICE STUDIO", text: "Choose a phrase. Follow live word highlights and practise clear, confident speech.", icon: "♩", route: "/pronunciation", action: "Practise pronunciation", color: pc.rose, bg: pc.pink },
         { title: "Conversation simulator", tag: "GUIDED ROLE-PLAY", text: "Everyday scenarios. Friendly conversation partners. A place to put your English or Tagalog into practice.", icon: "▱", route: "/conversation", action: "Start a conversation", color: pc.navy, bg: pc.soft },
       ].map(item => <Pressable key={item.route} accessibilityRole="button" accessibilityLabel={item.action} onPress={() => router.push(item.route as "/question-practice" | "/pronunciation" | "/conversation")} style={({ pressed }) => [p.card, styles.activity, { opacity: pressed ? 0.8 : 1 }]}>
         <View style={p.row}><View style={[styles.activityIcon, { backgroundColor: item.bg }]}><Text style={{ fontSize: 25, color: item.color }}>{item.icon}</Text></View><Text style={[p.eyebrow, { color: item.color, fontSize: 9 }]}>{item.tag}</Text></View>
@@ -39,7 +39,7 @@ export function PersonalHome() {
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{focus.length ? focus.map((value, index) => <View key={`${index}-${value}`} style={p.chip}><Text style={p.chipText}>{value}</Text></View>) : <Text style={p.body}>Add the topics you would like to explore.</Text>}</View>
       <Button secondary label="Edit learning preferences" onPress={() => router.push("/preferences")} />
     </View>
-    <View style={[p.note, { backgroundColor: pc.aqua }]}><Text style={[p.eyebrow, { color: pc.teal }]}>A mindful practice space</Text><Text style={p.body}>Conversation replies and pronunciation feedback currently use a simulator. Practise without pressure; these activities do not certify your ability.</Text></View>
+    <View style={[p.note, { backgroundColor: pc.aqua }]}><Text style={[p.eyebrow, { color: pc.teal }]}>A mindful practice space</Text><Text style={p.body}>Conversation replies currently use a simulator. Voice highlights follow on-device recognition; whole-sentence English scoring requires an enabled assessment service. These activities do not certify your ability.</Text></View>
   </View>;
 }
 const styles = StyleSheet.create({

@@ -1,5 +1,7 @@
 # Student progress and learning history — Section 23
 
+Later personal-history request (2026-10-21): a dedicated `/me/personal-history` receipt log now powers personal Stats → History. It does not change this document's original school submission-counts-v1 contracts or the personal NULL/unavailable responses from `/me/progress` and `/me/learning-history`. Personal activity receipts are not mastery/grades or a LearnerProgress/scheduler writer. See [PERSONAL_HISTORY.md](PERSONAL_HISTORY.md); the original “no approved personal writer” rationale below is historical to Section 23.
+
 ## Section 24 extension
 
 Instructor monitoring now reuses submission-counts-v1 and the published-assignment/first-capture/result projection described below. It does not grant instructors access to student /me endpoints or personal progress. Current owned-class membership defines the cohort; each class has A×S opportunities, each student A and each assignment S. Only comparable released objective runs contribute a within-assignment mean under the separately approved released-assignment-mean-v1. See INSTRUCTOR_MONITORING.md; historical Section 23 exclusions below describe that milestone. No lesson coverage/mastery or personal activity writer is added.

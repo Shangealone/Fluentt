@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from app.modules.classrooms.router import Credential, Repo
 from app.modules.identity.dependencies import require_secure_transport, throttle_sessions
 from app.modules.identity.session_service import authenticated_session
+from app.modules.research.execution_guard import guard_managed_review
 from app.modules.spaced_repetition.registry import registry
 from app.modules.spaced_repetition.schemas import (
     ReviewEventInput,
@@ -42,6 +43,7 @@ def due_reviews(
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ):
     with authenticated_session(repo, credential, request.app.state.settings) as (_, user):
+        guard_managed_review(repo.session, user, context_type, class_id=class_id)
         return get_due_reviews(
             repo.session,
             user,
@@ -61,4 +63,5 @@ def submit_review_event(
     algorithm: str = "sm2",
 ):
     with authenticated_session(repo, credential, request.app.state.settings) as (_, user):
+        guard_managed_review(repo.session, user, event.context_type, study_id=event.study_id, class_id=event.class_id)
         return record_review_event(repo.session, user, event, algorithm_name=algorithm)

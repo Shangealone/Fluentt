@@ -21,10 +21,13 @@ import { theme as baseTheme } from "../../theme/tokens";
 import { pc } from "../../theme/personal";
 import { Button } from "../../components/ui";
 import { conversationLevel } from "./levels";
+import { useActivityHistory } from "../history/useActivityHistory";
+import { HistorySaveNotice } from "../history/HistorySaveNotice";
 const theme = { colors: { ...baseTheme.colors, primary: pc.navy, ink: pc.ink, muted: pc.muted, border: pc.line, background: pc.background } };
 
 export function ConversationPractice({ onDone }: { onDone?: () => void }) {
-  const { conversation, pronunciation, profile } = useSession();
+  const { conversation, pronunciation, profile, activityHistory } = useSession();
+  const journal = useActivityHistory(activityHistory, profile?.role === "personal_student" ? profile.id : undefined);
   const personalLanguage = profile?.role === "personal_student" ? profile.language : null;
 
   // Screen phases: "topics" | "chat" | "summary"
@@ -99,6 +102,7 @@ export function ConversationPractice({ onDone }: { onDone?: () => void }) {
 
     try {
       const res = await conversation.sendMessage(activeSession.session_id, textToSend, null);
+      journal.recordOnce(res.user_message.id, { kind: "tutor_reply", source_id: activeSession.session_id, title: activeSession.topic_title, language: activeSession.language === "english" ? "english" : "tagalog" });
       setMessages((prev) => [...prev, res.user_message, res.assistant_message]);
       setActiveSession((prev) =>
         prev ? { ...prev, turns_count: res.turns_count, status: res.is_session_complete ? "ended" : prev.status } : null
@@ -132,6 +136,7 @@ export function ConversationPractice({ onDone }: { onDone?: () => void }) {
 
       // 3. Send message with linked attempt ID
       const res = await conversation.sendMessage(activeSession.session_id, null, attemptRes.attempt_id);
+      journal.recordOnce(res.user_message.id, { kind: "tutor_reply", source_id: activeSession.session_id, title: activeSession.topic_title, language: activeSession.language === "english" ? "english" : "tagalog" });
       setMessages((prev) => [...prev, res.user_message, res.assistant_message]);
       setActiveSession((prev) =>
         prev ? { ...prev, turns_count: res.turns_count, status: res.is_session_complete ? "ended" : prev.status } : null
@@ -152,6 +157,7 @@ export function ConversationPractice({ onDone }: { onDone?: () => void }) {
     if (!activeSession) return;
     try {
       const summary = await conversation.endSession(activeSession.session_id);
+      if (summary.turns_completed > 0) journal.recordOnce(`ended-${activeSession.session_id}`, { kind: "tutor_session", source_id: activeSession.session_id, title: activeSession.topic_title, language: activeSession.language === "english" ? "english" : "tagalog" });
       setSessionSummary(summary);
       setPhase("summary");
     } catch (err) {
@@ -491,6 +497,7 @@ export function ConversationPractice({ onDone }: { onDone?: () => void }) {
           <Text style={styles.safetyNoticeText}>
             🔒 Educational role-play conversation. All dialogues are bounded to curriculum guidelines.
           </Text>
+          <HistorySaveNotice error={journal.error} retry={journal.retry} />
         </View>
       </View>
     );
@@ -500,6 +507,7 @@ export function ConversationPractice({ onDone }: { onDone?: () => void }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.summaryCard}>
+        <HistorySaveNotice error={journal.error} retry={journal.retry} />
         <View style={styles.summaryHeader}>
           <Text style={styles.summaryIcon}>🌟</Text>
           <Text style={styles.summaryTitle}>Scenario Practice Complete!</Text>

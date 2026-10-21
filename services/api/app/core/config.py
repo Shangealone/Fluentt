@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8081"]
     database_url: SecretStr | None = None
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    pronunciation_azure_enabled: bool = False
+    pronunciation_azure_resource: str | None = None
+    pronunciation_azure_key: SecretStr | None = None
+    pronunciation_cloud_authorization_reference: str | None = None
     database_pool_size: int = 5
     database_max_overflow: int = 5
     database_pool_timeout: int = 10
@@ -43,6 +47,22 @@ class Settings(BaseSettings):
             and self.admin_oidc_client_secret.get_secret_value()
             and self.admin_oidc_mfa_values
         )
+
+    @field_validator("pronunciation_azure_resource")
+    @classmethod
+    def azure_resource_name(cls, value: str | None) -> str | None:
+        import re
+
+        if value is not None and not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", value):
+            raise ValueError("Use an Azure resource name, not a URL")
+        return value
+
+    @field_validator("pronunciation_cloud_authorization_reference")
+    @classmethod
+    def audio_authorization_reference(cls, value: str | None) -> str | None:
+        if value is not None and (not value.strip() or len(value) > 255):
+            raise ValueError("Use a nonempty approved audio-processing reference up to 255 characters")
+        return value
 
     @field_validator("admin_web_origin")
     @classmethod

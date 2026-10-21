@@ -1,5 +1,15 @@
 # Implemented database schema — Sections 02–25
 
+## Personal history follow-up — 2026-10-21
+
+Current source head is `0018_personal_history`, **71 domain tables**. One additive `personal_activity_events` ledger stores authenticated owner-only client-reported activity metadata with UUID replay identity/fingerprint, bounded public display snapshots, source/version, language and server time. No answers, audio, dialogue, grades, class/research contexts or scheduler state are added. It is append-only and separate from legacy progress readers. The local development database has now been forward-upgraded; prior Section 38B “source-only/unapplied” statements below are historical. Details and exact verification: [PERSONAL_HISTORY.md](PERSONAL_HISTORY.md).
+
+## Section 38B Prompt 02 source addition
+
+Current **source** head is `0017_research_classrooms`, following frozen 0001-0016: **70 domain tables**. Seven additive `research_private.classroom_*` tables hold opt-in study wrappers, immutable protocol revisions, classroom bindings, participant authorization references, assessment references, independent clearance history and contextual replay events. Existing study, coded participant, consent, allocation and instrument models are reused. Personal Learning and ordinary classroom tables remain unchanged; no backfill is performed. The existing research learning-context null-identity constraint is unchanged.
+
+The migration was exercised only in generated disposable PostgreSQL databases. No developer/production database was upgraded for this prompt. Real activation requires independently verified approvals and non-owner runtime grants with SELECT-only clearance access; PUBLIC revocation alone does not constrain owners. See [SECTION_38B_02_REPORT.md](SECTION_38B_02_REPORT.md) for exact tables, guards, authorization and verification. Earlier source-head/table-count statements below describe historical sections.
+
 Section 25 source head is 0012_class_communication, still 63 tables. Three nullable Message fields (communication_contract, context_class_id, send_request_id) preserve existing destinations and historical rows while class-text-v1 adds class-bound direct communication, owned announcements, sender/key uniqueness and indexed ordering. New invoker guards preserve sent/read history and validate allowed participants; PUBLIC access is revoked. Real-student retention/moderation remains unapproved; synthetic demo records only. See COMMUNICATIONS.md.
 
 Section 22 source head is 0011_result_release. One append-only result visibility ledger increases the total to 63. Explicit owning-instructor release/withdraw/re-release pins one immutable COMPLETE classroom run; live student membership gates scores and original-answer review. Existing captures, grading outcomes and frozen 0001–0010 remain unchanged. See RESULTS_AND_FEEDBACK.md.

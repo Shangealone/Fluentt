@@ -26,7 +26,7 @@ def migration_module():
 def test_mapper_configuration_and_unchanged_frozen_tables_match():
     configure_mappers()
     snapshot = {repair_statement(statement) for statement in migration_module().SCHEMA_SQL}
-    assert len(Base.metadata.tables) == 63
+    assert len(Base.metadata.tables) == 71
     for table in Base.metadata.sorted_tables:
         if table.name in {
             "admin_browser_sessions",
@@ -34,8 +34,16 @@ def test_mapper_configuration_and_unchanged_frozen_tables_match():
             "grading_runs",
             "grading_item_results",
             "assessment_result_releases",
+            "classroom_studies",
+            "classroom_protocols",
+            "classroom_bindings",
+            "classroom_enrollments",
+            "classroom_assessment_references",
+            "classroom_clearances",
+            "classroom_events",
+            "personal_activity_events",
         }:
-            continue  # Additive 0003; comparison applies only the explicit name-only bootstrap adapter.
+            continue  # Additive tables; original-table comparison uses the explicit name-only bootstrap adapter.
         if table.name not in {
             "classes",
             "class_join_codes",

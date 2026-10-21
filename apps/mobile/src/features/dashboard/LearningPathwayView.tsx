@@ -4,9 +4,10 @@ import { router, useFocusEffect } from "expo-router";
 import { Button, EmptyState, s } from "../../components/ui";
 import { LoadState } from "../../components/navigation";
 import { theme } from "../../theme/tokens";
+import { p } from "../../theme/personal";
 import type { LearningPathway, PathwayAccess, EligibleActivity } from "../../services/api/pathways";
 
-export function PathwayOverview({ api, classId }: { api: PathwayAccess; classId?: string }) {
+export function PathwayOverview({ api, classId, classroomDesign = false }: { api: PathwayAccess; classId?: string; classroomDesign?: boolean }) {
   const [state, setState] = useState<{ phase: "loading" | "ready" | "error"; pathway: LearningPathway | null; error: string | null }>({
     phase: "loading",
     pathway: null,
@@ -42,17 +43,17 @@ export function PathwayOverview({ api, classId }: { api: PathwayAccess; classId?
   return (
     <View style={{ gap: 14 }}>
       <LoadState phase={state.phase} error={state.error} retry={load} />
-      {state.phase === "ready" && state.pathway && <PathwayContent pathway={state.pathway} onRefresh={load} />}
+      {state.phase === "ready" && state.pathway && <PathwayContent pathway={state.pathway} onRefresh={load} classroomDesign={classroomDesign} />}
     </View>
   );
 }
 
-function PathwayContent({ pathway, onRefresh }: { pathway: LearningPathway; onRefresh: () => void }) {
+function PathwayContent({ pathway, onRefresh, classroomDesign }: { pathway: LearningPathway; onRefresh: () => void; classroomDesign: boolean }) {
   if (pathway.availability === "empty" || (!pathway.current_position && pathway.eligible_activities.length === 0)) {
     return (
-      <View style={s.card}>
-        <Text accessibilityRole="header" style={s.heading}>
-          Personal Learning Pathway
+      <View style={[s.card, classroomDesign && p.card]}>
+        <Text accessibilityRole="header" style={[s.heading, classroomDesign && p.heading]}>
+          {classroomDesign ? "Your class learning path" : "Personal Learning Pathway"}
         </Text>
         <EmptyState
           title="Pathway preparing"
@@ -66,10 +67,10 @@ function PathwayContent({ pathway, onRefresh }: { pathway: LearningPathway; onRe
   const pos = pathway.current_position;
 
   return (
-    <View style={s.card}>
+    <View style={[s.card, classroomDesign && p.card]}>
       <View style={styles.headerRow}>
-        <Text accessibilityRole="header" style={s.heading}>
-          Personal Learning Pathway
+        <Text accessibilityRole="header" style={[s.heading, classroomDesign && p.heading]}>
+          {classroomDesign ? "Your class learning path" : "Personal Learning Pathway"}
         </Text>
         <Text style={styles.badge}>
           {pathway.student_role === "school_student" ? "Classroom Scope" : "Self-Study Scope"}
