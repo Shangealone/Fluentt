@@ -91,6 +91,7 @@ export default function ClassCode() {
           </View>
 
           <Text style={s.body}>Enter the six-digit code provided by your instructor. Verification does not enroll you.</Text>
+          {session.isDemo && <Text style={s.body}>Demo codes work for classes created in this browser session. For students on other devices, use real instructor and student accounts connected to the same backend.</Text>}
           <Input accessibilityLabel="Six-digit class code" keyboardType="number-pad" inputMode="numeric"
             value={code} editable={!busy} maxLength={6} autoCorrect={false}
             onChangeText={(value) => { setCode(value); setError(""); }} placeholder="000000" />

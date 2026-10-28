@@ -1,5 +1,11 @@
 # Student class enrollment — Section 06
 
+## Current class-code behavior (2026-10-28)
+
+Real instructor accounts create a class with a server-generated, unique six-digit code. An authenticated school student enters that exact code, reviews the matching class, and confirms enrollment; the saved membership references that class ID. A different or unavailable code cannot enroll the student. A disposable PostgreSQL test covers two distinct instructor classes, an unknown code, and both resulting memberships.
+
+The separate browser demo now resolves codes against classes created in the same in-memory demo session, including newly created classes. The demo no longer accepts arbitrary six-digit inputs or returns Mabini for every code. Demo memberships and codes disappear on refresh/reset and cannot be shared across browsers or devices. Use real accounts connected to one backend for a durable cross-device class invitation.
+
 Section 19 published assignment metadata uses the same live eligible active membership/class/owner rules, including later joiners and eligible rejoiners. Leaving/removal or class/owner deactivation removes access; invitation expiry does not. No frozen recipient cohort, notification, attempt or research consent is implied. See ASSIGNMENTS.md. Older migration/head statements below describe the Section 06 milestone.
 
 School students use their existing device credential. Class invitations do not authenticate a user, create another identity, grant instructor privileges, or provide research consent. Runtime persistence is PostgreSQL only. No new table or migration is required; head remains `0002_class_creation`.

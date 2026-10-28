@@ -5,6 +5,7 @@ import { AppHeader, LoadState } from "../components/navigation";
 import { useSession } from "../session/provider";
 import { usePagedList } from "../features/dashboard/usePagedList";
 import { AssignmentEditor } from "../features/assignments/AssignmentEditor";
+import { createDemoQuestion } from "../demo/demoData";
 
 export default function AssignmentBuilder() {
   const { classId, id } = useLocalSearchParams<{ classId?: string; id?: string }>();
@@ -22,7 +23,8 @@ export default function AssignmentBuilder() {
   return <Screen><AppHeader title="Build a class learning activity" account={false} />
     <LoadState phase={state.phase} error={state.error} retry={reload} />
     {state.phase === "ready" && state.rows[0] && <AssignmentEditor key={state.rows[0].draft?.revision ?? resolvedClassId}
-      initial={state.rows[0].draft} classId={resolvedClassId} api={assignments} active={profile?.role === "instructor"} />}
+      initial={state.rows[0].draft} classId={resolvedClassId} api={assignments} active={profile?.role === "instructor"}
+      demoQuestionAuthor={isDemo ? (lessonId, input) => createDemoQuestion(resolvedClassId, lessonId, input) : undefined} />}
   </Screen>;
 }
 

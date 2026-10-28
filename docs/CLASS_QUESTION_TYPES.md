@@ -1,5 +1,13 @@
 # Instructor question-type selection — 2026-10-27
 
+## Newly created demo classes — 2026-10-28
+
+The browser demo previously gave only `demo-class-1` a lesson and a question catalog. For newly created demo classes, the assignment builder now exposes a class-specific **Class practice** lesson, a question form, and the existing selected-question draft list. The instructor can create all ten formats: Multiple Choice, True or False, Identification, Fill in the Blank, Multiple Select, Flashcards, Error Identification, Word Arrangement, Sentence Arrangement, and Matching Type. The form collects each format's required public content and expected answer metadata. Fill in the Blank uses `___` gaps; ordered items and matching pairs are entered in intended correct order and presented in a different order to students. Creation selects the question in the current draft and refreshes its catalog; saved and published drafts retain the exact authored public question revisions for student attempts. Flashcards now reveal their authored back within the matching demo attempt. Answer metadata stays out of question and attempt DTOs. New demo activities remain unscored; author-entered answers are not an evaluation result.
+
+This is synthetic, in-memory demo authoring for URLs such as `/assignment-builder?classId=demo-class-3`. A full browser reload or demo reset removes newly created demo classes/questions. Live instructor accounts still use the existing administrator-published question bank and published lesson constraints; no real instructor authoring permission, schema or endpoint was added here. Tests cover class/lesson scoping, private answer separation, validation, draft selection, publication and exact student delivery. The earlier Section 27 behavior below remains the live contract.
+
+2026-10-28 verification: `node scripts/class-question-authoring.test.cjs` **3 passed** (including all ten student projections and authored Flashcard reveal); `node scripts/choice-components.test.cjs` **52 passed**; `node scripts/class-activity-demo.test.cjs` **3 passed**; mobile `npm run typecheck` and `npm run lint -- --quiet` passed. The localhost:8096 builder returned HTTP 200. No actual device interaction or real-account authoring was verified.
+
 Instructors can build a classroom activity by choosing a published lesson, browsing a question type, adding exact published questions, saving a draft and explicitly publishing it. Students open **Classes → View assignments → the activity → Start, resume or view submitted receipt**. The student receives the selected questions in the instructor's chosen order, with the existing format-specific answer controls.
 
 ## Scope and behavior

@@ -43,6 +43,7 @@ export default function FirstClass() {
         Name your class and choose its learning level. FLUENTT will generate a
         six-digit invitation code when your class is saved.
       </Text>
+      {session.isDemo && <Text style={s.body}>A demo class and its code last only for this browser session. Use a real instructor account to share a saved code with students on other devices.</Text>}
       <ClassForm
         locked={locked}
         label={locked ? "Retry saving this class" : "Create Class"}

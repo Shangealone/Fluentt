@@ -33,6 +33,7 @@ import type {
   SubmitAssessmentReceipt,
 } from "../services/api/research";
 import type { Profile } from "../services/api/identity";
+import { ApiError } from "../services/api/client";
 
 
 // Stable 64-character hex revision strings
@@ -111,6 +112,36 @@ export const DEMO_LESSON_CONTEXT: LessonContext = {
   subject_id: "demo-subject-filipino",
   subject_name: "Filipino",
 };
+
+export type DemoQuestionInput = {
+  method: AssignmentItem["definition"]["method"];
+  prompt: string;
+  options?: string[];
+  correct_option?: number;
+  correct_options?: number[];
+  correct_boolean?: boolean;
+  expected_text?: string;
+  blank_answers?: string[];
+  tokens?: string[];
+  error_tokens?: number[];
+  ordered_units?: string[];
+  pairs?: { left: string; right: string }[];
+  cue?: string;
+  back?: string;
+};
+
+function demoLesson(classroom: ClassDetails): LessonContext {
+  if (classroom.id === "demo-class-1") return DEMO_LESSON_CONTEXT;
+  return {
+    lesson_id: `demo-lesson-${classroom.id}`,
+    lesson_name: "Class practice",
+    curriculum_version_id: `demo-curriculum-${classroom.id}`,
+    curriculum_name: "Demo class content",
+    grade: classroom.grade_level,
+    subject_id: `demo-subject-${classroom.language}`,
+    subject_name: classroom.language === "english" ? "English" : "Filipino",
+  };
+}
 
 // Demo 10 Questions Covering ALL 10 Fluentt Assessment Methods
 export const DEMO_ASSIGNMENT_ITEMS: AssignmentItem[] = [
@@ -638,6 +669,23 @@ export const DEMO_MESSAGES: Message[] = [
 // In-Memory mutable store for interactive Demo sessions
 class DemoDataStore {
   classes = [...DEMO_CLASSES];
+  memberships: Membership[] = [{
+    id: "demo-membership-1",
+    class_id: "demo-class-1",
+    class_name: DEMO_CLASSES[0].class_name,
+    grade_level: DEMO_CLASSES[0].grade_level,
+    language: DEMO_CLASSES[0].language,
+    instructor_display_name: "Guro Santos",
+    status: "active",
+    joined_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+  }];
+  classVersions: Record<string, string> = { "demo-class-1": "1".padStart(64, "0"), "demo-class-2": "2".padStart(64, "0") };
+  nextClass = 2;
+  nextClassVersion = 2;
+  usedCodes = new Set(DEMO_CLASSES.map(row => row.join_code));
+  authoredQuestions: { classId: string; item: AssignmentItem }[] = [];
+  privateAnswerKeys: Record<string, unknown> = {};
+  nextQuestion = 0;
   drafts: AssignmentDraft[] = [DEMO_DRAFT_ASSIGNMENT];
   published: PublishedAssignment[] = [DEMO_PUBLISHED_ASSIGNMENT];
   publishedDrafts: Record<string, AssignmentDraft> = {};
@@ -649,6 +697,19 @@ class DemoDataStore {
 
   reset() {
     this.classes = [...DEMO_CLASSES];
+    this.memberships = [{
+      id: "demo-membership-1", class_id: "demo-class-1", class_name: DEMO_CLASSES[0].class_name,
+      grade_level: DEMO_CLASSES[0].grade_level, language: DEMO_CLASSES[0].language,
+      instructor_display_name: "Guro Santos", status: "active",
+      joined_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+    }];
+    this.classVersions = { "demo-class-1": "1".padStart(64, "0"), "demo-class-2": "2".padStart(64, "0") };
+    this.nextClass = 2;
+    this.nextClassVersion = 2;
+    this.usedCodes = new Set(DEMO_CLASSES.map(row => row.join_code));
+    this.authoredQuestions = [];
+    this.privateAnswerKeys = {};
+    this.nextQuestion = 0;
     this.drafts = [DEMO_DRAFT_ASSIGNMENT];
     this.published = [DEMO_PUBLISHED_ASSIGNMENT];
     this.publishedDrafts = {};
@@ -662,21 +723,118 @@ class DemoDataStore {
 
 export const demoStore = new DemoDataStore();
 
+export function createDemoQuestion(classId: string, lessonId: string, input: DemoQuestionInput): AssignmentItem {
+  const classroom = demoStore.classes.find(row => row.id === classId && row.status === "active");
+  if (!classroom || demoLesson(classroom).lesson_id !== lessonId) throw new Error("Choose a lesson in an active demo class first.");
+  let prompt = input.prompt.trim();
+  if (!prompt || prompt.length > 2000) throw new Error("Enter a question of 1–2,000 characters.");
+  const id = `demo-authored-${demoStore.nextQuestion + 1}`;
+  let content: Record<string, unknown> = {};
+  let privateKey: unknown;
+  function clean(values: string[] | undefined, minimum: number, label: string) {
+    const rows = values?.map(value => value.trim()) ?? [];
+    if (rows.length < minimum || rows.length > 8 || rows.some(value => !value || value.length > 500))
+      throw new Error(`Enter ${minimum}–8 ${label} of 1–500 characters each.`);
+    return rows;
+  }
+  function indices(values: number[] | undefined, length: number, label: string) {
+    if (!values?.length || new Set(values).size !== values.length || values.some(value => !Number.isInteger(value) || value < 0 || value >= length))
+      throw new Error(`Select at least one valid ${label}.`);
+    return values;
+  }
+  if (input.method === "multiple_choice" || input.method === "multiple_select") {
+    const options = clean(input.options, 2, "choices");
+    content = { options: options.map((text, index) => ({ id: `${id}-option-${index + 1}`, text })) };
+    if (input.method === "multiple_choice") {
+      if (!Number.isInteger(input.correct_option) || input.correct_option! < 0 || input.correct_option! >= options.length)
+        throw new Error("Choose the correct answer before saving.");
+      privateKey = { correct_option_id: `${id}-option-${input.correct_option! + 1}` };
+    } else {
+      privateKey = { correct_option_ids: indices(input.correct_options, options.length, "correct choice").map(index => `${id}-option-${index + 1}`) };
+    }
+  } else if (input.method === "true_false") {
+    if (typeof input.correct_boolean !== "boolean") throw new Error("Choose True or False as the correct answer.");
+    privateKey = { value: input.correct_boolean };
+  } else if (input.method === "identification") {
+    const expected = input.expected_text?.trim() ?? "";
+    if (!expected || expected.length > 500) throw new Error("Enter an expected answer of 1–500 characters.");
+    content = { input_max_length: 500 };
+    privateKey = { accepted_answers: [expected] };
+  } else if (input.method === "fill_in_the_blank") {
+    const count = (prompt.match(/___/g) ?? []).length;
+    if (count < 1 || count > 6) throw new Error("Use 1–6 ___ gaps in the sentence.");
+    if (/[{}]/.test(prompt)) throw new Error("Use ___ for gaps; braces are not supported in this form.");
+    const answers = input.blank_answers?.map(value => value.trim()) ?? [];
+    if (answers.length !== count || answers.some(value => !value || value.length > 500))
+      throw new Error("Enter one answer of 1–500 characters for every gap.");
+    const blankIds = answers.map((_, index) => `blank_${index + 1}`);
+    let position = 0;
+    prompt = prompt.replace(/___/g, () => `{{${blankIds[position++]}}}`);
+    if (prompt.length > 2000) throw new Error("Keep the complete question within 2,000 characters.");
+    content = { blank_ids: blankIds, template_syntax: "double-brace-v1", input_max_length: 500 };
+    privateKey = { accepted_answers: Object.fromEntries(blankIds.map((blankId, index) => [blankId, [answers[index]]])) };
+  } else if (input.method === "error_identification") {
+    const tokens = clean(input.tokens, 1, "sentence parts");
+    content = { tokens: tokens.map((text, index) => ({ id: `${id}-token-${index + 1}`, text })) };
+    privateKey = { error_token_ids: indices(input.error_tokens, tokens.length, "error part").map(index => `${id}-token-${index + 1}`), accepted_corrections: {} };
+  } else if (input.method === "word_arrangement" || input.method === "sentence_arrangement") {
+    const units = clean(input.ordered_units, 2, input.method === "word_arrangement" ? "words" : "sentences");
+    // Keep the intended sequence private and present the cards in a different order.
+    content = { items: units.map((text, index) => ({ id: `${id}-unit-${index + 1}`, text })).reverse() };
+    privateKey = { ordered_ids: units.map((_, index) => `${id}-unit-${index + 1}`) };
+  } else if (input.method === "matching_type") {
+    const pairs = input.pairs ?? [];
+    if (pairs.length < 2 || pairs.length > 8 || pairs.some(pair => !pair.left.trim() || !pair.right.trim() || pair.left.length > 500 || pair.right.length > 500))
+      throw new Error("Enter 2–8 complete matching pairs of 1–500 characters each.");
+    content = {
+      left: pairs.map((pair, index) => ({ id: `${id}-left-${index + 1}`, text: pair.left.trim() })),
+      right: pairs.map((pair, index) => ({ id: `${id}-right-${index + 1}`, text: pair.right.trim() })).reverse(),
+    };
+    privateKey = { pairs: pairs.map((_, index) => ({ left_id: `${id}-left-${index + 1}`, right_id: `${id}-right-${index + 1}` })) };
+  } else if (input.method === "flashcards") {
+    const cue = input.cue?.trim() ?? "";
+    const back = input.back?.trim() ?? "";
+    if (!cue || !back || cue.length > 500 || back.length > 2000)
+      throw new Error("Enter a front cue (up to 500 characters) and a private back (up to 2,000 characters).");
+    content = { cue };
+    privateKey = { back };
+  } else {
+    throw new Error("Choose an available question type.");
+  }
+  const item: AssignmentItem = {
+    id: `${id}-revision-1`, question_id: id, version: 1, eligible: true,
+    definition: { lesson_id: lessonId, method: input.method, prompt, instructions: null, content },
+  };
+  demoStore.nextQuestion += 1;
+  demoStore.privateAnswerKeys[item.id] = privateKey;
+  demoStore.authoredQuestions.unshift({ classId, item });
+  return JSON.parse(JSON.stringify(item));
+}
+
 // Demo API Access Implementations
 export function createDemoClassesApi(): ClassAccess {
   return {
     async create(draft: ClassDraft, _key?: string) {
+      let code: string | null = null;
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const candidate = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+        if (!demoStore.usedCodes.has(candidate)) { code = candidate; break; }
+      }
+      if (!code) throw new ApiError(503, "A demo class code could not be generated. Please retry.");
+      const id = `demo-class-${++demoStore.nextClass}`;
       const newClass: ClassDetails = {
-        id: `demo-class-${Date.now()}`,
+        id,
         class_name: draft.class_name,
         grade_level: draft.grade_level,
         language: draft.language,
         description: draft.description,
-        join_code: String(Math.floor(100000 + Math.random() * 900000)),
+        join_code: code,
         status: "active",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+      demoStore.usedCodes.add(code);
+      demoStore.classVersions[id] = (++demoStore.nextClassVersion).toString(16).padStart(64, "0");
       demoStore.classes.unshift(newClass);
       return newClass;
     },
@@ -685,7 +843,8 @@ export function createDemoClassesApi(): ClassAccess {
     },
     async get(id: string) {
       const found = demoStore.classes.find(c => c.id === id);
-      return found ?? demoStore.classes[0];
+      if (!found) throw new ApiError(404, "Demo class not found.");
+      return { ...found };
     },
     async update(id: string, update: ClassUpdate) {
       const idx = demoStore.classes.findIndex(c => c.id === id);
@@ -695,60 +854,69 @@ export function createDemoClassesApi(): ClassAccess {
           ...update,
           updated_at: new Date().toISOString(),
         };
+        demoStore.classVersions[id] = (++demoStore.nextClassVersion).toString(16).padStart(64, "0");
         return demoStore.classes[idx];
       }
-      return demoStore.classes[0];
+      throw new ApiError(404, "Demo class not found.");
     },
   };
 }
 
 export function createDemoEnrollmentApi(): EnrollmentAccess {
+  function find(code: string) {
+    const classroom = demoStore.classes.find(row => row.join_code === code && row.status === "active");
+    if (!classroom) throw new ApiError(404, "Class code is invalid or unavailable. Check with your instructor.");
+    return classroom;
+  }
+  function details(classroom: ClassDetails) {
+    return {
+      class_name: classroom.class_name,
+      grade_level: classroom.grade_level,
+      language: classroom.language,
+      instructor_display_name: "Guro Santos",
+    };
+  }
   return {
     async preview(code: string): Promise<ClassPreview> {
-      return {
-        class_name: "Baitang 7 - Mabini",
-        grade_level: 7,
-        language: "tagalog",
-        instructor_display_name: "Guro Santos",
-        class_version: DEMO_REVISION,
-      };
+      const classroom = find(code);
+      return { ...details(classroom), class_version: demoStore.classVersions[classroom.id] };
     },
     async confirm(body: Confirmation): Promise<Membership> {
-      return {
-        id: "11111111-1111-4111-8111-111111111111",
-        class_id: "22222222-2222-4222-8222-222222222222",
-        class_name: "Baitang 7 - Mabini",
-        grade_level: 7,
-        language: "tagalog",
-        instructor_display_name: "Guro Santos",
+      const classroom = find(body.code);
+      const existing = demoStore.memberships.find(row => row.class_id === classroom.id);
+      if (existing) return { ...existing };
+      if (body.class_version !== demoStore.classVersions[classroom.id])
+        throw new ApiError(409, "Class details changed. Verify the code and review again.");
+      const joined: Membership = {
+        id: `demo-membership-${classroom.id}`,
+        class_id: classroom.id,
+        ...details(classroom),
         status: "active",
         joined_at: new Date().toISOString(),
       };
+      demoStore.memberships.unshift(joined);
+      return { ...joined };
     },
     async mine(offset = 0): Promise<Membership[]> {
-      return [
-        {
-          id: "11111111-1111-4111-8111-111111111111",
-          class_id: "22222222-2222-4222-8222-222222222222",
-          class_name: "Baitang 7 - Mabini",
-          grade_level: 7,
-          language: "tagalog",
-          instructor_display_name: "Guro Santos",
-          status: "active",
-          joined_at: new Date().toISOString(),
-        },
-      ];
+      return demoStore.memberships.slice(offset, offset + 50).map(row => ({ ...row }));
     },
   };
 }
 
 export function createDemoAssignmentApi(): AssignmentAccess {
   const copy = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
-  function selected(body: { lesson_id: string; question_revision_ids: string[] }) {
-    if (body.lesson_id !== DEMO_LESSON_CONTEXT.lesson_id) throw new Error("Choose an available demo lesson.");
+  function catalog(classId: string) {
+    return [
+      ...(classId === "demo-class-1" ? DEMO_ASSIGNMENT_ITEMS : []),
+      ...demoStore.authoredQuestions.filter(row => row.classId === classId).map(row => row.item),
+    ];
+  }
+  function selected(classId: string, body: { lesson_id: string; question_revision_ids: string[] }) {
+    const classroom = demoStore.classes.find(row => row.id === classId && row.status === "active");
+    if (!classroom || body.lesson_id !== demoLesson(classroom).lesson_id) throw new Error("Choose an available demo lesson.");
     if (new Set(body.question_revision_ids).size !== body.question_revision_ids.length) throw new Error("Select distinct questions.");
     return body.question_revision_ids.map(id => {
-      const item = DEMO_ASSIGNMENT_ITEMS.find(item => item.id === id && item.eligible);
+      const item = catalog(classId).find(item => item.id === id && item.eligible && item.definition.lesson_id === body.lesson_id);
       if (!item) throw new Error("This question is unavailable in the demo lesson.");
       return copy(item);
     });
@@ -776,14 +944,16 @@ export function createDemoAssignmentApi(): AssignmentAccess {
       throw new Error("Demo assignment not found.");
     },
     async lessons(classId) {
-      return { items: classId === "demo-class-1" ? [copy(DEMO_LESSON_CONTEXT)] : [], has_more: false, offset: 0, limit: 20 };
+      const classroom = demoStore.classes.find(row => row.id === classId && row.status === "active");
+      return { items: classroom ? [copy(demoLesson(classroom))] : [], has_more: false, offset: 0, limit: 20 };
     },
     async questions(classId, lessonId, q = "", method = "", offset = 0) {
-      const items = DEMO_ASSIGNMENT_ITEMS.filter(item => classId === "demo-class-1" && item.definition.lesson_id === lessonId && (!method || item.definition.method === method) && item.definition.prompt.toLocaleLowerCase().includes(q.toLocaleLowerCase()));
+      const items = catalog(classId).filter(item => item.definition.lesson_id === lessonId && (!method || item.definition.method === method) && item.definition.prompt.toLocaleLowerCase().includes(q.toLocaleLowerCase()));
       return { items: copy(items.slice(offset, offset + 20)), has_more: items.length > offset + 20, offset, limit: 20 };
     },
     async create(classId, body) {
-      if (classId !== "demo-class-1") throw new Error("This demo class has no published lesson questions yet.");
+      const classroom = demoStore.classes.find(row => row.id === classId && row.status === "active");
+      if (!classroom) throw new Error("Demo class not found.");
       const created: AssignmentDraft = {
         id: `demo-draft-created-${++demoStore.nextActivity}`,
         class_id: classId,
@@ -792,8 +962,8 @@ export function createDemoAssignmentApi(): AssignmentAccess {
         status: "draft",
         title: body.title,
         instructions: body.instructions,
-        context: DEMO_LESSON_CONTEXT,
-        questions: selected(body),
+        context: demoLesson(classroom),
+        questions: selected(classId, body),
         eligible: true,
         editable: true,
         requires_subject: false,
@@ -805,7 +975,7 @@ export function createDemoAssignmentApi(): AssignmentAccess {
       const idx = demoStore.drafts.findIndex(d => d.id === row.id);
       if (idx >= 0) {
         if (!demoStore.drafts[idx].editable) throw new Error("Published demo questions cannot be edited.");
-        demoStore.drafts[idx] = { ...demoStore.drafts[idx], title: body.title, instructions: body.instructions, questions: selected(body) };
+        demoStore.drafts[idx] = { ...demoStore.drafts[idx], title: body.title, instructions: body.instructions, questions: selected(row.class_id, body) };
         return copy(demoStore.drafts[idx]);
       }
       throw new Error("Demo draft not found.");
@@ -894,9 +1064,19 @@ export function createDemoCaptureApi(): CaptureAccess {
       });
     },
     async reveal(row, item) {
+      const saved = get(row.id);
+      if (saved.status !== "in_progress" || !saved.questions.some(question => question.assignment_question_id === item.assignment_question_id && question.id === item.id && question.definition.method === "flashcards"))
+        throw new Error("This flashcard is unavailable in the demo attempt.");
+      const key = demoStore.privateAnswerKeys[item.id] as { back?: string } | undefined;
+      const back = key?.back ?? (item.id === "demo-qrev-10"
+        ? "Kahulugan: Maganda, kaakit-akit, o marilag. Halimbawa: 'Ang marikit na paraluman ay hinangaan ng marami.'"
+        : null);
+      if (!back) throw new Error("The demo flashcard back is unavailable.");
+      keep({ ...saved, revision: DEMO_REVISION_2,
+        revealed_item_ids: [...new Set([...saved.revealed_item_ids, item.assignment_question_id])] });
       return {
         revision_id: item.id,
-        back: "Kahulugan: Maganda, kaakit-akit, o marilag. Halimbawa: 'Ang marikit na paraluman ay hinangaan ng marami.'",
+        back,
         attempt_revision: DEMO_REVISION_2,
       };
     },

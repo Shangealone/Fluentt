@@ -94,6 +94,34 @@ def test_live_persistence_restore_ownership_and_code_independent_membership(enro
     assert client.get("/api/v1/classes/" + classroom["id"], headers=student).status_code == 403
 
 
+def test_generated_codes_join_only_their_matching_classes(enrollment_db, monkeypatch):
+    client, student, _, first = enrollment_db
+    owner, _ = account(client, "instructor")
+    monkeypatch.setattr(class_service, "generate_code", lambda: "060002")
+    response = client.post(
+        "/api/v1/classes",
+        headers={**owner, "Idempotency-Key": str(uuid4())},
+        json={"class_name": "Synthetic second class", "grade_level": 8, "language": "english"},
+    )
+    assert response.status_code == 201
+    second = response.json()
+    assert first["join_code"] != second["join_code"]
+    assert client.post(PREVIEW, headers=student, json={"code": "000000"}).status_code == 404
+    assert client.get(JOIN + "/mine", headers=student).json() == []
+    for classroom in (second, first):
+        preview = client.post(PREVIEW, headers=student, json={"code": classroom["join_code"]})
+        assert preview.status_code == 200
+        assert preview.json()["class_name"] == classroom["class_name"]
+        joined = client.post(JOIN, headers=student, json={
+            "code": classroom["join_code"], "class_version": preview.json()["class_version"],
+        })
+        assert joined.status_code == 200
+        assert joined.json()["class_id"] == classroom["id"]
+    assert {row["class_id"] for row in client.get(JOIN + "/mine", headers=student).json()} == {
+        first["id"], second["id"],
+    }
+
+
 def test_live_concurrent_confirmation_is_one_membership_and_audit(enrollment_db, pg_engine):
     client, student, user_id, classroom = enrollment_db
     request = confirmation(client, student, classroom)

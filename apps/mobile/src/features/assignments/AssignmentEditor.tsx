@@ -8,6 +8,8 @@ import { addItem, draftError, DraftSubmission, moveItem } from "./state";
 import { ItemPreview } from "./ItemPreview";
 import { QuestionTypePicker } from "./QuestionTypePicker";
 import { questionTypes } from "./questionTypes";
+import { DemoQuestionComposer } from "./DemoQuestionComposer";
+import type { DemoQuestionInput } from "../../demo/demoData";
 
 export function Picker<T>({ fetch, render, renderHeader, emptyTitle = "No eligible records", emptyDescription = "No sample content is added. Adjust filters or ask your content administrator." }: { fetch: (offset: number) => Promise<AssignmentPage<T>>; render: (row: T, index: number) => React.ReactNode; renderHeader?: (page: AssignmentPage<T>) => React.ReactNode; emptyTitle?: string; emptyDescription?: string }) {
   const [offset, setOffset] = useState(0), [retry, setRetry] = useState(0), [page, setPage] = useState<AssignmentPage<T> | null>(null), [error, setError] = useState("");
@@ -26,12 +28,13 @@ export function Picker<T>({ fetch, render, renderHeader, emptyTitle = "No eligib
   </>}</View>;
 }
 
-export function AssignmentEditor({ initial, classId, api, active = true }: { initial: AssignmentDraft | null; classId: string; api: AssignmentAccess; active?: boolean }) {
+export function AssignmentEditor({ initial, classId, api, active = true, demoQuestionAuthor }: { initial: AssignmentDraft | null; classId: string; api: AssignmentAccess; active?: boolean; demoQuestionAuthor?: (lessonId: string, input: DemoQuestionInput) => AssignmentItem }) {
   const [row, setRow] = useState(initial), [title, setTitle] = useState(initial?.title ?? ""), [instructions, setInstructions] = useState(initial?.instructions ?? "");
   const [lesson, setLesson] = useState<LessonContext | null>(initial?.context ?? null), [items, setItems] = useState<AssignmentItem[]>(initial?.questions ?? []);
   const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [query, setQuery] = useState(""), [filters, setFilters] = useState<{ q: string; method: AssignmentMethod | "" }>({ q: "", method: "" });
   const [preview, setPreview] = useState<AssignmentItem | null>(null), [confirm, setConfirm] = useState<{ message: string; accept: () => void } | null>(null);
+  const [catalogVersion, setCatalogVersion] = useState(0);
   const [submission] = useState(() => new DraftSubmission());
   const lock = useRef(false), alive = useRef(true), [uncertain, setUncertain] = useState(false);
   const [publication, setPublication] = useState<{ row: AssignmentDraft; key: string } | null>(null);
@@ -41,7 +44,7 @@ export function AssignmentEditor({ initial, classId, api, active = true }: { ini
   });
   const editable = !row || row.editable, frozen = busy || !!submission.pending || uncertain || !editable;
   const fetchLessons = useCallback((offset: number) => api.lessons(classId, "", offset), [api, classId]);
-  const fetchQuestions = useCallback((offset: number) => api.questions(classId, lesson!.lesson_id, filters.q, filters.method, offset), [api, classId, lesson, filters]);
+  const fetchQuestions = useCallback((offset: number) => api.questions(classId, lesson!.lesson_id, filters.q, filters.method, offset), [api, classId, lesson, filters, catalogVersion]);
   function changed() { setDirty(true); setNotice(""); setPreview(null); }
   function restore(saved: AssignmentDraft) { setRow(saved); setTitle(saved.title); setInstructions(saved.instructions ?? ""); setLesson(saved.context); setItems(saved.questions); setDirty(false); setPreview(null); setUncertain(false); }
   async function save() {
@@ -114,12 +117,15 @@ export function AssignmentEditor({ initial, classId, api, active = true }: { ini
         <Button label={`Remove question ${index + 1}`} secondary disabled={frozen} onPress={() => { setItems(items.filter(value => value.id !== item.id)); changed(); }} />
       </View>)}
       {lesson && editable && !frozen && <>
+        {demoQuestionAuthor && items.length < 200 && <DemoQuestionComposer create={input => demoQuestionAuthor(lesson.lesson_id, input)}
+          onCreated={item => { setItems(previous => addItem(previous, item)); setCatalogVersion(value => value + 1); changed(); }} />}
+        {demoQuestionAuthor && items.length >= 200 && <Text style={s.body}>This draft has the maximum of 200 questions. Remove one before adding another.</Text>}
         <QuestionTypePicker value={filters.method} onChange={method => { setPreview(null); setFilters(previous => ({ ...previous, method })); }} />
         <Text style={s.heading}>Available questions</Text><Input accessibilityLabel="Search question prompts" value={query} onChangeText={setQuery} />
         <Button label="Search questions" onPress={() => setFilters(previous => ({ ...previous, q: query.trim().slice(0, 200) }))} />
-        <Picker key={JSON.stringify([lesson.lesson_id, filters])} fetch={fetchQuestions}
+        <Picker key={JSON.stringify([lesson.lesson_id, filters, catalogVersion])} fetch={fetchQuestions}
           emptyTitle={filters.method ? `No ${questionTypes[filters.method].label} questions available` : "No questions available"}
-          emptyDescription="Try another type or search. Your content administrator must publish questions for this lesson before you can add them."
+          emptyDescription={demoQuestionAuthor ? "Create a question above, or try another type or search." : "Try another type or search. Your content administrator must publish questions for this lesson before you can add them."}
           render={item => <View key={item.id} style={s.card}>
           <Text style={s.body}>{item.definition.prompt} · {questionTypes[item.definition.method].label} · Version {item.version}</Text>
           <Button label={`Preview ${questionTypes[item.definition.method].label} version ${item.version}`} secondary onPress={() => setPreview(item)} />

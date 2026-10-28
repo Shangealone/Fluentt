@@ -42,6 +42,7 @@ const { MatchingPreview, MatchingControls } = require('../apps/admin/src/compone
 const { FlashcardQuestion, FlashcardPractice } = require('../apps/mobile/src/features/questions/FlashcardQuestion.tsx');
 const { FlashcardPreview } = require('../apps/admin/src/components/question-editor.tsx');
 const { AssignmentEditor, Picker } = require('../apps/mobile/src/features/assignments/AssignmentEditor.tsx');
+const { DemoQuestionComposer } = require('../apps/mobile/src/features/assignments/DemoQuestionComposer.tsx');
 const { QuestionTypePicker } = require('../apps/mobile/src/features/assignments/QuestionTypePicker.tsx');
 const { ItemPreview } = require('../apps/mobile/src/features/assignments/ItemPreview.tsx');
 const { PublishedDetails } = require('../apps/mobile/src/features/assignments/PublishedDetails.tsx');
@@ -230,6 +231,37 @@ test('question type cards expose accessible selections and friendly names for al
   assert(html.includes('aria-checked="true"')&&html.includes('Identification')&&html.includes('Multiple Choice'));
   let picked;const tree=QuestionTypePicker({value:'',onChange(value){picked=value;}});
   nodes(tree,e=>e.props?.accessibilityLabel==='Identification')[0].props.onPress();assert.equal(picked,'identification');
+});
+test('demo instructor can enter a question and keep its answer out of selected question cards',()=>{
+  const editor=hookHarness(AssignmentEditor,{initial:assignmentRow,classId:'fixture-class',api:{},
+    demoQuestionAuthor(){return assignmentItem;}});
+  assert(nodes(editor.render(),element=>element.type===DemoQuestionComposer).length===1);
+  let received=null,selected=null;
+  const composer=hookHarness(DemoQuestionComposer,{create(input){received=input;return assignmentItem;},onCreated(item){selected=item;}});
+  const press=label=>nodes(composer.render(),element=>element.props?.label===label)[0].props.onPress();
+  press('True or False');
+  nodes(composer.render(),element=>element.props?.accessibilityLabel==='New question prompt')[0].props.onChangeText('Synthetic true statement');
+  press('False');
+  press('Create and select question');
+  assert.equal(received.method,'true_false');assert.equal(received.correct_boolean,false);
+  assert.equal(selected.id,assignmentItem.id);
+  assert(JSON.stringify(composer.render()).includes('Question created and added'));
+  assert(!JSON.stringify(editor.render()).includes('correct_value'));
+});
+test('demo creation form exposes all ten question formats with their required fields',()=>{
+  const composer=hookHarness(DemoQuestionComposer,{create(){throw new Error('No save in render check');},onCreated(){}});
+  const names=['Multiple Choice','True or False','Identification','Fill in the Blank','Multiple Select','Flashcards',
+    'Error Identification','Word Arrangement','Sentence Arrangement','Matching Type'];
+  const initial=composer.render();
+  for(const name of names)assert(nodes(initial,e=>e.props?.label===name).length===1,`Missing ${name}`);
+  const select=name=>{nodes(composer.render(),e=>e.props?.label===name)[0].props.onPress();return JSON.stringify(composer.render());};
+  assert(select('Multiple Select').includes('Choice 1 is correct'));
+  assert(select('Error Identification').includes('Part 1 contains an error'));
+  assert(select('Word Arrangement').includes('Correct sequence item 1'));
+  assert(select('Sentence Arrangement').includes('Correct sequence item 1'));
+  assert(select('Matching Type').includes('Pair 1 left'));
+  assert(select('Flashcards').includes('Flashcard private back'));
+  assert(select('Fill in the Blank').includes('___'));
 });
 
 test('type filters apply immediately while preserving selected items from other types',async()=>{
