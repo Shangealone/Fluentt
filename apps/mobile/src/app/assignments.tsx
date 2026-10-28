@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
-import { Screen, Button, s } from "../components/ui";
+import { Button, s } from "../components/ui";
+import { InstructorScreen as Screen } from "../components/InstructorScreen";
 import { AppHeader } from "../components/navigation";
 import { useSession } from "../session/provider";
 import { Picker } from "../features/assignments/AssignmentEditor";

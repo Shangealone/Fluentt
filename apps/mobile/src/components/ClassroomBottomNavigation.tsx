@@ -13,17 +13,18 @@ const tabs = [
   { route: "/conversation", label: "Tutor", name: "Conversation simulator", icon: "tutor" },
   { route: "/learning-history", label: "Progress", name: "Class progress and learning history", icon: "stats" },
 ] as const;
+const secondaryPages = ["/account", "/notifications", "/learning-materials", "/communication", "/research", "/published-assignments", "/assessment-results"];
 
 export function ClassroomBottomNavigation() {
   const { profile, loading, error } = useSession();
   const path = usePathname();
   // Hide outside main destinations, including attempts and forms with unsaved state.
   if (loading || error || profile?.role !== "school_student" || destination(profile) !== "/student"
-    || (!tabs.some(tab => tab.route === path) && path !== "/account")) return null;
+    || (!tabs.some(tab => tab.route === path) && !secondaryPages.includes(path))) return null;
   return <SafeAreaView edges={["bottom", "left", "right"]} style={styles.surface}>
     <View accessibilityRole="tablist" accessibilityLabel="Class learning navigation" style={styles.row}>
       {tabs.map(tab => {
-        const selected = path === tab.route;
+        const selected = path === tab.route || (tab.route === "/my-classes" && ["/published-assignments", "/assessment-results", "/communication"].includes(path));
         return <Pressable key={tab.route} accessibilityRole="tab" accessibilityLabel={tab.name}
           accessibilityState={{ selected }} aria-selected={selected}
           onPress={() => { if (!selected) router.navigate(tab.route); }} style={({ pressed }) => [styles.tab, { opacity: pressed ? 0.65 : 1 }]}>

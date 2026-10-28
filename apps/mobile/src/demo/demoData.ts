@@ -640,6 +640,9 @@ class DemoDataStore {
   classes = [...DEMO_CLASSES];
   drafts: AssignmentDraft[] = [DEMO_DRAFT_ASSIGNMENT];
   published: PublishedAssignment[] = [DEMO_PUBLISHED_ASSIGNMENT];
+  publishedDrafts: Record<string, AssignmentDraft> = {};
+  activityAttempts: Record<string, Attempt> = {};
+  nextActivity = 0;
   attempt: Attempt = { ...DEMO_STUDENT_ATTEMPT };
   result: AssessmentResult = { ...DEMO_STUDENT_RESULT };
   messages: Message[] = [...DEMO_MESSAGES];
@@ -648,6 +651,9 @@ class DemoDataStore {
     this.classes = [...DEMO_CLASSES];
     this.drafts = [DEMO_DRAFT_ASSIGNMENT];
     this.published = [DEMO_PUBLISHED_ASSIGNMENT];
+    this.publishedDrafts = {};
+    this.activityAttempts = {};
+    this.nextActivity = 0;
     this.attempt = { ...DEMO_STUDENT_ATTEMPT };
     this.result = { ...DEMO_STUDENT_RESULT };
     this.messages = [...DEMO_MESSAGES];
@@ -737,18 +743,21 @@ export function createDemoEnrollmentApi(): EnrollmentAccess {
 }
 
 export function createDemoAssignmentApi(): AssignmentAccess {
+  const copy = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+  function selected(body: { lesson_id: string; question_revision_ids: string[] }) {
+    if (body.lesson_id !== DEMO_LESSON_CONTEXT.lesson_id) throw new Error("Choose an available demo lesson.");
+    if (new Set(body.question_revision_ids).size !== body.question_revision_ids.length) throw new Error("Select distinct questions.");
+    return body.question_revision_ids.map(id => {
+      const item = DEMO_ASSIGNMENT_ITEMS.find(item => item.id === id && item.eligible);
+      if (!item) throw new Error("This question is unavailable in the demo lesson.");
+      return copy(item);
+    });
+  }
   return {
-    async list(classId: string) {
+    async list(classId: string, offset = 0) {
       const items: AssignmentSummary[] = [
-        {
-          id: demoStore.published[0].id,
-          class_id: classId,
-          title: demoStore.published[0].title,
-          status: "published",
-          context: demoStore.published[0].context,
-          question_count: demoStore.published[0].question_count,
-        },
-        ...demoStore.drafts.map(d => ({
+        ...demoStore.published.filter(row => row.class_id === classId).map(row => ({ ...row })),
+        ...demoStore.drafts.filter(d => d.class_id === classId && d.status !== "published").map(d => ({
           id: d.id,
           class_id: classId,
           title: d.title,
@@ -757,21 +766,26 @@ export function createDemoAssignmentApi(): AssignmentAccess {
           question_count: d.questions.length,
         })),
       ];
-      return { items, has_more: false, offset: 0, limit: 20 };
+      return { items: copy(items.slice(offset, offset + 20)), has_more: items.length > offset + 20, offset, limit: 20 };
     },
     async get(id: string) {
       const found = demoStore.drafts.find(d => d.id === id);
-      return found ?? demoStore.drafts[0];
+      if (found) return copy(found);
+      if (demoStore.publishedDrafts[id]) return copy(demoStore.publishedDrafts[id]);
+      if (id === DEMO_PUBLISHED_ASSIGNMENT.id) return { ...copy(DEMO_DRAFT_ASSIGNMENT), ...copy(DEMO_PUBLISHED_ASSIGNMENT), revision: DEMO_REVISION, questions: copy(DEMO_ASSIGNMENT_ITEMS), eligible: true, editable: false, requires_subject: false };
+      throw new Error("Demo assignment not found.");
     },
-    async lessons() {
-      return { items: [DEMO_LESSON_CONTEXT], has_more: false, offset: 0, limit: 20 };
+    async lessons(classId) {
+      return { items: classId === "demo-class-1" ? [copy(DEMO_LESSON_CONTEXT)] : [], has_more: false, offset: 0, limit: 20 };
     },
-    async questions() {
-      return { items: DEMO_ASSIGNMENT_ITEMS, has_more: false, offset: 0, limit: 20 };
+    async questions(classId, lessonId, q = "", method = "", offset = 0) {
+      const items = DEMO_ASSIGNMENT_ITEMS.filter(item => classId === "demo-class-1" && item.definition.lesson_id === lessonId && (!method || item.definition.method === method) && item.definition.prompt.toLocaleLowerCase().includes(q.toLocaleLowerCase()));
+      return { items: copy(items.slice(offset, offset + 20)), has_more: items.length > offset + 20, offset, limit: 20 };
     },
     async create(classId, body) {
+      if (classId !== "demo-class-1") throw new Error("This demo class has no published lesson questions yet.");
       const created: AssignmentDraft = {
-        id: `demo-draft-${Date.now()}`,
+        id: `demo-draft-created-${++demoStore.nextActivity}`,
         class_id: classId,
         version_id: `demo-ver-${Date.now()}`,
         revision: DEMO_REVISION,
@@ -779,69 +793,105 @@ export function createDemoAssignmentApi(): AssignmentAccess {
         title: body.title,
         instructions: body.instructions,
         context: DEMO_LESSON_CONTEXT,
-        questions: DEMO_ASSIGNMENT_ITEMS.slice(0, 3),
+        questions: selected(body),
         eligible: true,
         editable: true,
         requires_subject: false,
       };
       demoStore.drafts.unshift(created);
-      return created;
+      return copy(created);
     },
     async save(row, body) {
       const idx = demoStore.drafts.findIndex(d => d.id === row.id);
       if (idx >= 0) {
-        demoStore.drafts[idx] = { ...demoStore.drafts[idx], title: body.title, instructions: body.instructions };
-        return demoStore.drafts[idx];
+        if (!demoStore.drafts[idx].editable) throw new Error("Published demo questions cannot be edited.");
+        demoStore.drafts[idx] = { ...demoStore.drafts[idx], title: body.title, instructions: body.instructions, questions: selected(body) };
+        return copy(demoStore.drafts[idx]);
       }
-      return row;
+      throw new Error("Demo draft not found.");
     },
     async archive(row) {
       const idx = demoStore.drafts.findIndex(d => d.id === row.id);
-      if (idx >= 0) demoStore.drafts[idx].status = "archived";
-      return { ...row, status: "archived" };
+      if (idx < 0 || !demoStore.drafts[idx].editable) throw new Error("This demo assignment cannot be archived.");
+      demoStore.drafts[idx] = { ...demoStore.drafts[idx], status: "archived", editable: false };
+      return copy(demoStore.drafts[idx]);
     },
     async publish(row) {
       const idx = demoStore.drafts.findIndex(d => d.id === row.id);
-      if (idx >= 0) demoStore.drafts[idx].status = "published";
-      return { ...row, status: "published" };
+      if (idx < 0) throw new Error("Demo draft not found.");
+      const saved = demoStore.drafts[idx];
+      if (saved.status === "published") return copy(saved);
+      if (saved.status !== "draft" || !saved.questions.length) throw new Error("Add questions to a draft before publishing.");
+      const snapshot: AssignmentDraft = { ...copy(saved), status: "published", editable: false };
+      demoStore.drafts[idx] = snapshot;
+      demoStore.publishedDrafts[row.id] = copy(snapshot);
+      demoStore.published.unshift({ id: snapshot.id, class_id: snapshot.class_id, version_id: snapshot.version_id,
+        title: snapshot.title, instructions: snapshot.instructions, context: copy(snapshot.context), status: "published",
+        published_at: new Date().toISOString(), question_count: snapshot.questions.length, methods: snapshot.questions.map(item => item.definition.method) });
+      return copy(snapshot);
     },
-    async published() {
-      return { items: demoStore.published, has_more: false, offset: 0, limit: 20 };
+    async published(classId, offset = 0) {
+      const items = demoStore.published.filter(row => row.class_id === classId);
+      return { items: copy(items.slice(offset, offset + 20)), has_more: items.length > offset + 20, offset, limit: 20 };
     },
     async publishedDetail(id: string) {
       const found = demoStore.published.find(p => p.id === id);
-      return found ?? demoStore.published[0];
+      if (!found) throw new Error("Published demo assignment not found.");
+      return copy(found);
     },
   };
 }
 
 export function createDemoCaptureApi(): CaptureAccess {
+  const copy = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+  function get(id: string) {
+    const attempt = id === demoStore.attempt.id ? demoStore.attempt : demoStore.activityAttempts[id];
+    if (!attempt) throw new Error("Demo attempt not found.");
+    return attempt;
+  }
+  function keep(attempt: Attempt) {
+    if (attempt.id === demoStore.attempt.id) demoStore.attempt = attempt;
+    else demoStore.activityAttempts[attempt.id] = attempt;
+    return copy(attempt);
+  }
   return {
-    async start() {
-      return { ...demoStore.attempt };
+    async start(id) {
+      if (id === demoStore.attempt.assignment_id) return copy(demoStore.attempt);
+      const snapshot = demoStore.publishedDrafts[id];
+      if (!snapshot) throw new Error("This demo assignment is not published.");
+      const prior = Object.values(demoStore.activityAttempts).find(attempt => attempt.assignment_id === id);
+      if (prior) return copy(prior);
+      return keep({ id: `demo-attempt-${id}`, assignment_id: id, class_id: snapshot.class_id, version_id: snapshot.version_id,
+        title: snapshot.title, instructions: snapshot.instructions, status: "in_progress", revision: DEMO_REVISION,
+        started_at: new Date().toISOString(), submitted_at: null, position: 1, question_count: snapshot.questions.length, completed_count: 0,
+        questions: copy(snapshot.questions).map((item, i) => ({ ...item, assignment_question_id: `${id}-item-${i + 1}` })), responses: [], revealed_item_ids: [] });
     },
-    async read() {
-      return { ...demoStore.attempt };
+    async read(id) {
+      return copy(get(id));
     },
     async save(row, body: Progress) {
-      demoStore.attempt = {
-        ...demoStore.attempt,
+      const saved = get(row.id);
+      if (saved.status === "submitted") throw new Error("Submitted demo answers cannot be changed.");
+      return keep({
+        ...saved,
         position: body.position,
         responses: body.responses,
         completed_count: body.responses.length,
-      };
-      return { ...demoStore.attempt };
+      });
     },
     async submit(row, body: Progress) {
-      demoStore.attempt = {
-        ...demoStore.attempt,
+      const saved = get(row.id);
+      if (saved.status === "submitted") return copy(saved);
+      return keep({
+        ...saved,
         status: "submitted",
         submitted_at: new Date().toISOString(),
         position: body.position,
         responses: [],
         questions: [],
-      };
-      return { ...demoStore.attempt };
+        completed_count: body.responses.length,
+        revealed_item_ids: [],
+      });
     },
     async reveal(row, item) {
       return {
@@ -855,22 +905,27 @@ export function createDemoCaptureApi(): CaptureAccess {
 
 export function createDemoResultsApi(): ResultsAccess {
   return {
-    async student() {
+    async student(id) {
+      if (id !== DEMO_PUBLISHED_ASSIGNMENT.id) throw new Error("No scores have been generated for this new demo activity.");
       return { ...demoStore.result };
     },
-    async submissions() {
+    async submissions(id) {
+      if (id !== DEMO_PUBLISHED_ASSIGNMENT.id) throw new Error("Result review for new demo activities is unavailable. No grades are generated automatically.");
       return { items: DEMO_SUBMISSIONS, has_more: false, offset: 0, limit: 20 };
     },
     async owner(attemptId: string) {
+      if (demoStore.activityAttempts[attemptId]) throw new Error("No scores have been generated for this new demo activity.");
       return {
         ...demoStore.result,
         attempt_id: attemptId,
       };
     },
-    async evaluations() {
+    async evaluations(id) {
+      if (demoStore.activityAttempts[id]) throw new Error("No evaluation has been run for this new demo activity.");
       return { items: [DEMO_EVALUATION], has_more: false, offset: 0, limit: 10 };
     },
     async release(row, released) {
+      if (row.assignment_id !== DEMO_PUBLISHED_ASSIGNMENT.id) throw new Error("This demo activity has no evaluation to release.");
       demoStore.result = {
         ...demoStore.result,
         released,

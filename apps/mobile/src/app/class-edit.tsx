@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { BackHandler, Text } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { Screen, s } from "../components/ui";
+import { s } from "../components/ui";
+import { InstructorScreen as Screen } from "../components/InstructorScreen";
 import { AppHeader, LoadState } from "../components/navigation";
 import { ClassForm } from "../features/classes/ClassForm";
 import { useSession } from "../session/provider";

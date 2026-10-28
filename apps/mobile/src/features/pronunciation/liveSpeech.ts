@@ -1,4 +1,5 @@
 import { requireOptionalNativeModule } from "expo";
+import { Platform } from "react-native";
 import type { ExpoSpeechRecognitionModuleType } from "expo-speech-recognition/build/ExpoSpeechRecognitionModule.types";
 import type { PronunciationLanguage } from "../../services/api/pronunciation";
 import type { LiveSpeechCallbacks, LiveSpeechSession, LiveSpeechOptions } from "./liveWordTracking";
@@ -10,7 +11,22 @@ async function removeTemporaryRecording(uri: string) {
 }
 
 export async function prepareOfflineSpeech(language: PronunciationLanguage): Promise<void> {
-  throw new Error(`Install an offline ${language === "english" ? "English" : "Tagalog"} speech language in your device settings, then return to this phrase.`);
+  const label = language === "english" ? "English" : "Tagalog";
+  if (Platform.OS !== "android") throw new Error(`Install an offline ${label} speech language in your device settings, then return to this phrase.`);
+  const module = requireOptionalNativeModule<ExpoSpeechRecognitionModuleType>("ExpoSpeechRecognition");
+  if (!module || !module.isRecognitionAvailable() || !module.supportsOnDeviceRecognition()) {
+    throw new Error("Enable an on-device speech recognition service in Android settings, then retry setup.");
+  }
+  const matches = (value: string) => language === "english" ? /^en(-|$)/i.test(value.replaceAll("_", "-")) : /^(fil|tl)(-|$)/i.test(value.replaceAll("_", "-"));
+  const available = await module.getSupportedLocales({});
+  if (available.installedLocales.some(matches)) return;
+  const locale = available.locales.find(matches);
+  if (!locale) throw new Error(`Your speech service does not offer an offline ${label} language. Try another supported language or service.`);
+  const result = await module.androidTriggerOfflineModelDownload({ locale });
+  if (result.status === "download_scheduled") throw new Error("The language download is queued. Connect to Wi-Fi, then retry setup after it finishes.");
+  if (result.status === "opened_dialog") throw new Error("Complete the Android language download dialog, then return and retry setup.");
+  const installed = await module.getSupportedLocales({});
+  if (!installed.installedLocales.some(matches)) throw new Error("The speech language is not installed yet. Wait for its download to finish, then retry setup.");
 }
 
 /** Native recognition is local-only; missing native builds must fail without crashing Expo Go. */

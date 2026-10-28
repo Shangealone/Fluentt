@@ -16,6 +16,10 @@ export type AssessmentDeliveryDraft = {
 };
 export type AssessmentPublication = { status: "BLOCKED"; execution_available: false; blockers: string[] };
 export type Configuration = {
+  methodology_draft?: { version:string; target_participants:number; control_target:number; experimental_target:number;
+    intervention_calendar_months:number; practice_min_seconds:number; practice_max_seconds:number; delayed_retention_calendar_days:number;
+    scope?:"research_classroom_only"; control?:"fsrs6"; experimental?:"fsrs6_fifakt_proposed"; allocation_design?:"randomized_parallel_1_to_1";
+    weekdays?:"monday_to_friday"; daily_access?:"local_midnight_until_next_local_midnight_exclusive" } | null;
   assessment_delivery_draft?: AssessmentDeliveryDraft | null;
   starts_at: string | null; ends_at: string | null; timezone: string | null; active_weekdays: number[] | null;
   protocol_reference: string | null; consent_document_version: string | null; consent_requirements: string[] | null;
@@ -114,6 +118,17 @@ export function buildConfiguration(data: FormData, previous: Configuration, inst
     administrator_setup: { proposed_intervention_weeks: integer("weeks", 520), daily_availability: opens ? { opens, closes } : null,
       phase_windows, review_policy: policy("review"), assessment_attempt_limit: integer("attempts") } };
   // Forms predating this section omit the marker and must preserve retained draft plans.
+  if(data.has("methodology.present")) {
+    result.methodology_draft=null;
+    if(data.has("methodology.enabled")) {
+      const version=text("methodology.version");
+      const target=integer("methodology.target",100000),control=integer("methodology.control",50000),experimental=integer("methodology.experimental",50000);
+      const months=integer("methodology.months",12),minimum=integer("methodology.minimum",86400),maximum=integer("methodology.maximum",86400),delay=integer("methodology.delay",365);
+      if(!version||!target||!control||!experimental||control!==experimental||control+experimental!==target||!months||!minimum||!maximum||minimum>maximum||!delay)throw new Error("Complete the proposed study version, equal group targets, calendar months, practice range and retention interval.");
+      result.methodology_draft={version,target_participants:target,control_target:control,experimental_target:experimental,intervention_calendar_months:months,practice_min_seconds:minimum,practice_max_seconds:maximum,delayed_retention_calendar_days:delay,
+        scope:"research_classroom_only",control:"fsrs6",experimental:"fsrs6_fifakt_proposed",allocation_design:"randomized_parallel_1_to_1",weekdays:"monday_to_friday",daily_access:"local_midnight_until_next_local_midnight_exclusive"};
+    }
+  }
   if (data.has("delivery.present")) {
     result.assessment_delivery_draft = null;
     if (data.has("delivery.enabled")) {

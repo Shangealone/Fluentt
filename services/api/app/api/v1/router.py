@@ -3,6 +3,8 @@ from typing import Literal
 from fastapi import APIRouter
 from pydantic import BaseModel
 from app.modules.identity.router import router as identity_router
+from app.modules.administration.performance import router as performance_router
+from app.modules.administration.oversight import router as oversight_router
 
 from app.modules.classrooms.router import router as classrooms_router
 from app.modules.enrollment.router import router as enrollment_router
@@ -33,6 +35,8 @@ from app.modules.research.classroom_router import (
 )
 
 router = APIRouter()
+router.include_router(performance_router)
+router.include_router(oversight_router)
 router.include_router(personal_practice_router)
 router.include_router(research_student_router)
 router.include_router(research_admin_router)

@@ -6,9 +6,9 @@ const Module = require('node:module');
 const mobile = path.resolve(__dirname,'../apps/mobile');
 const local = Module.createRequire(path.join(mobile,'package.json'));
 const React = local('react'), babel = local('@babel/core'), original = Module._load;
-const sessions=[];let background, native;
+const sessions=[];let background, native, platform='web';
 Module._load=function(name,parent,main){
-  if(name==='react-native')return {...local('react-native-web'),AppState:{addEventListener(_,callback){background=callback;return {remove(){background=null;}};}}};
+  if(name==='react-native')return {...local('react-native-web'),Platform:{...local('react-native-web').Platform,get OS(){return platform;}},AppState:{addEventListener(_,callback){background=callback;return {remove(){background=null;}};}}};
   if(name==='react-native-safe-area-context')return {SafeAreaView:local('react-native-web').View};
   if(name==='expo-router')return {useFocusEffect:effect=>React.useEffect(effect,[effect])};
   if(name==='./liveSpeech'&&parent.filename.endsWith('useLiveWordTracking.ts'))return {createLiveSpeech(language,callbacks,options){
@@ -25,7 +25,7 @@ const {speechWords,spokenWordCount}=local(path.join(mobile,'src/features/pronunc
 const {useLiveWordTracking}=local(path.join(mobile,'src/features/pronunciation/useLiveWordTracking.ts'));
 const {LivePronunciationPractice}=local(path.join(mobile,'src/features/pronunciation/LivePronunciationPractice.tsx'));
 const {createLiveSpeech:createWeb,prepareOfflineSpeech}=local(path.join(mobile,'src/features/pronunciation/liveSpeech.web.ts'));
-const {createLiveSpeech:createNative}=local(path.join(mobile,'src/features/pronunciation/liveSpeech.ts'));
+const {createLiveSpeech:createNative,prepareOfflineSpeech:prepareNativeSpeech}=local(path.join(mobile,'src/features/pronunciation/liveSpeech.ts'));
 function harness(Component){
   const slots=[],effects=[];let cursor;
   return {render(){cursor=0;const queue=[],saved={useState:React.useState,useRef:React.useRef,useEffect:React.useEffect,useCallback:React.useCallback};
@@ -108,6 +108,26 @@ test('browser offline setup downloads only a supported language and never starts
   assert.deepEqual(requests,[['available',{langs:['en-US'],processLocally:true}],['install',{langs:['en-US'],processLocally:true}]]);
   Recognition.available=async()=> 'unavailable';
   await assert.rejects(prepareOfflineSpeech('tagalog'),/does not offer offline Tagalog/);delete global.window;
+});
+
+test('Android speech setup downloads a supported model and verifies installation without recording',async()=>{
+  platform='android';let installed=false;const downloads=[];
+  native={isRecognitionAvailable:()=>true,supportsOnDeviceRecognition:()=>true,
+    async getSupportedLocales(){return {locales:['en-US'],installedLocales:installed?['en_US']:[]};},
+    async androidTriggerOfflineModelDownload(options){downloads.push(options);installed=true;return {status:'download_success'};},
+    start(){throw new Error('setup must not record');},requestPermissionsAsync(){throw new Error('setup must not request capture');}};
+  try{await prepareNativeSpeech('english');assert.deepEqual(downloads,[{locale:'en-US'}]);await prepareNativeSpeech('english');assert.equal(downloads.length,1);
+    await assert.rejects(prepareNativeSpeech('tagalog'),/does not offer an offline Tagalog/);
+  }finally{platform='web';}
+});
+
+test('Android queued downloads and dialogs never report that speech is installed',async()=>{
+  platform='android';let status='download_scheduled';
+  native={isRecognitionAvailable:()=>true,supportsOnDeviceRecognition:()=>true,
+    async getSupportedLocales(){return {locales:['en-US'],installedLocales:[]};},async androidTriggerOfflineModelDownload(){return {status};}};
+  try{await assert.rejects(prepareNativeSpeech('english'),/queued/);status='opened_dialog';await assert.rejects(prepareNativeSpeech('english'),/download dialog/);
+    status='download_success';await assert.rejects(prepareNativeSpeech('english'),/not installed yet/);
+  }finally{platform='web';}
 });
 
 // All provider results below are synthetic QA responses. No live audio/model claim.

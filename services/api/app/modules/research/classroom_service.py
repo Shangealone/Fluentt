@@ -58,7 +58,7 @@ def fingerprint(operation, target, payload):
 def configuration_data(config):
     # Preserve Prompt 02 replay hashes: an absent optional UI proposal is not a change.
     data = config.model_dump(mode="json")
-    for name in ("administrator_setup", "assessment_delivery_draft"):
+    for name in ("administrator_setup", "assessment_delivery_draft", "methodology_draft"):
         if data.get(name) is None:
             data.pop(name, None)
     return data
@@ -200,7 +200,9 @@ def _references(db, scope, config):
     if config.assessment_delivery_draft:
         for stage, item in config.assessment_delivery_draft.stages.items():
             if item.assessment_id and instruments[item.assessment_id].kind != STAGE_KINDS[stage]:
-                raise fail("assessment_stage_mismatch", "Stage must reference its matching frozen assessment type.", 422)
+                raise fail(
+                    "assessment_stage_mismatch", "Stage must reference its matching frozen assessment type.", 422
+                )
 
 
 def _protocol(db, scope, config):
@@ -228,6 +230,15 @@ def _protocol(db, scope, config):
 def blockers(db, scope, protocol):
     config = ProtocolConfiguration.model_validate(protocol.configuration)
     missing = []
+    if config.methodology_draft:
+        # Planning metadata must never make legacy SM-2 / simulated ESR executable.
+        missing.extend(
+            [
+                "fsrs6_research_treatment_not_integrated",
+                "trained_fifakt_unavailable",
+                "methodology_draft_not_execution_authorization",
+            ]
+        )
     for name in (
         "protocol_reference",
         "starts_at",

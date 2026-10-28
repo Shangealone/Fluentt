@@ -25,14 +25,14 @@ async function Login({ searchParams }: { searchParams: Promise<Record<string, st
       <Card>
         {params.error && <p className="error" role="alert">Sign-in could not be completed. Verify your account with your operator and try again.</p>}
         {params.expired && <p role="status">Your session ended. Sign in again to continue.</p>}
-        {unavailable ? <><p role="alert">The account service is unavailable.</p><a className="button" href="/login">Retry</a></>
+        {unavailable ? <><p role="alert">The account service is unavailable.</p><Link className="button" href="/login">Retry</Link></>
           : <AdminLogin enabled={enabled} />}
       </Card>
       <div className="demo-signin-card" style={{ marginTop: "24px", padding: "24px", background: "var(--accent)", border: "1.5px solid var(--primary)", borderRadius: "16px" }}>
         <p className="eyebrow" style={{ color: "var(--primary)", margin: "0 0 8px 0" }}>⚡ DEMONSTRATION ACCESS</p>
         <h2 style={{ margin: "0 0 10px 0", fontSize: "20px" }}>Instant Demo Sign-in</h2>
         <p style={{ margin: "0 0 16px 0", fontSize: "14px" }}>
-          For testing and walkthroughs: bypass external OIDC setup and enter directly with full administrator permissions (Curriculum management, Question bank authoring & preview, and grading simulation).
+          Preview the administrator layout and sample content tools. Live learner monitoring requires a separately authorized administrator session; preview mode does not show real user records.
         </p>
         <form method="post" action="/api/admin/demo-login">
           <button type="submit" className="button demo-button">⚡ Sign In as Demo Administrator (@admin_demo) →</button>

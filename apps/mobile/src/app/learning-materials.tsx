@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, Text, View, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { Screen, Button, EmptyState, s } from "../components/ui";
+import { Button, EmptyState, s } from "../components/ui";
+import { InstructorScreen as Screen } from "../components/InstructorScreen";
 import { AppHeader, LoadState } from "../components/navigation";
 import { useSession } from "../session/provider";
 import { theme } from "../theme/tokens";

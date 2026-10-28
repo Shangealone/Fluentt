@@ -62,7 +62,7 @@ header {
   background: var(--accent);
   border-radius: 20px;
   color: var(--accent-text);
-  border: 1px solid #a7f3d0;
+  border: 1px solid var(--border);
 }
 .hero {
   padding: 64px 0 40px;

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Screen } from "../components/ui";
+import { InstructorScreen as Screen } from "../components/InstructorScreen";
 import { AppHeader } from "../components/navigation";
 import { MonitoringBrowser } from "../features/monitoring/MonitoringBrowser";
 import { useSession } from "../session/provider";

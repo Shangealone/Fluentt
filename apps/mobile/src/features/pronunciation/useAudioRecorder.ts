@@ -1,6 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Platform } from "react-native";
-import { Audio } from "expo-av";
+import {
+  createAudioPlayer,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder as useExpoAudioRecorder,
+  type AudioPlayer,
+  type AudioRecorder,
+} from "expo-audio";
 import { AudioUploadPayload } from "../../services/api/pronunciation";
 
 export type RecorderStatus =
@@ -50,8 +58,10 @@ export function useAudioRecorder(): AudioRecorderState {
   const webAudioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
   // Native Refs
-  const nativeRecordingRef = useRef<Audio.Recording | null>(null);
-  const nativeSoundRef = useRef<Audio.Sound | null>(null);
+  const nativeRecorder = useExpoAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const nativeRecordingRef = useRef<AudioRecorder | null>(null);
+  const nativeSoundRef = useRef<AudioPlayer | null>(null);
+  const nativePlaybackSubscription = useRef<{ remove: () => void } | null>(null);
 
   // Timer Ref
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -73,7 +83,9 @@ export function useAudioRecorder(): AudioRecorderState {
     } else {
       if (nativeSoundRef.current) {
         try {
-          await nativeSoundRef.current.unloadAsync();
+          nativePlaybackSubscription.current?.remove();
+          nativePlaybackSubscription.current = null;
+          nativeSoundRef.current.release();
         } catch {
           // ignore cleanup errors
         }
@@ -102,7 +114,7 @@ export function useAudioRecorder(): AudioRecorderState {
     } else {
       if (nativeRecordingRef.current) {
         try {
-          await nativeRecordingRef.current.stopAndUnloadAsync();
+          await nativeRecordingRef.current.stop();
         } catch {
           // ignore error on discard
         }
@@ -146,7 +158,7 @@ export function useAudioRecorder(): AudioRecorderState {
       }
     } else {
       try {
-        const response = await Audio.requestPermissionsAsync();
+        const response = await requestRecordingPermissionsAsync();
         if (response.granted) {
           setStatus("ready");
           return true;
@@ -201,8 +213,8 @@ export function useAudioRecorder(): AudioRecorderState {
     } else {
       if (nativeRecordingRef.current) {
         try {
-          await nativeRecordingRef.current.stopAndUnloadAsync();
-          const uri = nativeRecordingRef.current.getURI();
+          await nativeRecordingRef.current.stop();
+          const uri = nativeRecordingRef.current.uri;
           if (uri) {
             setAudioPayload({
               uri,
@@ -278,14 +290,14 @@ export function useAudioRecorder(): AudioRecorderState {
       }
     } else {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
-          playsInSilentModeIOS: true,
+        await setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
         });
 
-        const recording = new Audio.Recording();
-        await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-        await recording.startAsync();
+        const recording = nativeRecorder;
+        await recording.prepareToRecordAsync();
+        recording.record();
         nativeRecordingRef.current = recording;
         setStatus("recording");
 
@@ -302,7 +314,7 @@ export function useAudioRecorder(): AudioRecorderState {
         setStatus("ready");
       }
     }
-  }, [discardRecording, requestPermission, stopRecording]);
+  }, [discardRecording, requestPermission, stopRecording, nativeRecorder]);
 
   // Play Recording
   const playRecording = useCallback(async () => {
@@ -334,25 +346,23 @@ export function useAudioRecorder(): AudioRecorderState {
       }
     } else {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
+        await setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
         });
 
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: audioPreviewUri },
-          { shouldPlay: true },
-          status => {
-            if (status.isLoaded) {
-              setPlaybackPositionMs(status.positionMillis || 0);
-              if (status.didJustFinish) {
-                setStatus("recorded");
-                setPlaybackPositionMs(0);
-              }
+        const sound = createAudioPlayer({ uri: audioPreviewUri }, { updateInterval: 100 });
+        nativeSoundRef.current = sound;
+        nativePlaybackSubscription.current = sound.addListener("playbackStatusUpdate", status => {
+          if (status.isLoaded) {
+            setPlaybackPositionMs(Math.round(status.currentTime * 1000));
+            if (status.didJustFinish) {
+              setStatus("recorded");
+              setPlaybackPositionMs(0);
             }
           }
-        );
-        nativeSoundRef.current = sound;
+        });
+        sound.play();
         setStatus("playing");
       } catch {
         setError("Playback failed on device.");
@@ -370,7 +380,7 @@ export function useAudioRecorder(): AudioRecorderState {
     } else {
       if (nativeSoundRef.current) {
         try {
-          await nativeSoundRef.current.pauseAsync();
+          nativeSoundRef.current.pause();
         } catch {
           // ignore pause error
         }
@@ -390,11 +400,10 @@ export function useAudioRecorder(): AudioRecorderState {
         webAudioPlayerRef.current.pause();
       }
       if (nativeSoundRef.current) {
-        void nativeSoundRef.current.unloadAsync().catch(() => {});
+        nativePlaybackSubscription.current?.remove();
+        nativeSoundRef.current.release();
       }
-      if (nativeRecordingRef.current) {
-        void nativeRecordingRef.current.stopAndUnloadAsync().catch(() => {});
-      }
+      // useExpoAudioRecorder releases the recorder (and stops capture) on unmount.
     };
   }, [cleanupTimer]);
 

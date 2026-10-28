@@ -30,6 +30,8 @@ const {researchRoute} = load(path.join(admin, 'src/services/research-routing'));
 const {proxyResearchSetup} = load(path.join(admin, 'src/services/research-proxy'));
 const {ResearchProtocolForm} = load(path.join(admin, 'src/components/research-protocol-form'));
 const {AdminNav} = load(path.join(admin, 'src/components/admin-nav'));
+const oversight = load(path.join(admin, 'src/services/oversight-contract'));
+const {OversightPanel} = load(path.join(admin, 'src/components/oversight-panel'));
 const reportingContract = load(path.join(admin, 'src/services/research-reporting-contract'));
 const {ResearchReportingPanel} = load(path.join(admin, 'src/components/research-reporting-panel'));
 const id = '6bbd7d97-caa0-4fd0-9000-0121bfdc83a0';
@@ -38,6 +40,27 @@ const profile = {username: 'SyntheticResearcher', role: 'administrator', permiss
 const config = {starts_at: null, ends_at: null, timezone: null, active_weekdays: null, protocol_reference: null, consent_document_version: null, consent_requirements: null, allocation_unit: null, allocation_policy: null, due_date_policy: null, conditions: [], assessments: [], declared_evidence: {}};
 const study = {id, study_id: id, code:'SYNTHETIC-ONLY', title:'Synthetic test draft', language:'english', protocol_version:'synthetic-v1', target_participants:7, status:'DRAFT', revision:`"${id}:1"`, protocol_id:id, configuration_version:1, configuration_fingerprint:'a'.repeat(64), configuration:config, activation_blockers:['verified_authorization_missing:ethics']};
 const url = '/research-classrooms/studies';
+
+test('school oversight has fixed paths, permission-aware navigation and honest preview state',()=>{
+  assert.equal(oversight.oversightPath(['users'],'GET',new URLSearchParams('role=instructor')),'/oversight/users?role=instructor');
+  for(const [segments,method,query] of [[['users'],'POST',''],[['users',id,'password'],'POST',''],[['users'],'GET','role=administrator'],[['summary.csv'],'GET','q=x'],[['classwork'],'GET','']])
+    assert.equal(oversight.oversightPath(segments,method,new URLSearchParams(query)),null);
+  const live=renderToStaticMarkup(React.createElement(AdminNav,{profile:{...profile,permissions:['dashboard.view','users.read']},current:'users'}));
+  assert(live.includes('href="/users"')&&!live.includes('href="/classes"'));
+  const html=renderToStaticMarkup(React.createElement(OversightPanel,{view:'users',permitted:true,preview:true,canWrite:true}));
+  assert(html.includes('Preview mode')&&html.includes('No live records loaded.'));
+  assert(!html.includes('Deactivate</button>')&&!html.includes('value="password"'));
+});
+
+test('FSRS proposal builder preserves legacy drafts and validates group targets',()=>{
+  assert.equal(contract.buildConfiguration(new FormData(),config,[]).methodology_draft,undefined);
+  const data=new FormData();
+  for(const [key,value] of Object.entries({present:'1',enabled:'on',version:'synthetic-v1',target:'30',control:'15',experimental:'15',months:'1',minimum:'300',maximum:'600',delay:'7'}))data.set('methodology.'+key,value);
+  const result=contract.buildConfiguration(data,config,[]).methodology_draft;
+  assert.equal(result.control,'fsrs6');assert.equal(result.experimental,'fsrs6_fifakt_proposed');
+  assert.equal(result.delayed_retention_calendar_days,7);
+  data.set('methodology.experimental','14');assert.throws(()=>contract.buildConfiguration(data,config,[]));
+});
 function request(method='GET', suffix='', options={}) {
   const value = new Request(`http://localhost:3000/api/admin/research/classrooms/studies${suffix}`, {method, ...options});
   Object.defineProperty(value, 'cookies', {value: {get: name => options.demo && name === 'fluentt_demo_admin' ? {value:'1'} : undefined}});
@@ -136,7 +159,7 @@ test('actual form has native labels, legends, approval disclosure, no assumed we
 });
 test('current admin navigation keeps one research page and enforces research read visibility',()=>{
   const visible=renderToStaticMarkup(React.createElement(AdminNav,{profile,current:'research'}));
-  assert.equal((visible.match(/href="\/research"/g)||[]).length,1); assert.ok(visible.includes('Research Management'));
+  assert.equal((visible.match(/href="\/research"/g)||[]).length,1); assert.ok(visible.includes('Research'));
   const hidden=renderToStaticMarkup(React.createElement(AdminNav,{profile:{...profile,permissions:['dashboard.view']},current:'dashboard'}));
   assert.ok(!hidden.includes('href="/research"'));
 });

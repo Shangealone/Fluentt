@@ -1,202 +1,54 @@
-import { Platform, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
-import { Screen, Button, Badge, EmptyState, s } from "../components/ui";
-import { AppHeader, LoadState } from "../components/navigation";
+import { StyleSheet, Text, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { Button, EmptyState } from "../components/ui";
+import { InstructorScreen } from "../components/InstructorScreen";
+import { LoadState } from "../components/navigation";
+import { PersonalIcon, type PersonalIconName } from "../components/PersonalIcon";
 import { useSession } from "../session/provider";
 import { usePagedList } from "../features/dashboard/usePagedList";
-import { theme } from "../theme/tokens";
-import { LearningBanner } from "../components/LearningBanner";
+import { pc, p } from "../theme/personal";
 
 export default function Instructor() {
   const { profile, classes } = useSession();
+  const { view } = useLocalSearchParams<{ view?: string }>();
+  const classesOnly = view === "classes";
   const { state, reload, more } = usePagedList(classes.mine);
-
-  return (
-    <Screen>
-      <AppHeader
-        navigation
-        title={`Hello, ${profile?.username ?? "Instructor"}`}
-        subtitle="My teaching space"
-      />
-
-      <LearningBanner compact title="A clear space for your classes." description="Open a class to prepare assignments and review submissions. Use its invitation code to welcome students." />
-
-      {/* Quick Action Command Grid */}
-      <View style={instStyles.commandGrid}>
-        <Button
-          label="Create a class"
-          variant="primary"
-          onPress={() => router.push("/first-class")}
-        />
-        <Button
-          label="Class monitoring"
-          variant="secondary"
-          onPress={() => router.push("/instructor-monitoring")}
-        />
-        <Button
-          label="Messages"
-          variant="secondary"
-          onPress={() => router.push("/communication")}
-        />
-        <Button
-          label="Refresh classes"
-          variant="ghost"
-          disabled={state.phase === "loading"}
-          onPress={reload}
-        />
-      </View>
-
+  return <InstructorScreen>
+    <View style={{ gap: 10 }}>
+      <View style={p.row}><View style={p.chip}><Text style={p.chipText}>Teach with your class</Text></View><View style={[p.chip, { backgroundColor: pc.pink }]}><Text style={[p.chipText, { color: pc.rose }]}>Instructor space</Text></View></View>
+      <Text accessibilityRole="header" style={p.title}>{classesOnly ? "Your classes, all in one place." : `Welcome back, ${profile?.username ?? "Instructor"}`}</Text>
+      <Text style={p.body}>{classesOnly ? "Choose a class to prepare questions, invite students, and review their work." : "Your classes, your next activity, your place to guide. Take it one lesson at a time."}</Text>
+    </View>
+    {!classesOnly && <View style={styles.hero}>
+      <Text style={[p.eyebrow, { color: "#F2D6DF" }]}>A little further, together</Text>
+      <Text accessibilityRole="header" style={styles.heroTitle}>Make room for their next breakthrough.</Text>
+      <Text style={styles.heroBody}>Open a class to choose questions and publish an activity. Follow your students’ work from Progress below.</Text>
+      <View style={styles.methods}>{[
+        { icon: "learn", label: "Class activities" }, { icon: "tutor", label: "Stay connected" }, { icon: "stats", label: "Student progress" },
+      ].map(item => <View key={item.icon} style={styles.method}><PersonalIcon name={item.icon as PersonalIconName} color="#F2CBD6" /><Text style={styles.methodLabel}>{item.label}</Text></View>)}</View>
+    </View>}
+    <View style={p.section}>
+      <View style={p.row}><Text accessibilityRole="header" style={p.heading}>Your classes</Text><Text style={p.caption}>{state.phase === "ready" ? `${state.rows.length}${state.hasMore ? "+" : ""} shown` : ""}</Text></View>
+      <View style={p.grid}><Button label="Create a class" onPress={() => router.push("/first-class")} /><Button label="Refresh classes" secondary disabled={state.phase === "loading"} onPress={reload} /></View>
       <LoadState phase={state.phase} error={state.error} retry={reload} />
-
-      {state.phase === "ready" && state.rows.length === 0 && (
-        <EmptyState
-          icon="🏫"
-          title="No classes are saved yet"
-          description="Create a class, invite your students, then prepare your first assignment."
-          action={
-            <Button
-              label="Create a class"
-              variant="primary"
-              onPress={() => router.push("/first-class")}
-            />
-          }
-        />
-      )}
-
-      {/* Classrooms List */}
-      {state.phase === "ready" && state.rows.length > 0 && (
-        <View style={{ gap: 16 }}>
-          <View style={instStyles.sectionHeader}>
-            <Text accessibilityRole="header" style={s.heading}>
-              Your classes
-            </Text>
-            <Badge
-              label={`${state.rows.length}${state.hasMore ? "+" : ""} shown`}
-              variant="info"
-            />
-          </View>
-
-          {state.rows.map((row) => (
-            <View key={row.id} style={[s.card, instStyles.classCard]}>
-              {/* Badges Row */}
-              <View style={instStyles.badgeRow}>
-                <Badge label={`GRADE ${row.grade_level}`} variant="info" />
-                <Badge
-                  label={row.language === "english" ? "ENGLISH" : "TAGALOG"}
-                  variant="purple"
-                />
-                <Badge
-                  label={row.status.toUpperCase()}
-                  variant={row.status === "active" ? "success" : "neutral"}
-                  icon={row.status === "active" ? "●" : "○"}
-                />
-              </View>
-
-              <Text accessibilityRole="header" style={s.heading}>
-                {row.class_name}
-              </Text>
-
-              {/* Invitation Code Showcase Box */}
-              <View style={instStyles.codeBox}>
-                <View>
-                  <Text style={instStyles.codeLabel}>Student invitation code</Text>
-                  <Text selectable style={instStyles.codeValue}>
-                    {row.join_code ?? "NO ACTIVE CODE"}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Action Buttons */}
-              <View style={instStyles.btnRow}>
-                <Button
-                  label="Open class"
-                  variant="primary"
-                  style={{ flex: 1 }}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/class-details",
-                      params: { id: row.id },
-                    })
-                  }
-                />
-                {row.status === "active" && (
-                  <Button
-                    label="Monitor"
-                    variant="secondary"
-                    onPress={() =>
-                      router.push({
-                        pathname: "/instructor-monitoring",
-                        params: { classId: row.id },
-                      })
-                    }
-                  />
-                )}
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {state.phase === "ready" && state.hasMore && (
-        <Button label="Load more classes" variant="secondary" onPress={more} />
-      )}
-
-      <Text style={[s.body, { fontSize: 13, color: theme.colors.subtle }]}>
-        Students join through your 6-digit invitation code. Objective scores appear in
-        monitoring only after you confirm release.
-      </Text>
-    </Screen>
-  );
+      {state.phase === "ready" && !state.rows.length && <EmptyState title="No classes are saved yet" description="Create a class, invite your students, then prepare your first assignment." />}
+      {state.phase === "ready" && state.rows.map(row => <View key={row.id} style={p.card}>
+        <View style={p.row}><View style={p.chip}><Text style={p.chipText}>Grade {row.grade_level} · {row.language === "english" ? "English" : "Tagalog"}</Text></View><View style={[p.chip, { backgroundColor: row.status === "active" ? pc.aqua : pc.soft }]}><Text style={[p.chipText, { color: row.status === "active" ? pc.teal : pc.muted }]}>{row.status === "active" ? "● Active" : row.status}</Text></View></View>
+        <Text accessibilityRole="header" style={p.heading}>{row.class_name}</Text>
+        <View style={p.note}><Text style={p.eyebrow}>Student invitation code</Text><Text selectable accessibilityLabel={`Invitation code ${row.join_code ?? "unavailable"}`} style={styles.code}>{row.join_code ?? "No active code"}</Text><Text style={p.caption}>Share only with students joining this class.</Text></View>
+        <Button label={`Open class: ${row.class_name}`} onPress={() => router.push({ pathname: "/class-details", params: { id: row.id } })} />
+      </View>)}
+      {state.phase === "ready" && state.hasMore && <Button label="Load more classes" secondary onPress={more} />}
+    </View>
+    <View style={[p.note, { backgroundColor: pc.aqua }]}><Text style={[p.eyebrow, { color: pc.teal }]}>Guide with care</Text><Text style={p.body}>Students join through your 6-digit invitation code. Objective scores appear in monitoring only after you confirm release.</Text></View>
+  </InstructorScreen>;
 }
-
-const instStyles = StyleSheet.create({
-  commandGrid: {
-    flexDirection: "row",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  classCard: {
-    gap: 14,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  codeBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: theme.colors.surfaceSubtle,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  codeLabel: {
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    color: theme.colors.muted,
-  },
-  codeValue: {
-    fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: 4,
-    color: theme.colors.ink,
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-  },
-  btnRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
+const styles = StyleSheet.create({
+  hero: { backgroundColor: pc.navy, borderRadius: 18, padding: 24, gap: 19 },
+  heroTitle: { color: "white", fontSize: 25, fontWeight: "600", lineHeight: 34, letterSpacing: -0.6, maxWidth: 520 },
+  heroBody: { color: "#BBC4D8", fontSize: 14, lineHeight: 23, maxWidth: 560 },
+  methods: { backgroundColor: "#2B3552", borderRadius: 12, padding: 15, flexDirection: "row", gap: 8 },
+  method: { alignItems: "center", gap: 7, flex: 1, minWidth: 0 },
+  methodLabel: { color: "white", fontSize: 11, textAlign: "center", lineHeight: 17 },
+  code: { fontSize: 24, letterSpacing: 4, fontWeight: "700", color: pc.navy },
 });

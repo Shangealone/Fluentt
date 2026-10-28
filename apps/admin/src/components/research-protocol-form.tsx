@@ -20,6 +20,7 @@ export function ResearchProtocolForm({ study, conditions, instruments, disabled,
 }) {
   const config = study.configuration, setup = config.administrator_setup;
   const delivery = config.assessment_delivery_draft;
+  const methodology = config.methodology_draft;
   const [error, setError] = useState("");
   const [dirty, setDirty] = useState(false);
   const allInstruments = [...instruments, ...config.assessments.filter(a => !instruments.some(i => i.id === a.assessment_id)).map(a => ({ id: a.assessment_id, label: "Current pinned instrument", instrument_version: a.instrument_version }))];
@@ -86,6 +87,23 @@ export function ResearchProtocolForm({ study, conditions, instruments, disabled,
           </div>
         </div>;
       })}
+    </fieldset>
+    <fieldset disabled={disabled || study.status !== "DRAFT"}>
+      <legend>Proposed FSRS-6 vs. FSRS-6 + FIFAKT study</legend>
+      <input type="hidden" name="methodology.present" value="1" />
+      <label className={styles.check}><input type="checkbox" name="methodology.enabled" defaultChecked={!!methodology}/>Save this classroom-only methodological proposal in the protocol revision</label>
+      <p>This is draft planning, not enrollment, randomization or executable treatment. Legacy SM-2 conditions above remain unchanged. The FSRS-6 research binding is not integrated and FIFAKT is simulated. Consent, minor permissions and approved instruments are still required.</p>
+      <div className={styles.fields}>
+        <label>Proposal version<input name="methodology.version" maxLength={80} defaultValue={methodology?.version??"fsrs6-thesis2-proposal-v1"}/></label>
+        <label>Total recruitment target<input name="methodology.target" type="number" min="2" max="100000" defaultValue={methodology?.target_participants??30}/></label>
+        <label>Standalone FSRS-6 target<input name="methodology.control" type="number" min="1" max="50000" defaultValue={methodology?.control_target??15}/></label>
+        <label>Proposed hybrid target<input name="methodology.experimental" type="number" min="1" max="50000" defaultValue={methodology?.experimental_target??15}/></label>
+        <label>Intervention calendar months<input name="methodology.months" type="number" min="1" max="12" defaultValue={methodology?.intervention_calendar_months??1}/></label>
+        <label>Approximate daily practice minimum (seconds)<input name="methodology.minimum" type="number" min="1" max="86400" defaultValue={methodology?.practice_min_seconds??300}/></label>
+        <label>Approximate daily practice maximum (seconds)<input name="methodology.maximum" type="number" min="1" max="86400" defaultValue={methodology?.practice_max_seconds??600}/></label>
+        <label>Delayed retention interval (calendar days)<input name="methodology.delay" type="number" min="1" max="365" defaultValue={methodology?.delayed_retention_calendar_days??7}/></label>
+      </div>
+      <p>Monday–Friday; each assigned local day includes 00:00 through the final minute of 23:59, ending before the next local midnight. Configure the actual timezone and dated phase windows above. These declarations do not lock/unlock student work or enforce timers. Shared eligible vocabulary and equivalent assessment conditions are required; personalized review exposure may differ and must eventually be logged.</p>
     </fieldset>
     <ResearchAssessmentStatus publication={study.assessment_publication} />
     <fieldset disabled={disabled || study.status !== "DRAFT"}>

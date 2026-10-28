@@ -1,0 +1,11 @@
+# Student classroom navigation cleanup — 2026-10-27
+
+The student Voice, Tutor, Notifications, Materials and Research pages still requested the legacy `AppHeader` quick-action row while a bottom bar was present on the main learning destinations. That row repeated Home, Pronunciation, Conversation and Learning history and used a second navigation style.
+
+Removed the legacy quick-action row from `AppHeader`. Its optional `navigation` prop remains accepted for source compatibility but no longer renders a menu. On school-student headers with account controls enabled, one notification bell sits next to the existing profile control. `account=false` still suppresses both controls on guarded/player hosts. Instructor compact headings and Personal Learning presentation remain unchanged.
+
+The existing student bottom bar now also appears on the read/status destinations Notifications, Materials, Communication, Research, published assignments and released results. Class-context assignment/result/message pages select Classes. Attempt taking, class joining and preference forms remain excluded. No extra bottom bar was introduced. Existing contextual class-message, research participation and assignment action buttons remain in their relevant screens; they carry class or activity context rather than duplicate the global menu. The sample Demo Hub launcher now sits above the student bottom bar so it cannot cover the tabs.
+
+Verification: `node scripts/dashboard-components.test.cjs` **22 passed**, including a new regression test asserting one bell/profile pair, no top activity-navigation buttons, persistent five-tab navigation on read subpages, and no bar on guarded forms. `node scripts/choice-components.test.cjs` **50 passed**. Mobile typecheck passed; lint had **0 errors and 29 existing warnings**. Actual sample browser checks confirmed Voice, Tutor and Notifications each have one bottom bar, no top Home button, and retained bell/profile access. Screenshots are in `output/student-navigation/`. No new APK/native-device check, backend/migration/data changes, commit, push or deployment.
+
+Changed files: `apps/mobile/src/components/navigation.tsx`, `ClassroomBottomNavigation.tsx`, `DemoNavigator.tsx`; `scripts/dashboard-components.test.cjs`; this report, `docs/DECISIONS.md` and `PROJECT_HANDOFF.md`. Prior unrelated edits were preserved.

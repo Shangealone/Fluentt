@@ -2,15 +2,15 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Button, ErrorMessage, Loading, s } from "./ui";
 import { useSession } from "../session/provider";
-import { destination } from "../session/routing";
 import { theme } from "../theme/tokens";
+import { p } from "../theme/personal";
+import { NotificationButton } from "./NotificationButton";
 
 export function AppHeader({
   title,
   account = true,
   disabled = false,
   subtitle,
-  navigation = false,
 }: {
   title: string;
   back?: boolean;
@@ -28,6 +28,11 @@ export function AppHeader({
       ? "Student"
       : "Personal learner";
 
+  if (profile?.role === "instructor") return <View style={{ gap: 8 }}>
+    {!!subtitle && <Text style={p.eyebrow}>{subtitle}</Text>}
+    <Text accessibilityRole="header" style={p.title}>{title}</Text>
+  </View>;
+
   return (
     <View style={navStyles.container}>
       {/* Top Navbar Row */}
@@ -42,6 +47,8 @@ export function AppHeader({
             </View>
           </View>
 
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        {account && profile?.role === "school_student" && <NotificationButton disabled={disabled} />}
         {account && (
           <Pressable
             accessibilityRole="button"
@@ -63,44 +70,8 @@ export function AppHeader({
             </Text>
           </Pressable>
         )}
+        </View>
       </View>
-
-      {navigation && profile && profile.role !== "personal_student" && <View style={navStyles.quickNav}>
-        <Button label="Home" icon="⌂" size="sm" variant="outline" disabled={disabled} onPress={() => router.push(profile.role === "instructor" ? "/instructor" : destination(profile))} />
-        <Button label="Messages" icon="✉" size="sm" variant="ghost" disabled={disabled} onPress={() => router.push("/communication")} />
-        <Button label="Notifications" icon="🔔" size="sm" variant="ghost" disabled={disabled} onPress={() => router.push("/notifications")} />
-        {profile.role !== "instructor" && (
-          <Button
-            label="Pronunciation"
-            icon="🎙"
-            size="sm"
-            variant="ghost"
-            disabled={disabled}
-            onPress={() => router.push("/pronunciation")}
-          />
-        )}
-        {profile.role !== "instructor" && (
-          <Button
-            label="Conversation"
-            icon="💬"
-            size="sm"
-            variant="ghost"
-            disabled={disabled}
-            onPress={() => router.push("/conversation")}
-          />
-        )}
-        {profile.role === "school_student" && (
-          <Button
-            label="Research"
-            icon="🔬"
-            size="sm"
-            variant="ghost"
-            disabled={disabled}
-            onPress={() => router.push("/research")}
-          />
-        )}
-        <Button icon={profile.role === "instructor" ? "▥" : "◷"} label={profile.role === "instructor" ? "Class monitoring" : "Learning history"} size="sm" variant="ghost" disabled={disabled} onPress={() => router.push(profile.role === "instructor" ? "/instructor-monitoring" : "/learning-history")} />
-      </View>}
 
       {/* Main Title Section */}
       <View style={navStyles.titleSection}>

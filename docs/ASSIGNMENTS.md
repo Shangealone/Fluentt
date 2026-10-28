@@ -1,5 +1,7 @@
 # Assignment drafts, publication and classroom distribution
 
+2026-10-27 instructor UI follow-up: the builder now presents clear question-type selection cards for all ten existing methods, immediate catalog filtering and a selected-type summary. Instructors can mix selected published items and publish them through the existing confirmed workflow; students use the existing class assignments/player. The new-draft route no longer loads a demo draft by default. No live authoring permissions, scoring/policy, backend or schema changes. The in-memory demo now preserves selected item snapshots through publication and delivery. See [CLASS_QUESTION_TYPES.md](CLASS_QUESTION_TYPES.md) for exact behavior, verification and limitations.
+
 ## Section 22 results
 
 The approved result workflow now exposes submission/evaluation/withheld/released states and, only after explicit owner release, real objective totals and original-answer review. Instructor reads/releases require current ownership and eligible members; grading remains a separate administrator operation. Release never edits the unscored attempt, frozen assignment or response. RESULTS_AND_FEEDBACK.md defines the separate append-only visibility contract; Section 20 capture reads still return receipt-only after submission. Head 0011_result_release. Historical no-result exclusions below remain their original milestones.

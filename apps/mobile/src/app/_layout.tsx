@@ -9,6 +9,7 @@ import { Screen, Loading, ErrorMessage, Button, s } from "../components/ui";
 import { DemoNavigator } from "../components/DemoNavigator";
 import { PersonalBottomNavigation } from "../components/PersonalBottomNavigation";
 import { ClassroomBottomNavigation } from "../components/ClassroomBottomNavigation";
+import { InstructorBottomNavigation } from "../components/InstructorBottomNavigation";
 function Navigator() {
   const session = useSession();
   if (session.loading || session.error) return <Screen>
@@ -132,6 +133,7 @@ export default function Layout() {
           <View style={{ flex: 1 }}><Navigator /></View>
           <PersonalBottomNavigation />
           <ClassroomBottomNavigation />
+          <InstructorBottomNavigation />
         </View>
         <DemoNavigator />
       </SessionProvider>

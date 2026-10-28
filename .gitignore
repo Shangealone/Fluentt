@@ -20,3 +20,4 @@ models-cache/
 *.key
 *.p12
 *.jks
+*.apk

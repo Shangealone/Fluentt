@@ -1,5 +1,7 @@
 # Administrator authentication — Section 08
 
+The 2026-10-27 administrator follow-up adds explicit operator `grant-performance-read` / `revoke-performance-read` commands for the read-only personal activity dashboard. This does not grant classroom, grading, research or private content access. A real administrator session with live `performance.read` is mandatory; the pre-existing UI demo cookie is explicitly rejected by the monitoring BFF and cannot grant API access. No real account grants were performed. See [ADMIN_PERFORMANCE.md](ADMIN_PERFORMANCE.md) for metric boundaries, deployment prerequisites and actual tests. Older section-specific statements below are historical.
+
 Section 21 adds explicitly approved operator-only grant/revoke-grading-read and grant/revoke-grading-run commands. Reader grants grading.read; runner grants grading.read+grading.run, with no automatic grants or mobile promotion. Internal evaluation mutations require live permissions, Origin and CSRF in the same User/browser-session/evaluation transaction. New grading permissions do not grant direct question-key access; no Next BFF, dashboard or result-release UI is added. OIDC remains safely disabled until configured. See GRADING.md and SECTION_21_REPORT.md; older default-permission statements below retain their original scope.
 
 Section 11 adds separate operator questions reader/editor/publisher grants/revokes. Curriculum roles do not imply bank access. Key reads need questions.read+write; publish/retire need read+write+publish. Locked User/session callbacks and Origin+CSRF protect mutations. QUESTION_BANK.md lists exact commands and backend-only preview contracts; no Next authoring/proxy surface or OIDC activation is added.
@@ -75,3 +77,25 @@ Audits record login start/success/failure, CSRF rejection, logout, provisioning,
 - See SECTION_08_REPORT.md for actual checks. Signed-token and HTTP doubles prove contracts, not integration with a real issuer/PostgreSQL. Real provider MFA, browser cookies over deployed TLS, concurrent database races and native mobile checks remain explicitly unverified here.
 
 Library references: [Authlib OAuth clients](https://docs.authlib.org/en/stable/oauth2/client/http/index.html), [joserfc JWT verification](https://jose.authlib.org/en/guide/jwt/). Dependencies are pinned; existing HTTPX remains supported through Authlib's compatibility adapter, which emits a deprecation notice. A future HTTPX2 migration must be reviewed independently.
+
+## School oversight operator grants — 2026-10-28
+
+New web oversight permissions are explicit, separate from `dashboard.view` and existing personal `performance.read`. The operator CLI permits only fixed policies:
+
+| Domain | Allowed access | Permissions |
+| --- | --- | --- |
+| oversight | reader / exporter | oversight.read / oversight.read + oversight.export |
+| users | reader / editor | users.read / users.read + users.write |
+| classrooms | reader | classrooms.read |
+| algorithms | reader | algorithms.read |
+| speech | reader | speech.read |
+| audit | reader | audit.read |
+
+Example commands from `services/api` (replace OPERATOR_PROVISIONED_USERNAME with an existing authorized OIDC administrator; these commands were **not** run on application data):
+
+```powershell
+.venv/Scripts/python.exe -m app.modules.administration.cli grant-admin-module --username OPERATOR_PROVISIONED_USERNAME --domain users --access reader
+.venv/Scripts/python.exe -m app.modules.administration.cli revoke-admin-module --username OPERATOR_PROVISIONED_USERNAME --domain users --access reader
+```
+
+No browser permission editor, automatic grant or administrative account creation is introduced. User editor controls only confirmed school/instructor active/disabled status, never role changes or unfinished onboarding. Disabling revokes device sessions. Existing auth/session locks, Origin/CSRF and audit transactions remain authoritative. Demo page visibility grants no live permission: every new oversight BFF refuses the demo cookie, even alongside a live cookie. See [ADMIN_OCT28_REPORT.md](ADMIN_OCT28_REPORT.md) for endpoints, tests and deployment prerequisites.

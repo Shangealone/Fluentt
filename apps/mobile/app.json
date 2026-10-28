@@ -42,7 +42,14 @@
       ],
       "expo-status-bar",
       "expo-secure-store",
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ]
     ]
   }
 }

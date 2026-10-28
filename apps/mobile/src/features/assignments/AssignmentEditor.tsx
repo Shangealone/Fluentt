@@ -3,9 +3,11 @@ import { Text, View } from "react-native";
 import { router, usePreventRemove } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { Button, EmptyState, ErrorMessage, Input, Loading, s } from "../../components/ui";
-import { assignmentMethods, type AssignmentAccess, type AssignmentDraft, type AssignmentInput, type AssignmentItem, type AssignmentPage, type LessonContext } from "../../services/api/assignments";
+import { type AssignmentMethod, type AssignmentAccess, type AssignmentDraft, type AssignmentInput, type AssignmentItem, type AssignmentPage, type LessonContext } from "../../services/api/assignments";
 import { addItem, draftError, DraftSubmission, moveItem } from "./state";
 import { ItemPreview } from "./ItemPreview";
+import { QuestionTypePicker } from "./QuestionTypePicker";
+import { questionTypes } from "./questionTypes";
 
 export function Picker<T>({ fetch, render, renderHeader, emptyTitle = "No eligible records", emptyDescription = "No sample content is added. Adjust filters or ask your content administrator." }: { fetch: (offset: number) => Promise<AssignmentPage<T>>; render: (row: T, index: number) => React.ReactNode; renderHeader?: (page: AssignmentPage<T>) => React.ReactNode; emptyTitle?: string; emptyDescription?: string }) {
   const [offset, setOffset] = useState(0), [retry, setRetry] = useState(0), [page, setPage] = useState<AssignmentPage<T> | null>(null), [error, setError] = useState("");
@@ -28,7 +30,7 @@ export function AssignmentEditor({ initial, classId, api, active = true }: { ini
   const [row, setRow] = useState(initial), [title, setTitle] = useState(initial?.title ?? ""), [instructions, setInstructions] = useState(initial?.instructions ?? "");
   const [lesson, setLesson] = useState<LessonContext | null>(initial?.context ?? null), [items, setItems] = useState<AssignmentItem[]>(initial?.questions ?? []);
   const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
-  const [query, setQuery] = useState(""), [filters, setFilters] = useState({ q: "", method: "" }), [method, setMethod] = useState("");
+  const [query, setQuery] = useState(""), [filters, setFilters] = useState<{ q: string; method: AssignmentMethod | "" }>({ q: "", method: "" });
   const [preview, setPreview] = useState<AssignmentItem | null>(null), [confirm, setConfirm] = useState<{ message: string; accept: () => void } | null>(null);
   const [submission] = useState(() => new DraftSubmission());
   const lock = useRef(false), alive = useRef(true), [uncertain, setUncertain] = useState(false);
@@ -85,7 +87,7 @@ export function AssignmentEditor({ initial, classId, api, active = true }: { ini
   return <View style={{ gap: 16 }}>
     <Button label="Back to assignment drafts" secondary disabled={busy} onPress={() => router.replace({ pathname: "/assignments", params: { classId } })} />
     <Text accessibilityRole="header" style={s.heading}>{row?.status === "published" ? "Published assignment" : row ? `${row.status === "archived" ? "Archived" : "Edit"} draft` : "Create assignment draft"}</Text>
-    <Text style={s.body}>{row?.status === "published" ? "Published version is immutable. Eligible current and later class members can view details. No notifications are sent. Question answering is not available yet." : "Save and review your draft before publishing. No scoring, due date, timer, attempts or feedback settings are configured."}</Text>
+    <Text style={s.body}>{row?.status === "published" ? "Students in this class can open these exact questions from Classes → View assignments. Published questions cannot be changed." : "Choose a lesson, pick question types, and add the questions you want students to answer. Save your draft, then review and publish it to your class."}</Text>
     {!!error && <ErrorMessage message={error} />}{!!notice && <Text accessibilityRole="alert" style={s.body}>{notice}</Text>}
     {confirm ? <View style={s.card}><Text accessibilityRole="header" style={s.heading}>{confirm.message}</Text>
       <Button label="Keep current state" onPress={() => setConfirm(null)} /><Button label="Confirm" secondary onPress={() => { const action = confirm.accept; setConfirm(null); action(); }} />
@@ -102,22 +104,26 @@ export function AssignmentEditor({ initial, classId, api, active = true }: { ini
           if (items.length) setConfirm({ message: "Change lesson and remove selected items?", accept: select }); else select();
         }} />} />}
       <Text style={s.heading}>Selected questions ({items.length}/200)</Text>
+      {!!items.length && <Text style={s.body}>{Array.from(new Set(items.map(item => item.definition.method))).map(method => `${questionTypes[method].label}: ${items.filter(item => item.definition.method === method).length}`).join(" · ")}</Text>}
       {!items.length && <Text style={s.body}>No questions selected. Empty drafts can be saved.</Text>}
       {items.map((item, index) => <View key={item.question_id} style={s.card}>
-        <Text style={s.body}>{index + 1}. {item.definition.prompt} · {item.definition.method} · Version {item.version}{!item.eligible ? row?.status === "published" ? " · Retained published version; no longer selectable for new drafts" : " · Ineligible: remove or replace" : ""}</Text>
+        <Text style={s.body}>{index + 1}. {item.definition.prompt} · {questionTypes[item.definition.method].label} · Version {item.version}{!item.eligible ? row?.status === "published" ? " · Retained published version; no longer selectable for new drafts" : " · Ineligible: remove or replace" : ""}</Text>
         <Button label={`Preview selected question ${index + 1}`} secondary disabled={busy} onPress={() => setPreview(item)} />
         <Button label={`Move question ${index + 1} earlier`} secondary disabled={frozen || index === 0} onPress={() => { setItems(moveItem(items, index, -1)); changed(); }} />
         <Button label={`Move question ${index + 1} later`} secondary disabled={frozen || index === items.length - 1} onPress={() => { setItems(moveItem(items, index, 1)); changed(); }} />
         <Button label={`Remove question ${index + 1}`} secondary disabled={frozen} onPress={() => { setItems(items.filter(value => value.id !== item.id)); changed(); }} />
       </View>)}
       {lesson && editable && !frozen && <>
-        <Text style={s.heading}>Published question versions</Text><Input accessibilityLabel="Search question prompts" value={query} onChangeText={setQuery} />
-        <View style={{ gap: 8 }}>{["", ...assignmentMethods].map(value => <Button key={value} secondary label={value || "All answer methods"} onPress={() => setMethod(value)} disabled={method === value} />)}</View>
-        <Button label="Apply question filters" onPress={() => setFilters({ q: query.trim().slice(0, 200), method })} />
-        <Picker key={JSON.stringify([lesson.lesson_id, filters])} fetch={fetchQuestions} render={item => <View key={item.id} style={s.card}>
-          <Text style={s.body}>{item.definition.prompt} · {item.definition.method} · Version {item.version}</Text>
-          <Button label={`Preview ${item.definition.method} version ${item.version}`} secondary onPress={() => setPreview(item)} />
-          <Button label={`Add ${item.definition.method} version ${item.version}`} disabled={items.length >= 200 || items.some(value => value.question_id === item.question_id)} onPress={() => { setItems(addItem(items, item)); changed(); }} />
+        <QuestionTypePicker value={filters.method} onChange={method => { setPreview(null); setFilters(previous => ({ ...previous, method })); }} />
+        <Text style={s.heading}>Available questions</Text><Input accessibilityLabel="Search question prompts" value={query} onChangeText={setQuery} />
+        <Button label="Search questions" onPress={() => setFilters(previous => ({ ...previous, q: query.trim().slice(0, 200) }))} />
+        <Picker key={JSON.stringify([lesson.lesson_id, filters])} fetch={fetchQuestions}
+          emptyTitle={filters.method ? `No ${questionTypes[filters.method].label} questions available` : "No questions available"}
+          emptyDescription="Try another type or search. Your content administrator must publish questions for this lesson before you can add them."
+          render={item => <View key={item.id} style={s.card}>
+          <Text style={s.body}>{item.definition.prompt} · {questionTypes[item.definition.method].label} · Version {item.version}</Text>
+          <Button label={`Preview ${questionTypes[item.definition.method].label} version ${item.version}`} secondary onPress={() => setPreview(item)} />
+          <Button label={`Add ${questionTypes[item.definition.method].label} version ${item.version}`} disabled={items.length >= 200 || items.some(value => value.question_id === item.question_id)} onPress={() => { setItems(addItem(items, item)); changed(); }} />
         </View>} />
       </>}
       {preview && <><ItemPreview key={preview.id} row={preview} /><Button label="Close item preview" secondary onPress={() => setPreview(null)} /></>}
@@ -128,7 +134,7 @@ export function AssignmentEditor({ initial, classId, api, active = true }: { ini
       }} /><Button label="Archive draft" secondary disabled={busy || dirty || !editable || uncertain} onPress={() => setConfirm({ message: "Archive this draft and retain its references?", accept: () => void archive() })} /></>}
       {row?.status === "draft" && <Button label={publication ? "Retry original publication" : "Review and publish"}
         disabled={busy || dirty || !editable || !items.length || (!publication && (uncertain || !row.eligible))}
-        onPress={() => setConfirm({ message: `Publish this saved assignment immediately to all eligible current and later class members?${row.requires_subject ? ` This explicitly binds the class subject to ${row.context.subject_name}.` : ""} Published assignments cannot be edited or archived. Questions and attempts are not released yet.`, accept: () => void publish() })} />}
+        onPress={() => setConfirm({ message: `Publish these ${items.length} questions to all eligible current and later class members? Students can answer them from their class assignments.${row.requires_subject ? ` This explicitly binds the class subject to ${row.context.subject_name}.` : ""} Published assignments cannot be edited or archived. No timer or automatic grading is added.`, accept: () => void publish() })} />}
       <Button label="Leave draft builder" secondary disabled={busy} onPress={() => { if (!dirty && !submission.pending) { prevent(); router.replace({ pathname: "/assignments", params: { classId } }); } else router.replace({ pathname: "/assignments", params: { classId } }); }} />
     </>}
   </View>;

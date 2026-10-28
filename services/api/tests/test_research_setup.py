@@ -48,6 +48,7 @@ def test_absent_additive_proposals_preserve_prior_replay_identity():
     original = config.model_dump(mode="json")
     original.pop("administrator_setup")
     original.pop("assessment_delivery_draft")
+    original.pop("methodology_draft")
     assert configuration_data(config) == original
     assert fingerprint("revise", "scope", configuration_data(config)) == fingerprint("revise", "scope", original)
     assert configuration_data(ProtocolConfiguration(administrator_setup={"proposed_intervention_weeks": 3})) != original

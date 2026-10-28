@@ -6,8 +6,8 @@ import { PersonalDesign, pc, p } from "../theme/personal";
 import { NotificationButton } from "./NotificationButton";
 
 /** Classroom presentation using the existing learning palette; no learning/session state. */
-export function ClassroomScreen({ children, title, description }: {
-  children: React.ReactNode; title?: string; description?: string;
+export function ClassroomScreen({ children, title, description, instructor = false, backDisabled = false }: {
+  children: React.ReactNode; title?: string; description?: string; instructor?: boolean; backDisabled?: boolean;
 }) {
   const { profile } = useSession();
   return <PersonalDesign.Provider value={true}>
@@ -15,11 +15,11 @@ export function ClassroomScreen({ children, title, description }: {
       <View style={styles.header}><View style={styles.headerInner}>
         <View style={styles.brand}>
           <View style={styles.logo}><Text style={styles.logoText}>F<Text style={{ color: "#7EE1D5" }}>.</Text></Text></View>
-          <View><Text style={styles.wordmark}>FLUENTT</Text><Text style={styles.contextLabel}>Class learning</Text></View>
+          <View><Text style={styles.wordmark}>FLUENTT</Text><Text style={styles.contextLabel}>{instructor ? "Class teaching" : "Class learning"}</Text></View>
         </View>
         <View style={styles.brand}>
-          <NotificationButton />
-          <Pressable accessibilityRole="button" accessibilityLabel="My account · Student" onPress={() => router.push("/account")} style={styles.avatar}>
+          <NotificationButton disabled={backDisabled} />
+          <Pressable accessibilityRole="button" accessibilityLabel={`My account · ${instructor ? "Instructor" : "Student"}`} disabled={backDisabled} onPress={() => router.push("/account")} style={styles.avatar}>
             <Text style={{ color: pc.rose, fontWeight: "800" }}>{profile?.username?.charAt(0).toUpperCase()}</Text>
           </Pressable>
         </View>
@@ -27,11 +27,11 @@ export function ClassroomScreen({ children, title, description }: {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           <View style={styles.brand}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Go back to the previous screen"
+            <Pressable accessibilityRole="button" accessibilityLabel="Go back to the previous screen" disabled={backDisabled}
               onPress={() => router.canGoBack() ? router.back() : router.replace("/")} style={styles.back}>
               <Text style={{ fontSize: 20, color: pc.ink }}>←</Text>
             </Pressable>
-            <Text style={p.eyebrow}>Your classroom learning space</Text>
+            <Text style={p.eyebrow}>{instructor ? "Your classroom teaching space" : "Your classroom learning space"}</Text>
           </View>
           {!!title && <View style={{ gap: 8 }}><Text accessibilityRole="header" style={p.title}>{title}</Text>{!!description && <Text style={p.body}>{description}</Text>}</View>}
           {children}

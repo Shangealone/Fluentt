@@ -12,12 +12,13 @@ let currentState;
 const routerEvents = [];
 let hasPreviousScreen = true;
 let currentPath = '/student';
+let currentParams = { id: 'synthetic' };
 const originalLoad = Module._load;
 Module._load = function(name, parent, isMain) {
   if (name === 'react-native') return local('react-native-web');
   if (name === 'react-native-safe-area-context') return { SafeAreaView: local('react-native-web').View };
   if (name === 'expo-clipboard') return { setStringAsync: async () => false };
-  if (name === 'expo-router') return { router: { push() {}, navigate(path) { routerEvents.push(['navigate', path]); }, replace(path) { routerEvents.push(['replace', path]); }, canGoBack() { return hasPreviousScreen; }, back() { routerEvents.push(['back']); } }, usePathname: () => currentPath, useLocalSearchParams: () => ({ id: 'synthetic' }), useFocusEffect() {} };
+  if (name === 'expo-router') return { router: { push() {}, navigate(path) { routerEvents.push(['navigate', path]); }, replace(path) { routerEvents.push(['replace', path]); }, canGoBack() { return hasPreviousScreen; }, back() { routerEvents.push(['back']); } }, usePathname: () => currentPath, useLocalSearchParams: () => currentParams, useGlobalSearchParams: () => currentParams, useFocusEffect() {} };
   if (name.endsWith('/session/provider')) return { useSession: () => currentSession };
   if (name.endsWith('/dashboard/usePagedList')) return { usePagedList: () => ({ state: currentState, reload() {}, more() {} }) };
   return originalLoad.call(this, name, parent, isMain);
@@ -187,4 +188,54 @@ test('reference-style Stats honestly withholds unsupported personal measurements
   const {routeAllowed} = local(path.join(mobile,'src/session/routing.ts'));
   assert.equal(routeAllowed(currentSession.profile, 'personal-stats'), true);
   assert.equal(routeAllowed({...currentSession.profile,role:'school_student'}, 'personal-stats'), false);
+});
+
+
+test('instructor uses the student classroom shell with one notification and profile control',()=>{
+  currentParams={};const html=render('instructor','instructor','ready',[owned]);
+  assert(html.includes('Class teaching')&&html.includes('Your classroom teaching space'));
+  assert(html.includes('Welcome back')&&html.includes('A little further, together'));
+  assert.equal((html.match(/aria-label="Notifications"/g)||[]).length,1);
+  assert.equal((html.match(/aria-label="My account · Instructor"/g)||[]).length,1);
+  assert(!html.includes('My teaching space')&&!html.includes('quickNav'));
+  const detail=render('class-details','instructor','ready',[owned]);
+  assert.equal((detail.match(/aria-label="Notifications"/g)||[]).length,1);
+  assert.equal((detail.match(/aria-label="My account · Instructor"/g)||[]).length,1);
+});
+
+test('school subpage headers never repeat the bottom navigation destinations',()=>{
+  render('student','school_student','ready',[membership]);
+  const {AppHeader}=local(path.join(mobile,'src/components/navigation.tsx'));
+  const html=renderToStaticMarkup(React.createElement(AppHeader,{navigation:true,title:'Class speaking practice'}));
+  assert.equal((html.match(/aria-label="Notifications"/g)||[]).length,1);
+  assert.equal((html.match(/aria-label="My account · Student"/g)||[]).length,1);
+  for(const label of ['Home','Messages','Pronunciation','Conversation','Research','Learning history']) assert(!html.includes(`aria-label="${label}"`),label);
+  const guarded=renderToStaticMarkup(React.createElement(AppHeader,{navigation:true,account:false,title:'Guarded assignment'}));
+  assert(!guarded.includes('aria-label="Notifications"')&&!guarded.includes('aria-label="My account · Student"'));
+  const {ClassroomBottomNavigation}=local(path.join(mobile,'src/components/ClassroomBottomNavigation.tsx'));
+  for(const path of ['/notifications','/learning-materials','/communication','/research','/published-assignments','/assessment-results']){
+    currentPath=path;const nav=renderToStaticMarkup(React.createElement(ClassroomBottomNavigation));assert.equal((nav.match(/role="tab"/g)||[]).length,5,path);
+  }
+  for(const path of ['/assignment-attempt','/class-code','/preferences']){currentPath=path;assert.equal(ClassroomBottomNavigation(),null);}
+  currentPath='/student';
+});
+test('instructor Classes destination preserves owned records and has a focused list layout',()=>{
+  currentParams={view:'classes'};const html=render('instructor','instructor','ready',[owned]);
+  assert(html.includes('Your classes, all in one place.')&&html.includes(owned.class_name));
+  assert(!html.includes('Make room for their next breakthrough.'));currentParams={};
+});
+test('instructor bottom navigation is role-specific, selects query destinations and hides on guarded forms',()=>{
+  const {InstructorBottomNavigation}=local(path.join(mobile,'src/components/InstructorBottomNavigation.tsx'));
+  render('instructor','instructor','ready',[owned]);currentPath='/instructor';currentParams={};
+  const html=renderToStaticMarkup(React.createElement(InstructorBottomNavigation));
+  assert.equal((html.match(/role="tab"/g)||[]).length,5);assert.equal((html.match(/aria-selected="true"/g)||[]).length,1);
+  const tabs=InstructorBottomNavigation().props.children.props.children;routerEvents.length=0;
+  tabs[0].props.onPress();assert.deepEqual(routerEvents,[]);
+  tabs[1].props.onPress();assert.deepEqual(routerEvents,[['navigate',{pathname:'/instructor',params:{view:'classes'}}]]);
+  currentParams={view:'classes'};const selected=InstructorBottomNavigation().props.children.props.children;
+  assert.equal(selected[1].props['aria-selected'],true);assert.equal(selected[0].props['aria-selected'],false);
+  for(const path of ['/first-class','/class-edit','/assignment-builder','/assignment-results','/assignment-attempt']){currentPath=path;assert.equal(InstructorBottomNavigation(),null);}
+  currentPath='/instructor';const previous=currentSession;
+  for(const patch of [{loading:true},{error:'unavailable'},{profile:null},{profile:{...previous.profile,role:'school_student'}},{profile:{...previous.profile,role:'personal_student'}},{profile:{...previous.profile,profile_status:'onboarding'}}]){currentSession={...previous,...patch};assert.equal(InstructorBottomNavigation(),null);}
+  currentSession=previous;currentParams={};currentPath='/student';
 });

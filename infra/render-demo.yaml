@@ -1,0 +1,28 @@
+# Reviewed deployment template only; importing it creates resources.
+# Credentials are entered in Render, never committed here. No migrations at startup.
+services:
+  - type: web
+    name: fluentt-demo-api
+    runtime: python
+    plan: free
+    region: singapore
+    repo: https://github.com/BlackKaiser1121/FLUENTT
+    branch: version-2
+    rootDir: services/api
+    autoDeployTrigger: "off"
+    buildCommand: pip install -r requirements.lock.txt
+    startCommand: python -m scripts.start_render
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: FLUENTT_ENVIRONMENT
+        value: production
+      - key: FLUENTT_CORS_ORIGINS
+        value: "[]"
+      - key: FLUENTT_DATABASE_POOL_SIZE
+        value: "2"
+      - key: FLUENTT_DATABASE_MAX_OVERFLOW
+        value: "0"
+      - key: FLUENTT_PRONUNCIATION_AZURE_ENABLED
+        value: "false"
+      - key: DATABASE_URL
+        sync: false

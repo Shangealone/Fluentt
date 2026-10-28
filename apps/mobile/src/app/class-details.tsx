@@ -1,12 +1,14 @@
 import { useCallback } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { Screen, Button, Badge, s } from "../components/ui";
+import { Button, Badge, s as sharedStyles } from "../components/ui";
+import { InstructorScreen as Screen } from "../components/InstructorScreen";
 import { AppHeader, LoadState } from "../components/navigation";
 import { CodeCard } from "../features/classes/CodeCard";
 import { useSession } from "../session/provider";
 import { usePagedList } from "../features/dashboard/usePagedList";
-import { theme } from "../theme/tokens";
+import { pc, p } from "../theme/personal";
+const s = { ...sharedStyles, card: p.card, heading: p.heading, body: p.body, eyebrow: p.eyebrow };
 
 export default function ClassDetail() {
   const { id, created } = useLocalSearchParams<{ id?: string; created?: string }>();
@@ -63,8 +65,8 @@ export default function ClassDetail() {
               </Text>
             )}
 
-            <Text style={[s.body, { fontSize: 13, color: theme.colors.subtle }]}>
-              Created on {new Date(row.created_at).toLocaleDateString()} • Verified Classroom
+            <Text style={[s.body, { fontSize: 13, color: pc.muted }]}>
+              Created on {new Date(row.created_at).toLocaleDateString()}
             </Text>
           </View>
 
@@ -73,7 +75,7 @@ export default function ClassDetail() {
 
           {/* Module Action Cards */}
           <View style={detailStyles.modulesSection}>
-            <Text style={[s.eyebrow, { color: theme.colors.muted }]}>
+            <Text style={[s.eyebrow, { color: pc.muted }]}>
               CLASSROOM MODULES & ACTIONS
             </Text>
 
@@ -84,7 +86,7 @@ export default function ClassDetail() {
                 <View style={{ flex: 1 }}>
                   <Text style={s.subheading}>Assignment Drafts & Publication</Text>
                   <Text style={[s.body, { fontSize: 13 }]}>
-                    Author 10-method items, bind lesson contexts, and publish distributions.
+                    Choose question types, add published questions, and share a learning activity with your students.
                   </Text>
                 </View>
               </View>
@@ -162,7 +164,7 @@ export default function ClassDetail() {
             />
           </View>
 
-          <Text style={[s.body, { fontSize: 13, color: theme.colors.subtle }]}>
+          <Text style={[s.body, { fontSize: 13, color: pc.muted }]}>
             Students can enroll using your invitation code. Assignment drafts remain private.
             Published items and submission progress are available in monitoring.
           </Text>
@@ -177,7 +179,7 @@ const detailStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: theme.colors.successLight,
+    backgroundColor: pc.aqua,
     borderWidth: 1,
     borderColor: "#A7F3D0",
     borderRadius: 14,
@@ -197,7 +199,7 @@ const detailStyles = StyleSheet.create({
   overviewCard: {
     gap: 12,
     borderTopWidth: 4,
-    borderTopColor: theme.colors.primary,
+    borderTopColor: pc.navy,
   },
   badgeRow: {
     flexDirection: "row",
@@ -205,7 +207,7 @@ const detailStyles = StyleSheet.create({
     gap: 8,
   },
   descText: {
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: pc.soft,
     padding: 12,
     borderRadius: 10,
   },

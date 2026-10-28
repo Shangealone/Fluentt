@@ -42,6 +42,7 @@ const { MatchingPreview, MatchingControls } = require('../apps/admin/src/compone
 const { FlashcardQuestion, FlashcardPractice } = require('../apps/mobile/src/features/questions/FlashcardQuestion.tsx');
 const { FlashcardPreview } = require('../apps/admin/src/components/question-editor.tsx');
 const { AssignmentEditor, Picker } = require('../apps/mobile/src/features/assignments/AssignmentEditor.tsx');
+const { QuestionTypePicker } = require('../apps/mobile/src/features/assignments/QuestionTypePicker.tsx');
 const { ItemPreview } = require('../apps/mobile/src/features/assignments/ItemPreview.tsx');
 const { PublishedDetails } = require('../apps/mobile/src/features/assignments/PublishedDetails.tsx');
 const { AttemptPlayer } = require('../apps/mobile/src/features/assignments/AttemptPlayer.tsx');
@@ -221,6 +222,25 @@ test('assignment editor saves controlled metadata, guards unsaved navigation and
   press('Save draft');await new Promise(resolve=>setImmediate(resolve));h.render();assert.equal(calls,1);assert(!assignmentNavigation.active);
   press('Archive draft');press('Confirm');await new Promise(resolve=>setImmediate(resolve));h.render();assert.equal(archived,1);
   assert.equal(nodes(h.render(),e=>e.props?.label==='Save draft')[0].props.disabled,true);
+});
+
+test('question type cards expose accessible selections and friendly names for all ten formats',()=>{
+  const html=render(QuestionTypePicker,{value:'identification',onChange(){}});
+  assert.equal((html.match(/role="radio"/g)||[]).length,11);
+  assert(html.includes('aria-checked="true"')&&html.includes('Identification')&&html.includes('Multiple Choice'));
+  let picked;const tree=QuestionTypePicker({value:'',onChange(value){picked=value;}});
+  nodes(tree,e=>e.props?.accessibilityLabel==='Identification')[0].props.onPress();assert.equal(picked,'identification');
+});
+
+test('type filters apply immediately while preserving selected items from other types',async()=>{
+  const calls=[];const h=hookHarness(AssignmentEditor,{initial:assignmentRow,classId:'fixture-class',api:{async questions(...args){calls.push(args);return {items:[],has_more:false,offset:0,limit:20};}}});
+  const before=nodes(h.render(),e=>e.props?.label==='Remove question 1');assert.equal(before.length,1);
+  nodes(h.render(),e=>e.type===QuestionTypePicker)[0].props.onChange('identification');
+  const tree=h.render(),picker=nodes(tree,e=>e.type===Picker&&e.props.emptyTitle?.includes('Identification'))[0];
+  assert(picker);await picker.props.fetch(0);assert.deepEqual(calls[0],['fixture-class','fixture-lesson','','identification',0]);
+  assert.equal(nodes(tree,e=>e.props?.label==='Remove question 1').length,1);
+  nodes(tree,e=>e.type===QuestionTypePicker)[0].props.onChange('multiple_choice');
+  assert.equal(nodes(h.render(),e=>e.props?.label==='Remove question 1').length,1);
 });
 test('assignment item controls reorder/remove and published preview never renders a private key',()=>{
   const other={...assignmentItem,id:'other-revision',question_id:'other-question'};

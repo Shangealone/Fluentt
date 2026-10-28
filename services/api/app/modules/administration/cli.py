@@ -81,7 +81,18 @@ def grading_permission(repo, username, *, grant, access="reader"):
 
 def content_permission(repo, username, *, grant, access, domain):
     """Only explicit section-approved policies; never arbitrary RBAC administration."""
-    if domain not in {"curriculum", "questions", "grading"}:
+    if domain not in {
+        "curriculum",
+        "questions",
+        "grading",
+        "performance",
+        "oversight",
+        "users",
+        "classrooms",
+        "algorithms",
+        "speech",
+        "audit",
+    }:
         raise ValueError("Unknown content permission domain")
     policies = {
         "reader": {domain + ".read"},
@@ -90,12 +101,22 @@ def content_permission(repo, username, *, grant, access, domain):
     }
     if domain == "grading":
         policies = {"reader": {"grading.read"}, "runner": {"grading.read", "grading.run"}}
+    if domain == "performance":
+        policies = {"reader": {"performance.read"}}
+    if domain in {"classrooms", "algorithms", "speech", "audit"}:
+        policies = {"reader": {domain + ".read"}}
+    if domain == "users":
+        policies = {"reader": {"users.read"}, "editor": {"users.read", "users.write"}}
+    if domain == "oversight":
+        policies = {"reader": {"oversight.read"}, "exporter": {"oversight.read", "oversight.export"}}
     if access not in policies:
         raise ValueError("Unknown content access policy")
     allowed = policies[access]
     controlled = domain + (
         ".read"
         if access == "reader"
+        else ".export"
+        if access == "exporter"
         else ".run"
         if access == "runner"
         else ".write"
@@ -194,8 +215,17 @@ def main(argv=None):
         "revoke-grading-read",
         "grant-grading-run",
         "revoke-grading-run",
+        "grant-performance-read",
+        "revoke-performance-read",
     ):
         commands.add_parser(name).add_argument("--username", required=True)
+    for name in ("grant-admin-module", "revoke-admin-module"):
+        cmd = commands.add_parser(name)
+        cmd.add_argument("--username", required=True)
+        cmd.add_argument(
+            "--domain", choices=["oversight", "users", "classrooms", "algorithms", "speech", "audit"], required=True
+        )
+        cmd.add_argument("--access", choices=["reader", "editor", "exporter"], default="reader")
     args = parser.parse_args(argv)
     engine = None
     try:
@@ -208,6 +238,16 @@ def main(argv=None):
             if args.command == "provision":
                 provision(repo, args.username, args.issuer, args.subject)
                 print("Administrator provisioned with dashboard access.")
+            elif args.command in {"grant-admin-module", "revoke-admin-module"}:
+                content_permission(
+                    repo, args.username, grant=args.command.startswith("grant-"), access=args.access, domain=args.domain
+                )
+                print("Explicit administrator module permission updated.")
+            elif "performance-" in args.command:
+                content_permission(
+                    repo, args.username, grant=args.command.startswith("grant-"), access="reader", domain="performance"
+                )
+                print("Performance read permission updated.")
             elif "grading-" in args.command:
                 grading_permission(
                     repo,

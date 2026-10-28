@@ -1,6 +1,8 @@
 """Configuration contracts only; no participant capture or treatment execution."""
 
 import json
+import calendar
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -106,7 +108,46 @@ class AssessmentPublication(Contract):
     blockers: list[str] = Field(default_factory=lambda: ["assessment_execution_workflow_unavailable"])
 
 
+class MethodologyDraft(Contract):
+    version: str = Field(min_length=1, max_length=80)
+    scope: Literal["research_classroom_only"] = "research_classroom_only"
+    control: Literal["fsrs6"] = "fsrs6"
+    experimental: Literal["fsrs6_fifakt_proposed"] = "fsrs6_fifakt_proposed"
+    allocation_design: Literal["randomized_parallel_1_to_1"] = "randomized_parallel_1_to_1"
+    target_participants: StrictInt = Field(gt=0, le=100000)
+    control_target: StrictInt = Field(gt=0, le=50000)
+    experimental_target: StrictInt = Field(gt=0, le=50000)
+    intervention_calendar_months: StrictInt = Field(gt=0, le=12)
+    practice_min_seconds: StrictInt = Field(gt=0, le=86400)
+    practice_max_seconds: StrictInt = Field(gt=0, le=86400)
+    delayed_retention_calendar_days: StrictInt = Field(gt=0, le=365)
+    weekdays: Literal["monday_to_friday"] = "monday_to_friday"
+    daily_access: Literal["local_midnight_until_next_local_midnight_exclusive"] = (
+        "local_midnight_until_next_local_midnight_exclusive"
+    )
+
+    @model_validator(mode="after")
+    def coherent(self):
+        if (
+            self.control_target != self.experimental_target
+            or self.control_target + self.experimental_target != self.target_participants
+        ):
+            raise ValueError("The proposed 1:1 group targets must sum to the recruitment target")
+        if self.practice_min_seconds > self.practice_max_seconds:
+            raise ValueError("Practice minimum must not exceed maximum")
+        return self
+
+
+def calendar_month_boundary(start: datetime, months: int, zone: str) -> datetime:
+    local = start.astimezone(ZoneInfo(zone))
+    month_index = local.year * 12 + local.month - 1 + months
+    year, zero_month = divmod(month_index, 12)
+    month = zero_month + 1
+    return local.replace(year=year, month=month, day=min(local.day, calendar.monthrange(year, month)[1]))
+
+
 class ProtocolConfiguration(Contract):
+    methodology_draft: MethodologyDraft | None = None
     assessment_delivery_draft: AssessmentDeliveryDraft | None = None
     administrator_setup: AdministratorSetup | None = None
     protocol_reference: str | None = Field(default=None, min_length=1, max_length=500)
@@ -156,6 +197,22 @@ class ProtocolConfiguration(Contract):
                     self.ends_at and window.closes_at > self.ends_at
                 ):
                     raise ValueError("Phase windows must fit inside configured study dates")
+        if self.methodology_draft:
+            if self.active_weekdays is not None and self.active_weekdays != [1, 2, 3, 4, 5]:
+                raise ValueError("This proposal requires Monday-Friday study weekdays")
+            if self.administrator_setup:
+                daily = self.administrator_setup.daily_availability
+                if daily and (daily.opens != "00:00" or daily.closes != "23:59"):
+                    raise ValueError("This proposal declares full local-calendar-day availability")
+                intervention = self.administrator_setup.phase_windows.get("intervention")
+                if intervention and self.timezone:
+                    boundary = calendar_month_boundary(
+                        intervention.opens_at, self.methodology_draft.intervention_calendar_months, self.timezone
+                    )
+                    if intervention.closes_at != boundary:
+                        raise ValueError(
+                            "Proposed intervention must span the configured calendar months in its timezone"
+                        )
         for assessment in self.assessments:
             for value in (assessment.opens_at, assessment.closes_at):
                 if value and ((self.starts_at and value < self.starts_at) or (self.ends_at and value > self.ends_at)):

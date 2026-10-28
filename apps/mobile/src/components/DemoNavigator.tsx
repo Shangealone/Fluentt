@@ -214,6 +214,7 @@ export function DemoNavigator() {
       <Pressable
         style={({ pressed }) => [
           styles.floatingTrigger,
+          (session.profile?.role === "instructor" || session.profile?.role === "school_student") && { bottom: 106 },
           pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] },
         ]}
         onPress={() => setOpen(true)}

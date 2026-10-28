@@ -1,7 +1,8 @@
 import { Text, View } from "react-native";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Screen, Button, ErrorMessage, s } from "../components/ui";
+import { Button, ErrorMessage, s } from "../components/ui";
+import { InstructorScreen as Screen } from "../components/InstructorScreen";
 import { AppHeader } from "../components/navigation";
 import { useSession } from "../session/provider";
 import { destination } from "../session/routing";

@@ -1,0 +1,22 @@
+// Explicit local Windows build adapter; never applied to cloud or production builds.
+// Keep generated native projects under Expo CNG management.
+allprojects { p ->
+    p.afterEvaluate {
+        def android = p.extensions.findByName('android')
+        if (android != null && android.hasProperty('externalNativeBuild')) {
+            android.externalNativeBuild.cmake.version = '3.22.1'
+            android.externalNativeBuild.cmake.buildStagingDirectory = (
+                p.name == 'app'
+                    ? new File('C:/Users/Public/fluentt-apk-cxx')
+                    : new File(System.getProperty('java.io.tmpdir'), 'fluentt-native/' + p.name)
+            )
+            android.defaultConfig.externalNativeBuild.cmake.arguments.addAll([
+                '-DCMAKE_OBJECT_PATH_MAX=240',
+                '-DCMAKE_CXX_STANDARD_LIBRARIES=-lc++_shared -latomic -lm',
+                '-DCMAKE_JOB_POOLS=compile=2;link=1',
+                '-DCMAKE_JOB_POOL_COMPILE=compile',
+                '-DCMAKE_JOB_POOL_LINK=link'
+            ])
+        }
+    }
+}

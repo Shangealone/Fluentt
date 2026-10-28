@@ -20,6 +20,49 @@ pytestmark = pytest.mark.postgresql
 BASE = "/api/v1/admin/research-classrooms/studies"
 
 
+def test_fsrs_proposal_persisted_versioned_and_never_authorizes_execution(research):
+    from uuid import uuid4
+
+    client, engine, *_ = research
+    row, _, _ = create(client, target_participants=30)
+    proposal = dict(
+        version="synthetic-fsrs-plan-v1",
+        target_participants=30,
+        control_target=15,
+        experimental_target=15,
+        intervention_calendar_months=1,
+        practice_min_seconds=300,
+        practice_max_seconds=600,
+        delayed_retention_calendar_days=7,
+    )
+    url = f"{BASE}/{row['id']}"
+    headers = {"If-Match": row["revision"], "Idempotency-Key": str(uuid4())}
+    body = {"methodology_draft": proposal, "active_weekdays": [1, 2, 3, 4, 5], "timezone": "Asia/Manila"}
+    response = client.post(url + "/protocols", headers=headers, json=body)
+    assert response.status_code == 200, response.text
+    revised = response.json()
+    assert revised["configuration_version"] == 2 and revised["status"] == "DRAFT"
+    assert revised["configuration"]["methodology_draft"]["control"] == "fsrs6"
+    assert {
+        "fsrs6_research_treatment_not_integrated",
+        "trained_fifakt_unavailable",
+        "methodology_draft_not_execution_authorization",
+    } <= set(revised["activation_blockers"])
+    assert client.post(url + "/protocols", headers=headers, json=body).json() == revised
+    assert (
+        client.post(
+            url + "/state",
+            headers={"If-Match": revised["revision"], "Idempotency-Key": str(uuid4())},
+            json={"status": "READY"},
+        ).status_code
+        == 409
+    )
+    with Session(engine) as db:
+        original = db.get(ResearchClassroomProtocol, UUID(row["protocol_id"]))
+        assert original.configuration.get("methodology_draft") is None
+        assert db.get(ResearchStudy, UUID(row["study_id"])).status == "draft"
+
+
 def test_choices_require_exact_scope_and_class_grant_without_seeding(research):
     client, engine, actor, classroom, *_ = research
     row, _, _ = create(client)
