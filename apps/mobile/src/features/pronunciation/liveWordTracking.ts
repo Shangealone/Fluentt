@@ -16,7 +16,7 @@ export type WholePhraseRecording = {
   durationMs: number;
   release: () => void | Promise<void>;
 };
-export type LiveSpeechOptions = { captureAudio?: boolean };
+export type LiveSpeechOptions = { captureAudio?: boolean; browserOnline?: boolean };
 export type LiveSpeechCallbacks = {
   onStart: () => void;
   onResult: (transcript: string, final: boolean) => void;

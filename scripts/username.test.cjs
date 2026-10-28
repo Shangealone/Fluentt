@@ -33,7 +33,7 @@ function nodes(element, predicate) {
   const children = React.Children.toArray(element.props?.children);
   return [...(predicate(element) ? [element] : []), ...children.flatMap(child => nodes(child, predicate))];
 }
-function harness() {
+function harness(Component = Username) {
   const slots=[], effects=[]; let cursor;
   return { render() {
     cursor=0; const queue=[];
@@ -43,7 +43,7 @@ function harness() {
     React.useRef = init => { const index=cursor++; return slots[index] ?? (slots[index]={current:init}); };
     React.useEffect = (callback,deps) => { const index=cursor++, prior=effects[index];
       if (!prior || deps.some((value,i) => !Object.is(value,prior.deps[i]))) queue.push(() => {prior?.cleanup?.();effects[index]={deps,cleanup:callback()};}); };
-    try { const tree=Username(); queue.forEach(effect => effect()); return tree; } finally {Object.assign(React,saved);}
+    try { const tree=Component(); queue.forEach(effect => effect()); return tree; } finally {Object.assign(React,saved);}
   }, cleanup() {effects.forEach(effect => effect?.cleanup?.());} };
 }
 function profile(username) { return {id:'synthetic',username,canonical_username:username.toLowerCase(),role,profile_status:'active',grade:null,language:'english',experience:'some_words',learning_focus:{topics:['Vocabulary'],lessons:[]}}; }
@@ -100,4 +100,32 @@ test('failed creation stays on username and shows the error',async()=>{
   nodes(h.render(),node=>node.props?.label === 'Continue as @clara_reyes →')[0].props.onPress();
   await nextTurn();const tree=h.render();assert.deepEqual(routes,[]);
   assert(nodes(tree,node=>node.props?.message === 'Secure save failed').length);h.cleanup();
+});
+
+
+test('a failed live availability check never turns green or enables registration in the browser',async()=>{
+  role='personal_student';session={profile:null,isDemo:false,pending:false};
+  const originalCheck=identity.check;identity.check=async()=>{throw Error('Synthetic backend unavailable');};
+  const h=harness();try{
+    nodes(h.render(),n=>n.props?.accessibilityLabel==='Username')[0].props.onChangeText('Synthetic Learner');h.render();
+    await new Promise(r=>setTimeout(r,450));const tree=h.render();
+    assert.equal(nodes(tree,n=>n.props?.label==='Continue as @Synthetic Learner →')[0].props.disabled,true);
+    assert.equal(nodes(tree,n=>n.props?.message==='Synthetic backend unavailable').length,1);
+    assert.equal(nodes(tree,n=>n.props?.children==='Available for demo profile').length,0);
+  }finally{h.cleanup();identity.check=originalCheck;}
+});
+
+test('returning login waits for the actual profile instead of routing from a stale demo profile',async()=>{
+  const Login=local(path.join(mobile,'src/app/login.tsx')).default;
+  role='instructor';routes.length=0;let attempts=0,resolve;
+  const actual={...profile('Actual Teacher'),id:'actual-instructor'};
+  session={profile:{...profile('Old Demo'),id:'old-demo',role:'personal_student'},isDemo:true,pending:false,login(){attempts++;return new Promise(r=>resolve=r);}};
+  const h=harness(Login);try{
+    nodes(h.render(),n=>n.props?.accessibilityLabel==='Username')[0].props.onChangeText('Actual Teacher');
+    nodes(h.render(),n=>n.props?.accessibilityLabel==='Password')[0].props.onChangeText('SyntheticPass123!');
+    const press=nodes(h.render(),n=>n.props?.label==='Sign In →')[0].props.onPress;press();press();assert.equal(attempts,1);
+    resolve(actual);await nextTurn();h.render();assert.deepEqual(routes,[]);
+    session.profile=actual;session.isDemo=false;h.render();assert.deepEqual(routes,['/instructor']);
+    assert.equal(nodes(h.render(),n=>n.props?.accessibilityLabel==='Password')[0].props.value,'');
+  }finally{h.cleanup();}
 });

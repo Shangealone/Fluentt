@@ -41,8 +41,13 @@ export function createLiveSpeech(language: PronunciationLanguage, callbacks: Liv
     async start() {
       const browser = typeof window === "undefined" ? undefined : window as unknown as { SpeechRecognition?: RecognitionConstructor; webkitSpeechRecognition?: RecognitionConstructor };
       const Constructor = browser?.SpeechRecognition ?? browser?.webkitSpeechRecognition;
-      if (!Constructor) throw new Error("Live speech is unavailable in this browser. Use a browser with on-device speech recognition or the updated mobile app.");
+      if (!Constructor) throw new Error("Speech recognition is unavailable in this browser. Open this page in a supported browser such as Chrome or Edge, or use local recording and playback.");
       recognition = new Constructor();
+      if (options.browserOnline === true) {
+        // Explicit per-visit permission is required by the host UI. No silent fallback.
+        recognition.lang = language === "english" ? "en-US" : "fil-PH";
+        if ("processLocally" in recognition) recognition.processLocally = false;
+      } else {
       if (!("processLocally" in recognition) || !Constructor.available) throw new Error("This browser does not support on-device live speech. Use a supported browser or the updated mobile app.");
       const locale = language === "english" ? "en-US" : "fil-PH";
       const locales = language === "tagalog" ? [locale, "tl-PH"] : [locale];
@@ -53,14 +58,16 @@ export function createLiveSpeech(language: PronunciationLanguage, callbacks: Liv
       }
       if (disposed) return;
       if (!installed) throw new Error(`Enable or install offline ${language === "english" ? "English" : "Tagalog"} speech recognition in your browser, then retry. This practice does not send your voice to a cloud service.`);
-      recognition.lang = installed; recognition.processLocally = true; recognition.interimResults = true; recognition.continuous = true; recognition.maxAlternatives = 1;
+      recognition.lang = installed; recognition.processLocally = true;
+      }
+      recognition.interimResults = true; recognition.continuous = true; recognition.maxAlternatives = 1;
       recognition.onstart = () => { if (!disposed) callbacks.onStart(); };
       recognition.onresult = event => {
         if (disposed) return;
         const results = Array.from(event.results);
         callbacks.onResult(results.map(result => result[0]?.transcript ?? "").join(" "), results.every(result => result.isFinal));
       };
-      recognition.onerror = event => { if (!disposed) callbacks.onError(event.error === "not-allowed" ? "Microphone access was denied. Allow this site to use the microphone, then retry." : event.error === "no-speech" ? "No speech was heard. Check your microphone and try again." : "Live speech stopped. Check your offline speech language and microphone, then retry."); };
+      recognition.onerror = event => { if (!disposed) callbacks.onError(event.error === "not-allowed" ? "Microphone access was denied. Allow this site to use the microphone, then retry." : event.error === "no-speech" ? "No speech was heard. Check your microphone and try again." : options.browserOnline ? event.error === "language-not-supported" ? "The browser's online speech service does not support this language. Use local recording and playback, or try another browser." : event.error === "network" ? "The online speech service could not connect. Check your internet connection or try Chrome or Edge. Local recording and playback is still available." : "Online speech recognition stopped. Check your browser's speech service and microphone, then retry." : "Live speech stopped. Check your offline speech language and microphone, then retry."); };
       recognition.onend = () => {
         if (disposed) return;
         if (!capture) { callbacks.onEnd(); return; }

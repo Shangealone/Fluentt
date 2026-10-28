@@ -29,7 +29,7 @@ PRIVATE_STORAGE_BASE = Path(__file__).resolve().parents[4] / "storage" / "audio"
 
 def validate_audio_file(data: bytes, reported_mime: str | None) -> tuple[str, str]:
     """Validates audio file length and content headers (magic bytes).
-    
+
     Returns (normalized_mime_type, file_extension).
     """
     size = len(data)
@@ -90,7 +90,11 @@ def ensure_default_activities(db) -> None:
             target_text="Magandang umaga sa inyong lahat.",
             language="tagalog",
             instructions="Bigkasin nang malinaw at may magalang na intonasyon.",
-            reference_audio_metadata={"syllables": 10, "pace": "natural", "phonetic": "ma-gan-dang u-ma-ga sa in-yong la-hat"},
+            reference_audio_metadata={
+                "syllables": 10,
+                "pace": "natural",
+                "phonetic": "ma-gan-dang u-ma-ga sa in-yong la-hat",
+            },
             status="published",
             version=1,
             locked_at=datetime.now(timezone.utc),
@@ -99,7 +103,11 @@ def ensure_default_activities(db) -> None:
             target_text="Ang wika ay salamin ng kultura ng isang bansa.",
             language="tagalog",
             instructions="Pansinin ang diin sa mga salitang 'wika' at 'kultura'.",
-            reference_audio_metadata={"syllables": 17, "pace": "moderate", "phonetic": "ang wi-ka ay sa-la-min ng kul-tu-ra ng i-sang ban-sa"},
+            reference_audio_metadata={
+                "syllables": 17,
+                "pace": "moderate",
+                "phonetic": "ang wi-ka ay sa-la-min ng kul-tu-ra ng i-sang ban-sa",
+            },
             status="published",
             version=1,
             locked_at=datetime.now(timezone.utc),

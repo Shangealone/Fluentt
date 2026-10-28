@@ -1,5 +1,17 @@
 # Decisions and constraints
 
+## Local account repair — 2026-10-28
+
+The user reports signup/logout/sign-in failure. Fix the confirmed stale local schema through backed-up existing forward migrations, without fabricating or recovering accounts by username. Explicit demo actions remain local; deliberate real registration must use the backend even after preview. Returning-user routing uses only the newly authenticated profile. Preserve existing learning/research contracts and report stale onboarding test expectations separately. Details: LOGIN_REPAIR.md.
+
+## Live personal Tutor demonstration — 2026-10-28
+
+The user pauses pronunciation work and requests real conversational role-play, retaining the free-service preference. Prepare a separate, explicit opt-in local development demonstration inside the existing personal Tutor page, using a server-held Groq Free-plan key and fixed scenario catalog. Do not promote demo identities to authenticated accounts or send existing saved classroom/research history externally. The stateless loopback service has no database access or simulated fallback; the user subsequently supplied a key and real English/Tagalog backend smoke checks passed. After Qwen produced poor wording and a follow-up error, explicitly configure Groq openai/gpt-oss-120b with strict structured output and text-only coaching; no automatic model fallback. Phone/public hosting and saved authenticated provider integration are outside this first demonstration slice. Details and actual checks: LIVE_TUTOR_DEMO.md.
+
+## Optional browser online word recognition — 2026-10-28
+
+The user explicitly authorized an opt-in browser-provider online recognizer after offline Tagalog proved unavailable. This permission applies to word recognition only, with visible voice-processing disclosure before recording and reset on phrase change/blur/background. Keep local recognition as the default, offer local recording/playback without invented highlights or scores, and retain actual English WavLM backend authorization and RAM gates. No paid speech API or external WavLM inference endpoint is introduced. See BROWSER_SPEECH_FIX.md for files, tests and limitations.
+
 ## Section 25 approved communication decisions — 2026-10-19
 
 The user approved all three recommended policies: owned-class announcements without replies plus class-scoped one-to-one instructor/current-school-student messages initiated by either participant; no peer, personal or admin chat. Live eligible enrollment/class/owner access gates every read/write, later members see announcements, direct history is participant-only, leaving/removal/disablement hides retained history and eligible rejoin restores it. Sent content is immutable, no editing/deletion/attachments; retain synthetic demo records without inventing a production purge schedule. Real-student retention and moderation remain OPEN before deployment. Plain text is 1–4,000 Unicode code points, blank-only rejected and accepted text preserved, server timestamps, UUID sender-scoped idempotency, bounded history and manual refresh. Read marking is explicit per viewer, never shared participant receipts. No automatic keys/grades/research data, push, WebSockets or typing indicators. Additive class context supplements the existing recipient-XOR-class destination; legacy rows remain untouched and excluded.

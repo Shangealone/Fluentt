@@ -1,5 +1,9 @@
 # Mobile identity and device sessions — Section 03
 
+## October 28 local identity repair
+
+The running local database lagged at 0012 and lacked the existing password/profile migrations. It has been backed up and upgraded normally to 0018, with all pre-existing table row counts preserved. Explicit demo registration and live signup are now separated; returning login waits for its authenticated profile. Password lifecycle tests use disposable PostgreSQL. Current password/browser implementation differs from the historical milestone description below; limits and exact evidence, including two pre-existing onboarding-test failures, are in [LOGIN_REPAIR.md](LOGIN_REPAIR.md).
+
 Section 08 administrator access is separate: see ADMIN_AUTH.md for OIDC, mapped admin permissions and dedicated browser-session cookies/tables. Mobile credentials, usernames and class codes cannot authenticate administrator endpoints. No Section 08 change to the mobile issuance, restoration or SecureStore contract is made.
 
 This document retains the Section 03 milestone description below. Sections 04–06 subsequently integrated native onboarding, preferences, instructor classes and student enrollment; see the updates at the end and ENROLLMENT.md. No account recovery or alternative authentication has been added.

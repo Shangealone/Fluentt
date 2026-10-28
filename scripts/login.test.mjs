@@ -53,3 +53,17 @@ test("identity.create passes password when supplied", async () => {
   assert.equal(typeof identity.create, "function");
   assert.equal(typeof identity.login, "function");
 });
+
+
+test("password sign-in reports incorrect credentials rather than an expired device session", async () => {
+  const priorUrl = process.env.EXPO_PUBLIC_API_URL;
+  const priorFetch = globalThis.fetch;
+  process.env.EXPO_PUBLIC_API_URL = "http://localhost:8000";
+  globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: { code: "invalid_credentials" } }) });
+  try { await assert.rejects(identity.login("Synthetic Learner", "WrongSyntheticPass!"), /Invalid username or password/); }
+  finally {
+    globalThis.fetch = priorFetch;
+    if (priorUrl === undefined) delete process.env.EXPO_PUBLIC_API_URL;
+    else process.env.EXPO_PUBLIC_API_URL = priorUrl;
+  }
+});

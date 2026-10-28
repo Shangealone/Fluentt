@@ -1,5 +1,6 @@
 import { request, ApiError } from "./client.ts";
 import { wholePhraseApi, type WholePhraseCapability, type WholePhraseScore } from "./wholePhrase.ts";
+import {wavlmAccess,type WavLMAccess} from './wavlm';
 
 export type PronunciationLanguage = "tagalog" | "english";
 
@@ -143,6 +144,7 @@ export type AudioUploadPayload =
     };
 
 export type PronunciationAccess = {
+  wavlm?:WavLMAccess;
   // Absent in synthetic demo adapters: never fabricate provider readiness or scores.
   scoringCapabilities?: (language: PronunciationLanguage) => Promise<WholePhraseCapability>;
   assessWholePhrase?: (activity: PronunciationActivityView, audio: AudioUploadPayload) => Promise<WholePhraseScore>;
@@ -250,6 +252,7 @@ export function pronunciationAccess(
   run: <T>(operation: (credential: string) => Promise<T>) => Promise<T>
 ): PronunciationAccess {
   return {
+    wavlm: wavlmAccess(run),
     scoringCapabilities: language => run(secret => wholePhraseApi.capabilities(secret, language)),
     assessWholePhrase: (activity, audio) => run(secret => wholePhraseApi.assess(secret, activity, audio)),
     activities: (language?: string) => run(secret => pronunciationApi.getActivities(secret, language)),

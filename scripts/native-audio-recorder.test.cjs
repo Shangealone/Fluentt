@@ -32,7 +32,7 @@ Module._extensions['.ts'] = function(module, filename) {
   }).code, filename);
 };
 const { useAudioRecorder } = local(path.join(mobile, 'src/features/pronunciation/useAudioRecorder.ts'));
-function harness() {
+function harness(options) {
   const slots = [], effects = [];
   let cursor;
   return {
@@ -43,12 +43,12 @@ function harness() {
       React.useRef = init => { const i = cursor++; return slots[i] ?? (slots[i] = { current: init }); };
       React.useCallback = (fn, deps) => { const i = cursor++, prior = slots[i]; if (!prior || deps.some((v, j) => !Object.is(v, prior.deps[j]))) slots[i] = { fn, deps }; return slots[i].fn; };
       React.useEffect = (fn, deps) => { const i = cursor++, prior = effects[i]; if (!prior || deps.some((v, j) => !Object.is(v, prior.deps[j]))) queue.push(() => { prior?.cleanup?.(); effects[i] = { deps, cleanup: fn() }; }); };
-      try { const result = useAudioRecorder(); queue.forEach(fn => fn()); return result; } finally { Object.assign(React, saved); }
+      try { const result = useAudioRecorder(options); queue.forEach(fn => fn()); return result; } finally { Object.assign(React, saved); }
     },
     unmount() { effects.forEach(e => e?.cleanup?.()); },
   };
 }
-function setup() {
+function setup(options) {
   modes = [];
   permission = { granted: true, canAskAgain: true };
   recorder = { uri: 'file:///synthetic.m4a', prepared: 0, started: 0, stopped: 0, released: 0,
@@ -56,7 +56,7 @@ function setup() {
   player = { played: 0, paused: 0, released: 0, removed: 0,
     addListener(event, fn) { assert.equal(event, 'playbackStatusUpdate'); callback = fn; return { remove: () => this.removed++ }; },
     play() { this.played++; }, pause() { this.paused++; }, release() { this.released++; } };
-  return harness();
+  return harness(options);
 }
 test('blocked microphone permission never starts native recording', async () => {
   const h = setup(); permission = { granted: false, canAskAgain: false };
@@ -79,4 +79,12 @@ test('native stop retains the recording URI and playback status uses millisecond
 });
 test('unmount leaves recorder disposal to the owning Expo hook', async () => {
   const h = setup(); await h.render().startRecording(); h.unmount(); assert.equal(recorder.released, 1); assert.equal(recorder.stopped, 0);
+});
+
+test('private WavLM capture cannot start after a delayed permission completes on an unmounted screen',async()=>{
+  const h=setup({privateTemporary:true,maximumDurationMs:29000});
+  let resolve;permission=new Promise(r=>{resolve=r;});
+  const start=h.render().startRecording();
+  await new Promise(r=>setImmediate(r));h.unmount();resolve({granted:true,canAskAgain:true});await start;
+  assert.equal(recorder.prepared,0);assert.equal(recorder.started,0);
 });

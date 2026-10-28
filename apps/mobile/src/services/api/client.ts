@@ -84,6 +84,8 @@ export async function request<T>(
         messages[response.status] ??
         "The request could not be completed. Please retry.";
       const safeMessages: Record<string, string> = {
+        invalid_credentials: "Invalid username or password. Please try again.",
+        account_inactive: "This account is inactive. Contact your instructor or administrator.",
         whole_phrase_scoring_unavailable: "Genuine pronunciation scoring is not configured for this language. No score was generated.",
         whole_phrase_permission_required: "Allow this recording to be sent to Microsoft Azure before requesting a score.",
         whole_phrase_audio_invalid: "Use one complete 16 kHz mono recording of 0.5 to 30 seconds.",

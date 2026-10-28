@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { router } from "expo-router";
 import { Screen, Button, Input, ErrorMessage, Loading, Badge, s } from "../components/ui";
@@ -13,22 +13,25 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signedInId, setSignedInId] = useState<string | null>(null);
+  const submitting = useRef(false);
+  useEffect(() => {
+    if (signedInId && session.profile?.id === signedInId && !session.isDemo) {
+      router.replace(destination(session.profile));
+    }
+  }, [signedInId, session.profile, session.isDemo]);
 
   const canSubmit = username.trim().length >= 3 && password.length >= 6 && !busy;
 
   async function handleLogin() {
-    if (!canSubmit) return;
+    if (!canSubmit || submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setError(null);
     try {
-      await session.login(username.trim(), password);
-      // Wait for session state update and route to destination
-      const profile = session.profile;
-      if (profile) {
-        router.replace(destination(profile));
-      } else {
-        router.replace("/student");
-      }
+      const signedIn = await session.login(username.trim(), password);
+      setPassword("");
+      setSignedInId(signedIn.id);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -36,6 +39,7 @@ export default function LoginScreen() {
         setError("Invalid username or password. Please try again.");
       }
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }

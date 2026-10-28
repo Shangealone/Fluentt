@@ -63,6 +63,7 @@ def create_app(settings: Settings | None = None) -> CORSMiddleware:
                 "/api/v1/lessons",
                 "/api/v1/assignments",
                 "/api/v1/me/",
+                "/api/v1/demo/tutor/",
                 "/api/v1/instructor/",
                 "/api/v1/communication/",
             )
@@ -88,6 +89,7 @@ def create_app(settings: Settings | None = None) -> CORSMiddleware:
                 "/api/v1/lessons",
                 "/api/v1/assignments",
                 "/api/v1/me/",
+                "/api/v1/demo/tutor/",
                 "/api/v1/instructor/",
                 "/api/v1/communication/",
             )

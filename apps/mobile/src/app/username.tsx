@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BackHandler, Text, Platform, View, Pressable, StyleSheet } from "react-native";
+import { BackHandler, Text, View, Pressable, StyleSheet } from "react-native";
 import { router, useLocalSearchParams, Redirect } from "expo-router";
 import {
   Screen,
@@ -43,6 +43,7 @@ export default function Username() {
   const [checking, setChecking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [checkError, setCheckError] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [sample, setSample] = useState<string | null>(null);
@@ -69,7 +70,7 @@ export default function Username() {
 
   useEffect(() => {
     let active = true;
-    if (invalid || session.isDemo || sample === name) return;
+    if (invalid || sample === name) return;
     const timer = setTimeout(() => {
       setChecking(true);
       identity
@@ -83,14 +84,8 @@ export default function Username() {
         })
         .catch((err) => {
           if (active) {
-            if (session.isDemo || Platform.OS === "web") {
-              setChecked(name);
-              setAvailable(true);
-              setFeedback("Available for demo profile");
-              setError("");
-            } else {
-              setError(err instanceof Error ? err.message : "Network error");
-            }
+            setAvailable(false); setChecked(""); setFeedback(""); setCheckError(true);
+            setError(err instanceof Error ? err.message : "Username availability could not be checked.");
           }
         })
         .finally(() => {
@@ -101,7 +96,7 @@ export default function Username() {
       active = false;
       clearTimeout(timer);
     };
-  }, [name, invalid, attempt, session.isDemo, sample]);
+  }, [name, invalid, attempt, sample]);
 
   useEffect(() => {
     const profile = session.profile;
@@ -127,7 +122,7 @@ export default function Username() {
     const finalName = overrideName ?? name;
     if (lock.current) return;
     if (!preview && sample !== finalName) {
-      if (password.length > 0 && password.length < 6) {
+      if (password.length < 6) {
         setError("Password must be at least 6 characters.");
         return;
       }
@@ -139,6 +134,7 @@ export default function Username() {
     lock.current = true;
     setBusy(true);
     setError("");
+    setCheckError(false);
     try {
       if (preview || !password) {
         await session.create(finalName, role as Role, preview);
@@ -172,6 +168,8 @@ export default function Username() {
         Choose a unique username. It identifies your profile; your device
         securely keeps your session.
       </Text>
+      <Text style={s.body}>This form creates a new account. Returning users should sign in.</Text>
+      <Button label="Already have an account? Sign in here →" variant="ghost" disabled={busy || session.pending} onPress={() => router.push("/login")} />
 
       {/* Quick Demo Autofill Card */}
       <View style={userStyles.autofillCard}>
@@ -282,14 +280,14 @@ export default function Username() {
       {name && invalid ? <ErrorMessage message={invalid} /> : null}
       {checking && <Loading />}
       {checked === name && feedback ? (
-        <Text accessibilityLiveRegion="polite" style={userStyles.feedbackText}>
-          ✓ {feedback}
+          <Text accessibilityLiveRegion="polite" style={[userStyles.feedbackText, !available && { color: "#B42318" }]}>
+          {available ? "✓" : "!"} {feedback}
         </Text>
       ) : null}
       {error ? (
         <>
           <ErrorMessage message={error} />
-          {!session.pending && (
+          {checkError && !session.pending && (
             <Button
               label="Retry availability check"
               disabled={busy || !!invalid}
@@ -324,16 +322,9 @@ export default function Username() {
           disabled={
             busy ||
             (!session.pending &&
-              (!!invalid || (!available && !session.isDemo && Platform.OS !== "web") || checking))
+              (!!invalid || !available || checked !== name || checking))
           }
           onPress={() => void submit()}
-        />
-
-        <Button
-          label="Already have an account? Sign in here →"
-          variant="ghost"
-          disabled={busy || session.pending}
-          onPress={() => router.push("/login")}
         />
 
         {/* Quick Launch with Default Primary */}

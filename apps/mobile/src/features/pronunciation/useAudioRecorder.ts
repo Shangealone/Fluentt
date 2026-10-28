@@ -42,7 +42,17 @@ export type AudioRecorderState = {
 const MAX_RECORDING_MS = 60000; // 60 seconds
 const MIN_RECORDING_MS = 500;   // 0.5 seconds
 
-export function useAudioRecorder(): AudioRecorderState {
+export function useAudioRecorder({privateTemporary = false, maximumDurationMs = MAX_RECORDING_MS}: {privateTemporary?:boolean;maximumDurationMs?:number} = {}): AudioRecorderState {
+  const mounted = useRef(true), generation = useRef(0), ownedUris = useRef(new Set<string>());
+  const invalidate = useCallback(()=>{mounted.current=false;generation.current++;},[]);
+  const releaseTemporary = useCallback(async () => {
+    if (!privateTemporary || ownedUris.current.size===0) return;
+    const {File,Paths} = await import("expo-file-system");
+    for (const uri of ownedUris.current) {
+      try { if(uri.startsWith(Paths.cache.uri)) {const file=new File(uri);if(file.exists)file.delete();} } catch { /* Best effort cache cleanup. */ }
+    }
+    ownedUris.current.clear();
+  },[privateTemporary]);
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [durationMs, setDurationMs] = useState<number>(0);
   const [playbackPositionMs, setPlaybackPositionMs] = useState<number>(0);
@@ -95,6 +105,7 @@ export function useAudioRecorder(): AudioRecorderState {
   }, []);
 
   const discardRecording = useCallback(async () => {
+    if(privateTemporary)generation.current++;
     cleanupTimer();
     await cleanupPlayback();
 
@@ -115,11 +126,13 @@ export function useAudioRecorder(): AudioRecorderState {
       if (nativeRecordingRef.current) {
         try {
           await nativeRecordingRef.current.stop();
+            if(privateTemporary && nativeRecordingRef.current.uri)ownedUris.current.add(nativeRecordingRef.current.uri);
         } catch {
           // ignore error on discard
         }
         nativeRecordingRef.current = null;
       }
+      await releaseTemporary();
     }
 
     setAudioPayload(null);
@@ -129,7 +142,7 @@ export function useAudioRecorder(): AudioRecorderState {
     setPlaybackDurationMs(0);
     setError(null);
     setStatus("ready");
-  }, [cleanupPlayback, cleanupTimer, audioPreviewUri]);
+  }, [cleanupPlayback, cleanupTimer, audioPreviewUri, privateTemporary, releaseTemporary]);
 
   // Request Microphone Permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -196,6 +209,7 @@ export function useAudioRecorder(): AudioRecorderState {
     if (Platform.OS === "web") {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
         mediaRecorderRef.current.onstop = () => {
+            if(privateTemporary && !mounted.current)return;
           const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
           const blob = new Blob(audioChunksRef.current, { type: mimeType });
           const url = URL.createObjectURL(blob);
@@ -216,6 +230,7 @@ export function useAudioRecorder(): AudioRecorderState {
           await nativeRecordingRef.current.stop();
           const uri = nativeRecordingRef.current.uri;
           if (uri) {
+              if(privateTemporary)ownedUris.current.add(uri);
             setAudioPayload({
               uri,
               name: "recording.m4a",
@@ -235,15 +250,17 @@ export function useAudioRecorder(): AudioRecorderState {
         nativeRecordingRef.current = null;
       }
     }
-  }, [cleanupTimer, discardRecording]);
+  }, [cleanupTimer, discardRecording, privateTemporary]);
 
   // Start Recording
   const startRecording = useCallback(async () => {
     setError(null);
     await discardRecording();
+    const run=++generation.current;
 
     const hasPermission = await requestPermission();
     if (!hasPermission) return;
+    if(privateTemporary && (!mounted.current || run!==generation.current))return;
 
     startTimeRef.current = Date.now();
     setDurationMs(0);
@@ -251,6 +268,7 @@ export function useAudioRecorder(): AudioRecorderState {
     if (Platform.OS === "web") {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          if(privateTemporary && (!mounted.current || run!==generation.current)){stream.getTracks().forEach(t=>t.stop());return;}
         streamRef.current = stream;
         audioChunksRef.current = [];
 
@@ -279,7 +297,7 @@ export function useAudioRecorder(): AudioRecorderState {
         timerRef.current = setInterval(() => {
           const elapsed = Date.now() - startTimeRef.current;
           setDurationMs(elapsed);
-          if (elapsed >= MAX_RECORDING_MS) {
+          if (elapsed >= maximumDurationMs) {
             void stopRecording();
           }
         }, 100);
@@ -294,9 +312,14 @@ export function useAudioRecorder(): AudioRecorderState {
           allowsRecording: true,
           playsInSilentMode: true,
         });
+        if(privateTemporary && (!mounted.current || run!==generation.current))return;
 
         const recording = nativeRecorder;
         await recording.prepareToRecordAsync();
+        if(privateTemporary && (!mounted.current || run!==generation.current)){
+          try{await recording.stop();if(recording.uri)ownedUris.current.add(recording.uri);await releaseTemporary();}catch{/* Already released by native lifecycle. */}
+          return;
+        }
         recording.record();
         nativeRecordingRef.current = recording;
         setStatus("recording");
@@ -304,7 +327,7 @@ export function useAudioRecorder(): AudioRecorderState {
         timerRef.current = setInterval(() => {
           const elapsed = Date.now() - startTimeRef.current;
           setDurationMs(elapsed);
-          if (elapsed >= MAX_RECORDING_MS) {
+          if (elapsed >= maximumDurationMs) {
             void stopRecording();
           }
         }, 100);
@@ -314,7 +337,7 @@ export function useAudioRecorder(): AudioRecorderState {
         setStatus("ready");
       }
     }
-  }, [discardRecording, requestPermission, stopRecording, nativeRecorder]);
+  }, [discardRecording, requestPermission, stopRecording, nativeRecorder, privateTemporary, maximumDurationMs, releaseTemporary]);
 
   // Play Recording
   const playRecording = useCallback(async () => {
@@ -391,7 +414,10 @@ export function useAudioRecorder(): AudioRecorderState {
 
   // Unmount cleanup
   useEffect(() => {
+    mounted.current=true;
+    const temporaryUris=ownedUris.current;
     return () => {
+      invalidate();
       cleanupTimer();
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
@@ -403,9 +429,13 @@ export function useAudioRecorder(): AudioRecorderState {
         nativePlaybackSubscription.current?.remove();
         nativeSoundRef.current.release();
       }
+      if(privateTemporary){
+        try{const uri=nativeRecordingRef.current?.uri;if(uri)temporaryUris.add(uri);}catch{/* Native recorder may already be released. */}
+        void releaseTemporary().catch(()=>{});
+      }
       // useExpoAudioRecorder releases the recorder (and stops capture) on unmount.
     };
-  }, [cleanupTimer]);
+  }, [cleanupTimer, privateTemporary, releaseTemporary, invalidate]);
 
   return {
     status,

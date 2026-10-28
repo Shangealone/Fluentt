@@ -6,8 +6,10 @@ const Module = require('node:module');
 const mobile = path.resolve(__dirname,'../apps/mobile');
 const local = Module.createRequire(path.join(mobile,'package.json'));
 const React = local('react'), babel = local('@babel/core'), original = Module._load;
-const sessions=[];let background, native, platform='web';
+const sessions=[];let background, native, platform='web',offlineStatus='available',recorderDouble;
 Module._load=function(name,parent,main){
+  if(name==='./browserOfflineSpeech'&&parent.filename.endsWith('LivePronunciationPractice.tsx'))return {browserOfflineSpeechStatus:async()=>offlineStatus};
+  if(name==='./useAudioRecorder')return {useAudioRecorder(){if(!recorderDouble)throw Error('No microphone fixture configured');return recorderDouble;}};
   if(name==='react-native')return {...local('react-native-web'),Platform:{...local('react-native-web').Platform,get OS(){return platform;}},AppState:{addEventListener(_,callback){background=callback;return {remove(){background=null;}};}}};
   if(name==='react-native-safe-area-context')return {SafeAreaView:local('react-native-web').View};
   if(name==='expo-router')return {useFocusEffect:effect=>React.useEffect(effect,[effect])};
@@ -70,7 +72,7 @@ test('partial stops, errors, background and blur cannot complete or retain a sta
   await h.render().start();session=sessions.at(-1);h.blur();session.callbacks.onResult('i like eating pizza',true);assert.equal(h.render().status,'idle');
 });
 test('personal phrase UI displays progressive heard states and automatic completion',async()=>{
-  let done=0;const h=harness(()=>LivePronunciationPractice({activity,onDone(){done++;}}));h.render();
+  let done=0;const h=harness(()=>LivePronunciationPractice({activity,onDone(){done++;}}));h.render();await tick();
   nodes(h.render(),node=>node.props?.label==='Record')[0].props.onPress();await tick();const session=sessions.at(-1);
   session.callbacks.onResult('i like',false);
   assert.equal(nodes(h.render(),node=>node.props?.accessibilityLabel?.endsWith(': heard')).length,2);
@@ -135,7 +137,7 @@ const capability={available:true,provider:'azure-speech',locale:'en-US',maximum_
 const score={status:'scored',activity_id:activity.id,activity_version:activity.version,overall_score:37.5,accuracy_score:91,fluency_score:82,completeness_score:75,duration_ms:1000,provider:'azure-speech',locale:'en-US',contract_version:'whole-phrase-azure-rest-v1',model_version:null,simulated:false};
 function uiText(tree){return nodes(tree,node=>typeof node.props?.children==='string'||Array.isArray(node.props?.children)).map(node=>React.Children.toArray(node.props.children).filter(value=>typeof value==='string'||typeof value==='number').join('')).join(' ');}
 function readyApi(assess){return {async scoringCapabilities(){return capability;},assessWholePhrase:assess};}
-async function enableAssessment(h){h.render();await tick();const toggle=nodes(h.render(),node=>node.props?.accessibilityRole==='checkbox')[0];assert.ok(toggle);toggle.props.onPress();h.render();}
+async function enableAssessment(h){h.render();await tick();const toggle=nodes(h.render(),node=>node.props?.accessibilityLabel==='Allow Microsoft Azure to assess this English recording')[0];assert.ok(toggle);toggle.props.onPress();h.render();}
 
 test('whole-phrase scoring waits for finalized words, complete audio and end, then submits once',async()=>{
   const calls=[];let resolve;const api=readyApi((...args)=>{calls.push(args);return new Promise(r=>{resolve=r;});});
@@ -167,7 +169,7 @@ test('Voice history records the finished phrase once without audio, transcript o
   const saved=[];const history={async record(body){saved.push(body);return body;}};
   const h=harness(()=>LivePronunciationPractice({activity,history,owner:'qa',onDone(){}}));
   try{
-    h.render();nodes(h.render(),node=>node.props?.label==='Record')[0].props.onPress();await tick();const session=sessions.at(-1);
+    h.render();await tick();nodes(h.render(),node=>node.props?.label==='Record')[0].props.onPress();await tick();const session=sessions.at(-1);
     session.callbacks.onResult('i like',false);h.render();await tick();assert.equal(saved.length,0);
     session.callbacks.onResult('i like eating pizza',true);h.render();await tick();assert.equal(saved.length,0);
     session.callbacks.onEnd();h.render();await tick();h.render();assert.equal(saved.length,1);assert.equal(saved[0].prompt,activity.target_text);
@@ -220,4 +222,58 @@ test('browser capture includes the final recorder chunk before resampling the wh
     const view=new DataView(await clip.audio.arrayBuffer());assert.equal(view.getInt16(44,true),8191);assert.equal(closed,1);assert.ok(stops>0);capture.dispose();
     const cancelled=await startWholePhraseCapture();cancelled.dispose();await assert.rejects(cancelled.finish(),/discarded/);assert.equal(closed,1);
   }finally{names.forEach((name,i)=>{if(saved[i])Object.defineProperty(global,name,saved[i]);else delete global[name];});}
+});
+
+
+test('unsupported offline Tagalog offers explicit online permission and local practice without retry loop',async()=>{
+  offlineStatus='unavailable';
+  const before=sessions.length, h=harness(()=>LivePronunciationPractice({activity:{...activity,language:'tagalog'},onDone(){}}));
+  try{
+    h.render();await tick();let tree=h.render();
+    assert.equal(nodes(tree,n=>['Record','Record again','Set up offline speech'].includes(n.props?.label)).length,0);
+    assert.equal(sessions.length,before);
+    const permission=nodes(tree,n=>n.props?.accessibilityLabel==='Allow online browser speech recognition')[0];
+    assert.equal(permission.props.accessibilityState.checked,false);assert.match(uiText(tree),/provider.*process my voice online/);
+    permission.props.onPress();tree=h.render();
+    nodes(tree,n=>n.props?.label==='Record')[0].props.onPress();await tick();
+    assert.equal(sessions.at(-1).options.browserOnline,true);assert.equal(sessions.at(-1).options.captureAudio,false);
+    assert.match(uiText(h.render()),/provider may receive speech/);
+    h.blur();assert.equal(sessions.at(-1).disposed,true);
+  }finally{h.blur();offlineStatus='available';}
+});
+
+test('browser online driver works without offline API only after explicit opt-in, reports real service failure',async()=>{
+  let instance,started=0,error;
+  class Remote{constructor(){instance=this;}start(){started++;this.onstart();}stop(){}abort(){}}
+  global.window={webkitSpeechRecognition:Remote};
+  await assert.rejects(createWeb('tagalog',{}).start(),/on-device/);assert.equal(started,0);
+  const session=createWeb('tagalog',{onStart(){},onResult(){},onError(message){error=message;},onEnd(){}},{browserOnline:true});
+  await session.start();assert.equal(started,1);assert.equal(instance.lang,'fil-PH');
+  instance.onerror({error:'network'});assert.match(error,/online speech service could not connect/);
+  session.dispose();assert.equal(instance.onresult,null);
+});
+
+test('offline capability checks do not start speech and distinguish missing/downloadable/installed locales',async()=>{
+  const {browserOfflineSpeechStatus}=local(path.join(mobile,'src/features/pronunciation/browserOfflineSpeech.ts'));
+  let started=0;
+  class R{processLocally=false;start(){started++;}static async available({langs}){return langs[0]==='tl-PH'?'available':'unavailable';}}
+  global.window={SpeechRecognition:R};assert.equal(await browserOfflineSpeechStatus('tagalog'),'available');
+  assert.equal(await browserOfflineSpeechStatus('english'),'unavailable');
+  R.available=async()=> 'downloadable';assert.equal(await browserOfflineSpeechStatus('tagalog'),'downloadable');
+  R.available=async()=>{throw Error('permission policy');};assert.equal(await browserOfflineSpeechStatus('tagalog'),'unavailable');assert.equal(started,0);
+});
+
+test('record and compare uses actual recording controls without submission, scoring or completion',async()=>{
+  const {LocalRecordingPractice}=local(path.join(mobile,'src/features/pronunciation/LocalRecordingPractice.tsx'));
+  let starts=0,stops=0,plays=0,discards=0;
+  recorderDouble={status:'ready',durationMs:0,audioPayload:null,startRecording:async()=>{starts++;},stopRecording:async()=>{stops++;},playRecording:async()=>{plays++;},discardRecording:async()=>{discards++;}};
+  const h=harness(()=>LocalRecordingPractice({activity}));
+  try{
+    let tree=h.render();nodes(tree,n=>n.props?.label==='Record my voice')[0].props.onPress();await tick();assert.equal(starts,1);
+    recorderDouble.status='recording';nodes(h.render(),n=>n.props?.label==='Stop recording')[0].props.onPress();assert.equal(stops,1);
+    recorderDouble.status='recorded';recorderDouble.audioPayload=new Blob(['SYNTHETIC_QA']);tree=h.render();
+    nodes(tree,n=>n.props?.label==='Play my recording')[0].props.onPress();assert.equal(plays,1);
+    nodes(tree,n=>n.props?.label==='Discard recording')[0].props.onPress();assert.equal(discards,1);
+    assert.match(uiText(tree),/does not highlight words/);assert.equal(nodes(tree,n=>n.props?.label==='Assess recording').length,0);
+  }finally{h.blur();recorderDouble=null;}
 });

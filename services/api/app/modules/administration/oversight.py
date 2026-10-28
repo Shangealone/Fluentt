@@ -24,6 +24,7 @@ from app.modules.curriculum.router import get_admin_repository
 from app.modules.identity.dependencies import require_secure_transport
 from app.modules.identity.errors import IdentityError
 from app.modules.spaced_repetition.registry import registry
+from app.modules.pronunciation.wavlm_service import capabilities as wavlm_capabilities
 
 View = Literal["summary", "users", "classes", "classwork", "algorithms", "speech", "audit", "settings"]
 PERMISSIONS = {
@@ -220,7 +221,12 @@ def page(db, view, *, q="", role="", status="", class_id=None, offset=0, limit=2
                 text(
                     """SELECT p.scoring_status,
         p.simulated OR coalesce((p.result->'assessment'->>'simulated')='true',false) AS simulated,
-        p.evaluator_configuration_id::text AS evaluator_configuration_id, count(*) AS attempt_count
+        p.evaluator_configuration_id::text AS evaluator_configuration_id, count(*) AS attempt_count,
+        count(*) FILTER (WHERE p.result->'wavlm'->>'contract_version'='wavlm-english-read-aloud-v1') AS wavlm_sample_size,
+        round(avg(p.score) FILTER (WHERE p.result->'wavlm'->>'contract_version'='wavlm-english-read-aloud-v1'),2) AS mean_unvalidated_model_score,
+        round(avg(CASE WHEN p.result->'wavlm'->>'processing_duration_ms' ~ '^[0-9]{1,9}$'
+          THEN (p.result->'wavlm'->>'processing_duration_ms')::bigint END),1) AS mean_processing_ms,
+        min(p.attempted_at) AS observation_start, max(p.attempted_at) AS observation_end
         FROM pronunciation_attempts p JOIN learning_contexts lc ON lc.id=p.context_id
         WHERE lc.kind='classroom' AND lc.student_id IN (SELECT s.id """
                     + ELIGIBLE
@@ -233,6 +239,7 @@ def page(db, view, *, q="", role="", status="", class_id=None, offset=0, limit=2
         ]
         summary = {
             "scope": "current eligible ordinary classroom contexts only",
+            "wavlm": wavlm_capabilities(settings, "english") if settings else None,
             "verified_score_average": None,
             "reason": "Stored simulation flags are provenance, not validation. No verified acoustic aggregate is available.",
             "azure_configured": bool(

@@ -7,7 +7,7 @@ import { spokenWordCount, speechWords, type LiveSpeechSession, type WholePhraseR
 
 type TrackingState = { status: "idle" | "starting" | "listening" | "stopping" | "paused" | "complete" | "error"; transcript: string; count: number; error: string; settled: boolean; recording: WholePhraseRecording | null };
 const empty: TrackingState = { status: "idle", transcript: "", count: 0, error: "", settled: true, recording: null };
-export function useLiveWordTracking(target: string, language: PronunciationLanguage, captureAudio = false) {
+export function useLiveWordTracking(target: string, language: PronunciationLanguage, captureAudio = false, browserOnline = false) {
   const [state, setState] = useState<TrackingState>(empty);
   const session = useRef<LiveSpeechSession | null>(null), generation = useRef(0), active = useRef(false), busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -22,7 +22,7 @@ export function useLiveWordTracking(target: string, language: PronunciationLangu
     return () => { active.current = false; cancel(); subscription.remove(); if (typeof document !== "undefined") document.removeEventListener("visibilitychange", pageHidden); };
   // A new phrase/language invalidates all pending recognition callbacks and permission requests.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target, language, captureAudio]));
+  }, [target, language, captureAudio, browserOnline]));
 
   const finishStop = () => {
     clearTimeout(timer.current);
@@ -78,7 +78,7 @@ export function useLiveWordTracking(target: string, language: PronunciationLangu
         recording.current = clip;
         setState(value => ({ ...value, recording: clip }));
       },
-    }, { captureAudio });
+    }, { captureAudio, browserOnline });
     session.current = next;
     try { await next.start(); }
     catch (cause) {

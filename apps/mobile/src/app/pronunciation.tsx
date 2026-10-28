@@ -10,10 +10,11 @@ import { useSession } from "../session/provider";
 import { PronunciationActivityView } from "../services/api/pronunciation";
 import { PronunciationPractice } from "../features/pronunciation/PronunciationPractice";
 import { LivePronunciationPractice } from "../features/pronunciation/LivePronunciationPractice";
+import {WavLMPracticeOption} from '../features/pronunciation/WavLMPractice';
 const theme = { colors: { ...baseTheme.colors, primary: pc.navy, ink: pc.ink, muted: pc.muted, border: pc.line } };
 
 export default function PronunciationScreen() {
-  const { profile, pronunciation, activityHistory } = useSession();
+  const { profile, pronunciation, activityHistory, enrollment } = useSession();
   const [activities, setActivities] = useState<PronunciationActivityView[]>([]);
   const [selectedActivity, setSelectedActivity] = useState<PronunciationActivityView | null>(null);
   const [languageFilter, setLanguageFilter] = useState<string>(profile?.role === "personal_student" ? profile.language ?? "all" : "all");
@@ -113,11 +114,13 @@ export default function PronunciationScreen() {
         </View>
       ) : selectedActivity ? (
         <View style={{ gap: 16 }}>
+          <WavLMPracticeOption key={selectedActivity.id} activity={selectedActivity} api={pronunciation} enrollment={profile.role==='school_student'?enrollment:undefined}>
           {personal ? <LivePronunciationPractice key={selectedActivity.id} activity={selectedActivity} api={pronunciation} history={activityHistory} owner={profile.id} onDone={() => setSelectedActivity(null)} /> : <PronunciationPractice key={selectedActivity.id}
             activity={selectedActivity}
             api={pronunciation}
             onDone={() => setSelectedActivity(null)}
           />}
+          </WavLMPracticeOption>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.listContainer}>

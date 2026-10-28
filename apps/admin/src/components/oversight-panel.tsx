@@ -10,7 +10,7 @@ const columns: Record<View, [string,string][]> = {
   classes:[["name","Classroom"],["instructor","Instructor"],["grade","Grade"],["language","Language"],["subject","Subject"],["status","Status"],["eligible_memberships","Eligible memberships"]],
   classwork:[["title","Activity"],["version","Version"],["status","Status"],["lesson","Pinned lesson"],["question_count","Questions"],["submitted_captures","Submitted captures"]],
   algorithms:[["algorithm","Scheduler"],["implementation_version","Saved implementation"],["configuration_version","Config version"],["parameters","Saved numeric parameters"],["registered","Registered"],["model_simulated","Model simulated"],["runtime_identity","Runtime identity"]],
-  speech:[["scoring_status","Recorded status"],["simulated","Simulated"],["evaluator_configuration_id","Evaluator configuration"],["attempt_count","Attempts"]],
+  speech:[["scoring_status","Recorded status"],["simulated","Simulated"],["evaluator_configuration_id","Evaluator configuration"],["attempt_count","Attempts"],["wavlm_sample_size","WavLM sample size"],["mean_unvalidated_model_score","Mean model prediction · unvalidated"],["mean_processing_ms","Mean inference ms"],["observation_start","Observation start"],["observation_end","Observation end"]],
   audit:[["occurred_at","UTC timestamp"],["action","Action"],["entity_type","Scope"],["actor_id","Actor ID"],["entity_id","Entity ID"]], settings:[["setting","Setting"],["value","Readiness"]],
 };
 const display = (v: unknown) => v === null || v === undefined ? "N/A" : typeof v === "boolean" ? v ? "Yes" : "No" : typeof v === "object" ? JSON.stringify(v) : String(v);

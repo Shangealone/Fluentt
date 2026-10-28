@@ -76,6 +76,31 @@ def unique_name():
 
 
 @pytest.mark.parametrize("role", ["personal_student", "school_student", "instructor"])
+def test_password_signup_logout_and_returning_login_preserve_identity(live_identity, role):
+    """Synthetic credentials and people in the fixture's disposable PostgreSQL DB."""
+    name = "Return " + uuid4().hex[:10]
+    password = "SyntheticOnlyPass123!"
+    created = live_identity.post("/api/v1/users", json={"username": name, "role": role, "password": password})
+    assert created.status_code == 201
+    data = created.json()
+    original_id = data["user"]["id"]
+    old_auth = {"Authorization": "Bearer " + data["session"]["credential"]}
+    assert live_identity.get("/api/v1/sessions/me", headers=old_auth).status_code == 200
+    assert live_identity.post("/api/v1/sessions/revoke", headers=old_auth).status_code == 204
+    assert live_identity.get("/api/v1/sessions/me", headers=old_auth).status_code == 401
+    assert live_identity.post("/api/v1/sessions/login", json={"username": name, "password": "WrongSyntheticPass!"}).status_code == 401
+    returned = live_identity.post("/api/v1/sessions/login", json={"username": name.upper(), "password": password})
+    assert returned.status_code == 200
+    result = returned.json()
+    assert result["user"]["id"] == original_id and result["user"]["role"] == role
+    auth = {"Authorization": "Bearer " + result["session"]["credential"]}
+    restored = live_identity.get("/api/v1/sessions/me", headers=auth)
+    assert restored.status_code == 200 and restored.json()["id"] == original_id
+    assert live_identity.get("/api/v1/sessions/me", headers=old_auth).status_code == 401
+    assert live_identity.get("/api/v1/usernames/check", params={"username": name}).json()["available"] is False
+
+
+@pytest.mark.parametrize("role", ["personal_student", "school_student", "instructor"])
 def test_real_creation_restoration_revocation_and_digest_storage(pg_engine, live_identity, role):
     client = live_identity
     name = unique_name()

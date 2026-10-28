@@ -85,7 +85,7 @@ type Session = {
   recovery: Recovery;
   retry: () => void;
   create: (username: string, role: Role, preview?: boolean, password?: string) => Promise<void>;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<Profile>;
   save: (settings: PreferenceSettings) => Promise<void>;
   logout: () => void;
   pending: boolean;
@@ -287,7 +287,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       void recover("logout");
     },
     create: async (username, role, preview = false, password?: string) => {
-      if (preview || isDemo) {
+      if (preview) {
         setIsDemo(true);
         const canon = username.toLowerCase();
         if (role === "instructor") {
@@ -311,13 +311,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
-      try { setProfile(await controller.create(() => identity.create(username, role, password))); }
+      try { const created = await controller.create(() => identity.create(username, role, password)); setProfile(created); setIsDemo(false); }
       finally { setPending(controller.pending !== null); }
     },
     login: async (username: string, password: string) => {
       setIsDemo(false);
       try {
-        setProfile(await controller.login(() => identity.login(username, password)));
+        const signedIn = await controller.login(() => identity.login(username, password));
+        setProfile(signedIn);
+        return signedIn;
       } finally {
         setPending(controller.pending !== null);
       }

@@ -1,6 +1,7 @@
 from typing import Literal
 
 from fastapi import APIRouter
+from app.modules.conversation.live_demo import router as tutor_demo_router
 from pydantic import BaseModel
 from app.modules.identity.router import router as identity_router
 from app.modules.administration.performance import router as performance_router
@@ -52,6 +53,7 @@ router.include_router(communications_router)
 router.include_router(monitoring_router)
 router.include_router(classrooms_router)
 router.include_router(identity_router)
+router.include_router(tutor_demo_router)
 router.include_router(enrollment_router)
 router.include_router(administration_router)
 router.include_router(curriculum_router)

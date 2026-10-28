@@ -59,4 +59,3 @@ class PronunciationAttemptHistoryDTO(Model):
     transcription: str | None = None
     score: float | None = None
     feedback: str | None = None
-

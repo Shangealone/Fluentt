@@ -1,7 +1,7 @@
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import SecretStr, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     pronunciation_azure_resource: str | None = None
     pronunciation_azure_key: SecretStr | None = None
     pronunciation_cloud_authorization_reference: str | None = None
+    pronunciation_wavlm_enabled: bool = False
+    pronunciation_wavlm_python: str | None = None
+    pronunciation_wavlm_cache: str | None = None
+    pronunciation_wavlm_device: Literal["cpu", "cuda:0"] = "cpu"
+    pronunciation_wavlm_timeout_seconds: int = Field(default=120, ge=5, le=180)
+    tutor_demo_enabled: bool = False
+    tutor_groq_key: SecretStr | None = None
+    tutor_groq_model: str = "openai/gpt-oss-120b"
     database_pool_size: int = 5
     database_max_overflow: int = 5
     database_pool_timeout: int = 10
