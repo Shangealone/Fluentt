@@ -10,6 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-29-speech-model-integration-design.md`
 
+**Execution record:** Implementation tasks 1–5 have been executed and locally
+committed. Code checks in Task 6 are complete; real model, Android-client and load
+checks remain pending their resources. See
+[verification results and decisions](../../development/speech-model-integration-verification.md).
+The unchecked steps below preserve the original implementation checklist; the
+verification report records what was actually run, command adaptations and gates.
+
 ## Global Constraints
 
 - Work only in tracked root `mobile/` and `backend/` on `fluentt/main`; do not port the old `.local-version-2` app or merge either speech branch wholesale.

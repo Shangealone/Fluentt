@@ -1,6 +1,6 @@
 # Fluentt Wav2Vec2 and WavLM integration
 
-**Status:** Integration implemented in the tracked app (2026-10-29); verification in progress. Candidate model artifacts and a compatible Android device remain required for real inference/device checks. Learner capabilities remain disabled.
+**Status:** Integration implemented and code boundaries verified in the tracked app (2026-10-29). Candidate model artifacts and a compatible Android client remain required for real inference/device checks. Learner capabilities remain disabled. See the [verification report](../../development/speech-model-integration-verification.md) for results and pending gates.
 
 ## Active project and spec relationship
 

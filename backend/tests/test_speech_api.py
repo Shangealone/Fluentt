@@ -1,5 +1,7 @@
 import os
 import struct
+from concurrent.futures import ThreadPoolExecutor
+from threading import BoundedSemaphore, Event
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -17,6 +19,7 @@ from app.core.config import Settings, get_settings
 from app.database.session import get_db
 from app.main import app
 from app.speech.router import get_workers
+from app.speech.worker_client import WorkerUnavailable
 
 
 class Database:
@@ -245,3 +248,49 @@ def test_oversized_pcm_is_rejected_before_inference(context):
         "/speech/recognitions", headers=headers, content=b"00" * 500001
     )
     assert response.status_code == 413
+
+
+def test_busy_api_rejects_before_reading_another_recording(context):
+    client, headers, _, settings = context
+    settings.speech_max_inflight = 1
+    gate = BoundedSemaphore(1)
+    entered, release = Event(), Event()
+    read = []
+
+    class BusyWorker(Worker):
+        def infer(self, *args):
+            if not gate.acquire(blocking=False):
+                raise WorkerUnavailable("busy")
+            try:
+                entered.set()
+                assert release.wait(10)
+                return super().infer(*args)
+            finally:
+                gate.release()
+
+    worker = BusyWorker()
+    app.dependency_overrides[get_workers] = lambda: {
+        "recognition": worker,
+        "assessment": worker,
+    }
+
+    def chunks():
+        read.append(True)
+        yield b"00" * 16000
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first = executor.submit(
+            client.post, "/speech/recognitions", headers=headers, content=b"00" * 16000
+        )
+        try:
+            assert entered.wait(5)
+            second = client.post(
+                "/speech/recognitions",
+                headers={**headers, "X-Speech-Request-Id": str(uuid4())},
+                content=chunks(),
+            )
+            assert second.status_code == 503
+            assert not read
+        finally:
+            release.set()
+        assert first.result().status_code == 200

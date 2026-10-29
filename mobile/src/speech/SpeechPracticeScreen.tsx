@@ -153,20 +153,25 @@ export default function SpeechPracticeScreen() {
     invalidate(); busy.current = true; setPhase('starting'); setError('');
     const version = generation.current;
     abort.current = new AbortController();
+    let microphoneRequested = false;
     try {
       // A fresh capability request may refresh expired credentials before audio starts.
       const caps = await getSpeechCapabilities(target.language, owner, abort.current.signal);
       if (generation.current !== version || !mounted.current) return;
       setCapabilities(caps);
-      if (caps.recognition.mode === 'unavailable') throw new Error('Unavailable.');
-      if (caps.recognition_consent_version !== capabilities.recognition_consent_version) { setRecognitionConsent(false); throw new Error('Consent changed.'); }
+      if (caps.recognition.mode === 'unavailable') { invalidate(); return; }
+      if (caps.assessment_consent_version !== capabilities.assessment_consent_version) setAssessmentConsent(false);
+      if (caps.recognition_consent_version !== capabilities.recognition_consent_version) {
+        setRecognitionConsent(false); invalidate(); setError(t('speech.consentChanged')); return;
+      }
       context.current = { owner, itemId, revisionId, releaseId, sequence: 0, sessionId: newId(), capabilities: caps };
       recording.current = true;
+      microphoneRequested = true;
       await capture.start();
       if (generation.current !== version || !mounted.current) return;
       busy.current = false; setPhase('recording');
     } catch {
-      if (generation.current === version && mounted.current) { cancelCapture.current(); invalidate(); setError(t('speech.microphoneError')); }
+      if (generation.current === version && mounted.current) { cancelCapture.current(); invalidate(); setError(t(microphoneRequested ? 'speech.microphoneError' : 'speech.loadError')); }
     }
   };
 
@@ -194,7 +199,7 @@ export default function SpeechPracticeScreen() {
   const canRecognize = capabilities && capabilities.recognition.mode !== 'unavailable';
   const canAssess = capabilities && capabilities.assessment.mode !== 'unavailable';
   const qa = capabilities?.recognition.mode === 'internal_qa' || capabilities?.assessment.mode === 'internal_qa';
-  const words = recognition?.words ?? (target?.item.term.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) ?? []).map((word, i) => ({ target_index: i, expected_word: word, recognized_word: null, state: 'pending' as const }));
+  const words = recognition?.words ?? (target?.item.term.replace(/’/g, "'").match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) ?? []).map((word, i) => ({ target_index: i, expected_word: word, recognized_word: null, state: 'pending' as const }));
   const goBack = () => {
     invalidate(); capture.cancel();
     if (router.canGoBack?.()) router.back();

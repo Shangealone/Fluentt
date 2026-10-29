@@ -1,4 +1,6 @@
+from contextlib import contextmanager
 from functools import lru_cache
+from threading import BoundedSemaphore
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -26,6 +28,28 @@ from app.speech.worker_client import SpeechWorkerClient, WorkerUnavailable
 router = APIRouter(prefix="/speech", tags=["speech"])
 RECOGNITION_CONSENT = "speech-recognition-v1"
 ASSESSMENT_CONSENT = "speech-assessment-v1"
+
+
+@lru_cache(maxsize=8)
+def _admissions(maximum: int):
+    return {kind: BoundedSemaphore(maximum) for kind in ("recognition", "assessment")}
+
+
+@contextmanager
+def speech_slot(kind: str, maximum: int):
+    # Admit before reading PCM or awaiting the shared thread pool. There is no
+    # waiting queue of request bodies; the transport/worker gates remain separate.
+    gate = _admissions(maximum)[kind]
+    if not gate.acquire(blocking=False):
+        raise HTTPException(
+            503,
+            "Speech practice is busy. Please try again.",
+            headers={"Retry-After": "2"},
+        )
+    try:
+        yield
+    finally:
+        gate.release()
 
 
 @lru_cache(maxsize=4)
@@ -212,7 +236,8 @@ async def recognize(
     workers: Workers,
 ):
     response.headers["Cache-Control"] = "no-store"
-    return await process("recognition", request, user, db, settings, workers)
+    with speech_slot("recognition", settings.speech_max_inflight):
+        return await process("recognition", request, user, db, settings, workers)
 
 
 @router.post("/assessments", response_model=AssessmentResponse)
@@ -225,4 +250,5 @@ async def assess(
     workers: Workers,
 ):
     response.headers["Cache-Control"] = "no-store"
-    return await process("assessment", request, user, db, settings, workers)
+    with speech_slot("assessment", settings.speech_max_inflight):
+        return await process("assessment", request, user, db, settings, workers)

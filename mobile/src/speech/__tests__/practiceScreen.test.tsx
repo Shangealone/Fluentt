@@ -9,6 +9,7 @@ const mockStart = jest.fn(async () => {});
 const mockCancel = jest.fn();
 let mockOptions: any;
 let mockCounter = 0;
+let mockTerm = 'hello world';
 jest.mock('expo-crypto', () => ({ randomUUID: () => `11111111-1111-4111-8111-${String(++mockCounter).padStart(12, '0')}` }), { virtual: true });
 jest.mock('expo-router', () => ({ useRouter: () => ({ back: mockBack, replace: jest.fn() }),
   useLocalSearchParams: () => ({ itemId: 'item', lessonId: 'lesson', revisionId: 'revision', releaseId: 'release' }) }));
@@ -20,7 +21,7 @@ jest.mock('../useSpeechCapture', () => ({ useSpeechCapture: (options: unknown) =
 } }));
 jest.mock('../../content/api', () => ({ fetchLessonDetail: async () => ({ isOffline: false, lesson: {
   id: 'lesson', languageCode: 'en', contentReleaseId: 'release', vocabularyItems: [{
-    id: 'item', term: 'hello world', lessonId: 'lesson', contentRevisionId: 'revision', contentReleaseId: 'release',
+    id: 'item', term: mockTerm, lessonId: 'lesson', contentRevisionId: 'revision', contentReleaseId: 'release',
   }],
 } }) }));
 jest.mock('../api');
@@ -29,6 +30,7 @@ const metadata = { model_id: 'candidate', model_revision: 'abc', validation_stat
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  mockTerm = 'hello world';
   await setInterfaceLanguage('en');
   (getSpeechCapabilities as jest.Mock).mockResolvedValue({ language_code: 'en', recognition: cap, assessment: cap,
     recognition_consent_version: 'speech-recognition-v1', assessment_consent_version: 'speech-assessment-v1' });
@@ -51,6 +53,7 @@ test('requires deliberate consent and labels internal model output', async () =>
   await act(async () => { mockOptions.onFinished({ pcm: new ArrayBuffer(32000), sampleRateHz: 16000, channels: 1, durationMs: 1000 }); });
   await waitFor(() => expect(view.getByTestId('speech-transcript')).toHaveTextContent(/hello world/));
   expect(view.queryByTestId('speech-score')).toBeNull();
+  expect(view.getByText('Send this recording for pronunciation feedback.')).toBeTruthy();
   await fireEvent.press(view.getByTestId('speech-assessment-consent'));
   await fireEvent.press(view.getByTestId('speech-assess'));
   await waitFor(() => expect(view.getByTestId('speech-score')).toHaveTextContent('86.5/100'));
@@ -79,4 +82,55 @@ test('disabled capability offers no recording control and no score', async () =>
   await waitFor(() => expect(view.getByText('Speech practice is not available yet. You can keep learning with lessons.')).toBeTruthy());
   expect(view.queryByTestId('speech-record')).toBeNull();
   expect(view.queryByTestId('speech-score')).toBeNull();
+});
+
+test('a refreshed assessment consent version requires a fresh choice', async () => {
+  const view = await render(<SpeechPracticeScreen />);
+  await waitFor(() => expect(view.getByTestId('speech-record')).toBeTruthy());
+  await fireEvent.press(view.getByTestId('speech-recognition-consent'));
+  await fireEvent.press(view.getByTestId('speech-record'));
+  await waitFor(() => expect(mockStart).toHaveBeenCalledTimes(1));
+  await act(() => { mockOptions.onFinished({ pcm: new ArrayBuffer(32000), sampleRateHz: 16000, channels: 1, durationMs: 1000 }); });
+  await waitFor(() => expect(view.getByTestId('speech-assessment-consent')).toBeTruthy());
+  await fireEvent.press(view.getByTestId('speech-assessment-consent'));
+  expect(view.getByTestId('speech-assessment-consent').props.accessibilityState.checked).toBe(true);
+  (getSpeechCapabilities as jest.Mock).mockResolvedValue({ language_code: 'en', recognition: cap, assessment: cap,
+    recognition_consent_version: 'speech-recognition-v1', assessment_consent_version: 'speech-assessment-v2' });
+  await fireEvent.press(view.getByTestId('speech-record'));
+  await waitFor(() => expect(mockStart).toHaveBeenCalledTimes(2));
+  await act(() => { mockOptions.onFinished({ pcm: new ArrayBuffer(32000), sampleRateHz: 16000, channels: 1, durationMs: 1000 }); });
+  await waitFor(() => expect(view.getByTestId('speech-assessment-consent')).toBeTruthy());
+  expect(view.getByTestId('speech-assessment-consent').props.accessibilityState.checked).toBe(false);
+  await fireEvent.press(view.getByTestId('speech-assess'));
+  expect(assessRecording).not.toHaveBeenCalled();
+});
+
+test('the Filipino assessment choice explains that the recording is sent', async () => {
+  await setInterfaceLanguage('fil');
+  const view = await render(<SpeechPracticeScreen />);
+  await waitFor(() => expect(view.getByTestId('speech-record')).toBeTruthy());
+  await fireEvent.press(view.getByTestId('speech-recognition-consent'));
+  await fireEvent.press(view.getByTestId('speech-record'));
+  await waitFor(() => expect(mockStart).toHaveBeenCalled());
+  await act(() => { mockOptions.onFinished({ pcm: new ArrayBuffer(32000), sampleRateHz: 16000, channels: 1, durationMs: 1000 }); });
+  await waitFor(() => expect(view.getByText('Ipadala ang recording na ito para sa puna sa pagbigkas.')).toBeTruthy());
+});
+
+test('lost model availability does not suggest changing microphone permission', async () => {
+  const view = await render(<SpeechPracticeScreen />);
+  await waitFor(() => expect(view.getByTestId('speech-record')).toBeTruthy());
+  await fireEvent.press(view.getByTestId('speech-recognition-consent'));
+  (getSpeechCapabilities as jest.Mock).mockResolvedValue({ language_code: 'en', recognition: { ...cap, mode: 'unavailable' }, assessment: { ...cap, mode: 'unavailable' },
+    recognition_consent_version: 'speech-recognition-v1', assessment_consent_version: 'speech-assessment-v1' });
+  await fireEvent.press(view.getByTestId('speech-record'));
+  await waitFor(() => expect(view.getByText('Speech practice is not available yet. You can keep learning with lessons.')).toBeTruthy());
+  expect(view.queryByText('We could not start recording. Allow microphone access and try again.')).toBeNull();
+  expect(mockStart).not.toHaveBeenCalled();
+});
+
+test('the speaking prompt keeps contractions together like the server reference', async () => {
+  mockTerm = 'don’t';
+  const view = await render(<SpeechPracticeScreen />);
+  await waitFor(() => expect(view.getByText("don't")).toBeTruthy());
+  expect(view.queryByText('don')).toBeNull();
 });
