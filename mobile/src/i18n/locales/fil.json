@@ -1,4 +1,18 @@
 {
+  "speech": {
+    "audioUnavailable": "Kailangan ng bagong Android app para mag-record ng pagsasalita.",
+    "title": "Magsanay magsalita", "launch": "Subukang bigkasin", "instructions": "Bigkasin ang salita o parirala para makita ang narinig namin.",
+    "wordHint": "Tugma ang berdeng salita sa narinig namin. Subukan muli ang mga pulang salita.", "heard": "Narinig namin: {{words}}", "noWords": "Wala pang salita",
+    "pending": "naghihintay", "match": "tugma", "mismatch": "subukan muli",
+    "recognitionConsent": "Ipadala ang recording ko para makilala ang mga salita.", "assessmentConsent": "Gamitin ang recording na ito para sa puna sa pagbigkas.",
+    "audioPrivacy": "Ginagamit lang ang recording sa pagsasanay na ito at hindi ito sine-save. Ipinapakita ng mga tugmang salita ang narinig namin.",
+    "record": "Mag-record", "stop": "Ihinto ang recording", "working": "Sandali…", "recording": "Nagre-record · {{seconds}} segundo", "shortRecording": "Hanggang 10 segundo. Ihinto kapag tapos ka na.",
+    "assess": "Kumuha ng puna sa pagbigkas", "feedback": "Puna sa pagbigkas", "internalQa": "Pagsubok ng modelo — hindi pa marka ng mag-aaral.",
+    "unavailable": "Hindi pa handa ang pagsasanay sa pagsasalita. Maaari ka pa ring mag-aral gamit ang mga aralin.",
+    "connectionNeeded": "Kumonekta sa internet para magsanay magsalita.", "loadError": "Hindi mabuksan ang pagsasanay. Tingnan ang koneksiyon at subukan muli.",
+    "recordAgain": "Hindi namin natapos ang recording. Mag-record muli.", "microphoneError": "Hindi masimulan ang recording. Payagan ang mikropono at subukan muli.",
+    "interrupted": "Nahinto ang recording. Mag-record muli kapag handa ka na."
+  },
   "auth": {
     "login": "Mag-login",
     "changePassword": "Palitan ang Password",

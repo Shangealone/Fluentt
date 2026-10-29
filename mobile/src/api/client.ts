@@ -128,6 +128,8 @@ interface RequestOptions extends RequestInit {
   requiresAuth?: boolean;
   expectedUserId?: string;
   _retry?: boolean;
+  bodyKind?: 'json' | 'binary';
+  allowAuthReplay?: boolean;
 }
 
 /**
@@ -139,12 +141,12 @@ export async function apiClient<T = any>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { requiresAuth = true, expectedUserId, _retry = false, headers, ...rest } = options;
+  const { requiresAuth = true, expectedUserId, _retry = false, bodyKind = 'json', allowAuthReplay = true, headers, ...rest } = options;
 
   const baseUrl = getApiBaseUrl();
   const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
   const requestHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
+    'Content-Type': bodyKind === 'binary' ? 'application/octet-stream' : 'application/json',
     ...(headers as Record<string, string>),
   };
 
@@ -165,7 +167,7 @@ export async function apiClient<T = any>(
     headers: requestHeaders,
   });
 
-  if (response.status === 401 && requiresAuth && !_retry) {
+  if (response.status === 401 && requiresAuth && !_retry && allowAuthReplay) {
     // Avoid refresh loops on auth endpoints themselves
     if (endpoint.includes('/auth/login') || endpoint.includes('/auth/refresh')) {
       const errorData = await response.json().catch(() => ({}));

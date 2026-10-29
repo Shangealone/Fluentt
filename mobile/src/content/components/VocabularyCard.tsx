@@ -1,14 +1,16 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { VocabularyItem } from '../types';
 import { AppText } from '../../components/AppText';
 import { useTranslation } from 'react-i18next';
 
 interface VocabularyCardProps {
   item: VocabularyItem;
+  onPractice?: () => void;
+  speechOffline?: boolean;
 }
 
-export function VocabularyCard({ item }: VocabularyCardProps) {
+export function VocabularyCard({ item, onPractice, speechOffline }: VocabularyCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -41,6 +43,10 @@ export function VocabularyCard({ item }: VocabularyCardProps) {
         </View>
       ) : null}
 
+      {onPractice ? <Pressable accessibilityRole="button" disabled={speechOffline} accessibilityState={{ disabled: Boolean(speechOffline) }}
+        onPress={onPractice} style={styles.practice}>
+        <AppText style={styles.practiceText}>{t(speechOffline ? 'speech.connectionNeeded' : 'speech.launch')}</AppText>
+      </Pressable> : null}
       <View style={styles.footer}>
         <AppText style={styles.versionText}>
           {t('content.version')}: {item.contentVersion}
@@ -51,6 +57,8 @@ export function VocabularyCard({ item }: VocabularyCardProps) {
 }
 
 const styles = StyleSheet.create({
+  practice: { minHeight: 44, justifyContent: 'center', backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, marginTop: 8 },
+  practiceText: { color: '#1d4ed8', fontWeight: '600', fontSize: 15 },
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 12,

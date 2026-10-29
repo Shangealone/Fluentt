@@ -1,4 +1,18 @@
 {
+  "speech": {
+    "audioUnavailable": "Speech recording needs an updated Android app.",
+    "title": "Practise speaking", "launch": "Practise saying it", "instructions": "Say the word or phrase aloud, then see what we heard.",
+    "wordHint": "Green words match what we heard. Try the red words again.", "heard": "We heard: {{words}}", "noWords": "No words yet",
+    "pending": "waiting", "match": "matched", "mismatch": "try again",
+    "recognitionConsent": "Send my recording to recognise my words.", "assessmentConsent": "Use this recording for pronunciation feedback.",
+    "audioPrivacy": "Your recording is processed for this practice and is not saved. Word matches show what we heard.",
+    "record": "Record", "stop": "Stop recording", "working": "Working…", "recording": "Recording · {{seconds}} seconds", "shortRecording": "Up to 10 seconds. Stop when you finish.",
+    "assess": "Get pronunciation feedback", "feedback": "Pronunciation feedback", "internalQa": "Internal model test — not a learner score.",
+    "unavailable": "Speech practice is not available yet. You can keep learning with lessons.",
+    "connectionNeeded": "Connect to the internet to practise speaking.", "loadError": "We could not open speech practice. Check your connection and try again.",
+    "recordAgain": "We could not finish this recording. Please record again.", "microphoneError": "We could not start recording. Allow microphone access and try again.",
+    "interrupted": "Recording stopped. Please record again when you are ready."
+  },
   "auth": {
     "login": "Log in",
     "changePassword": "Change password",

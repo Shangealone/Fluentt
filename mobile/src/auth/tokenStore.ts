@@ -17,6 +17,9 @@ export interface AuthenticatedAccount {
 }
 
 let generation = 0;
+// A login/logout boundary, independent of routine access-token rotation.
+let sessionEpoch = 0;
+export function getSessionEpoch(): number { return sessionEpoch; }
 let verifiedAccount: AuthenticatedAccount | null = null;
 let mutations: Promise<unknown> = Promise.resolve();
 const accountListeners = new Set<() => void>();
@@ -106,6 +109,7 @@ export async function rotateTokens(expected: TokenPair, rotated: TokenPair): Pro
  * Never writes to SQLite, AsyncStorage, or logs.
  */
 export async function saveTokens(tokens: TokenPair): Promise<void> {
+  sessionEpoch++;
   generation++;
   verifiedAccount = null;
   notifyAccountListeners();
@@ -128,6 +132,7 @@ export async function loadTokens(): Promise<TokenPair | null> {
  * Remove sensitive JWT authentication tokens from Expo SecureStore.
  */
 export async function clearTokens(): Promise<void> {
+  sessionEpoch++;
   generation++;
   verifiedAccount = null;
   notifyAccountListeners();
@@ -146,6 +151,7 @@ export async function clearTokensIfCurrent(expected: TokenPair): Promise<boolean
   return serialize(async () => {
     if (!sameTokens(await readTokens(), expected) || generation !== expectedGeneration) return false;
     generation++;
+    sessionEpoch++;
     verifiedAccount = null;
     notifyAccountListeners();
     await removeTokens();

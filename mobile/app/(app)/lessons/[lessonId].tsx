@@ -117,7 +117,11 @@ export default function LessonDetailScreen() {
         <FlatList
           data={lesson.vocabularyItems}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <VocabularyCard item={item} />}
+          renderItem={({ item }) => <VocabularyCard item={item} speechOffline={isOffline}
+            onPractice={item.contentRevisionId && item.contentReleaseId ? () => router.push({
+              pathname: '/(app)/speech/[itemId]', params: { itemId: item.id, lessonId: lesson.id,
+                revisionId: item.contentRevisionId!, releaseId: item.contentReleaseId! },
+            }) : undefined} />}
           contentContainerStyle={styles.listContent}
           testID="vocabulary-list"
           ListHeaderComponent={
