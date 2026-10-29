@@ -5,6 +5,7 @@ import { Screen, Button, ErrorMessage, s } from "../components/ui";
 import { Choices, languages } from "../components/onboarding";
 import { useSession } from "../session/provider";
 import type { Language } from "../services/api/identity";
+import { BrandWordmark } from "../components/BrandWordmark";
 export default function Preference() {
   const session = useSession();
   const [value, setValue] = useState<Language | null>(
@@ -30,7 +31,7 @@ export default function Preference() {
   }
   return (
     <Screen backDisabled={busy}>
-      <Text style={s.brand}>FLUENTT</Text>
+      <BrandWordmark />
       <Text style={s.eyebrow}>PERSONAL SETUP · 1 OF 2</Text>
       <Text style={s.title}>Choose Your Learning Language</Text>
       <Text style={s.body}>Which language would you like to practice?</Text>

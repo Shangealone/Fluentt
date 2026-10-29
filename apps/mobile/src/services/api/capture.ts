@@ -3,9 +3,12 @@ import { validateItem, type AssignmentItem } from "./assignments.ts";
 export type CaptureItem = AssignmentItem & { assignment_question_id: string };
 export type CapturedResponse = { assignment_question_id: string; answer: Record<string, unknown> };
 export type Progress = { position: number; responses: CapturedResponse[] };
+export type ImmediateScore = { status: "complete" | "incomplete" | "review_required" | "not_applicable";
+  earned_points: string | null; possible_points: string | null; engine_version: string; policy_version: string };
 export type Attempt = { id: string; assignment_id: string; class_id: string; version_id: string; title: string; instructions: string | null;
   status: "in_progress" | "submitted"; revision: string; started_at: string; submitted_at: string | null;
-  position: number; question_count: number; completed_count: number; questions: CaptureItem[]; responses: CapturedResponse[]; revealed_item_ids: string[] };
+  position: number; question_count: number; completed_count: number; questions: CaptureItem[]; responses: CapturedResponse[]; revealed_item_ids: string[];
+  immediate_score?: ImmediateScore | null };
 export type RevealedBack = { revision_id: string; back: string; attempt_revision: string };
 export function validateAttempt(row: Attempt): Attempt {
   if (!row || typeof row.id !== "string" || typeof row.assignment_id !== "string" || typeof row.class_id !== "string"
@@ -14,7 +17,13 @@ export function validateAttempt(row: Attempt): Attempt {
     || !Number.isInteger(row.position) || row.position < 1 || !Number.isInteger(row.question_count) || row.question_count < 1 || row.position > row.question_count
     || (row.status === "in_progress" && row.questions.length !== row.question_count)
     || !Number.isInteger(row.completed_count) || row.completed_count < 0 || row.completed_count > row.question_count
-    || (row.status === "submitted" && (row.questions.length > 0 || row.responses.length > 0 || !row.submitted_at))) throw new ApiError(0, "Unexpected attempt data. Reload saved progress.");
+    || (row.status === "submitted" && (row.questions.length > 0 || row.responses.length > 0 || !row.submitted_at))
+    || (row.immediate_score != null && (row.status !== "submitted"
+      || !["complete", "incomplete", "review_required", "not_applicable"].includes(row.immediate_score.status)
+      || typeof row.immediate_score.engine_version !== "string" || typeof row.immediate_score.policy_version !== "string"
+      || (row.immediate_score.status === "complete"
+        ? !/^\d+\.\d{2}$/.test(row.immediate_score.earned_points ?? "") || !/^\d+\.\d{2}$/.test(row.immediate_score.possible_points ?? "")
+        : row.immediate_score.earned_points !== null || row.immediate_score.possible_points !== null)))) throw new ApiError(0, "Unexpected attempt data. Reload saved progress.");
   row.questions.forEach(item => { validateItem(item); if (typeof item.assignment_question_id !== "string") throw new ApiError(0, "Invalid question reference."); });
   return row;
 }

@@ -5,6 +5,7 @@ import { useSession } from "../session/provider";
 import { theme } from "../theme/tokens";
 import { p } from "../theme/personal";
 import { NotificationButton } from "./NotificationButton";
+import { BrandWordmark } from "./BrandWordmark";
 
 export function AppHeader({
   title,
@@ -29,6 +30,7 @@ export function AppHeader({
       : "Personal learner";
 
   if (profile?.role === "instructor") return <View style={{ gap: 8 }}>
+    <View style={navStyles.topBar}><BrandWordmark subtitle="Class teaching" /></View>
     {!!subtitle && <Text style={p.eyebrow}>{subtitle}</Text>}
     <Text accessibilityRole="header" style={p.title}>{title}</Text>
   </View>;
@@ -38,13 +40,7 @@ export function AppHeader({
       {/* Top Navbar Row */}
       <View style={navStyles.topBar}>
           <View style={navStyles.brandRow}>
-            <View style={navStyles.brandLogo}>
-              <Text style={navStyles.brandIcon}>f.</Text>
-            </View>
-            <View>
-              <Text style={s.brand}>FLUENTT</Text>
-              <Text style={navStyles.brandSub}>Your learning space</Text>
-            </View>
+            <BrandWordmark subtitle="Your learning space" />
           </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -141,25 +137,6 @@ const navStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-  },
-  brandLogo: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: theme.colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  brandIcon: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-  brandSub: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    color: theme.colors.subtle,
   },
   accountPill: {
     minHeight: 44,

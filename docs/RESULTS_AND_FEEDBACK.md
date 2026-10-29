@@ -1,5 +1,9 @@
 # Classroom results and feedback — Section 22
 
+## Later immediate receipt policy (2026-10-28)
+
+The user subsequently approved immediate objective scores for **new, fully answered ordinary classroom submissions** and browser demo activities. New captures record `immediate-objective-v1` in their capture state at finalization; the authenticated student can see an exact earned/possible receipt from pinned content and the existing `objective-exact-v1` engine. This read-only receipt does not expose answer keys or item-level feedback. Incomplete, unresolved, and all-Flashcard work has no numeric receipt. Historical captures and the detailed instructor-release result endpoint retain the Section 22 rules below. See `docs/DECISIONS.md` for the scope change.
+
 The user approved explicit instructor release of existing Section 21 COMPLETE evaluations of ordinary classroom captures, including earlier Section 20 submissions. This is **equal-point objective evaluation**, not conversion of the original unscored capture into an examination grade. Grading still requires a separate administrator with grading.read/run; submission, instructor reads and release never execute the engine or enqueue a job. Existing engine policy snapshots retain their original no-release computation boundary; this separate visibility contract does not alter them.
 
 ## Access and lifecycle

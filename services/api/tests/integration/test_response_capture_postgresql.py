@@ -15,6 +15,8 @@ from tests.integration.test_question_bank_postgresql import bank, context  # noq
 from tests.integration.test_enrollment_postgresql import account
 from app.models.assessments import AssignmentAttempt, StudentResponse, AssignmentVersion
 from app.models.users import ClassMembership, UserSession
+from app.modules.grading.engine import evaluate
+from tests.test_question_config import EXAMPLES
 
 pytestmark = pytest.mark.postgresql
 
@@ -111,6 +113,13 @@ def test_all_ten_capture_resume_reveal_finalization_and_immutable_receipt(captur
     )
     assert submitted.status_code == 200, submitted.text
     receipt = submitted.json()
+    expected = sum(int(evaluate(method, content, key_definition, ANSWERS[method]).correct)
+                   for method, content, key_definition in EXAMPLES if method != "flashcards")
+    assert receipt["immediate_score"]["status"] == "complete"
+    assert receipt["immediate_score"]["earned_points"] == f"{expected:.2f}"
+    assert receipt["immediate_score"]["possible_points"] == "9.00"
+    assert receipt["immediate_score"]["policy_version"] == "objective-exact-v1"
+    assert "answer_key" not in str(receipt) and "A synthetic answer" not in str(receipt)
     assert (
         receipt["status"] == "submitted"
         and receipt["submitted_at"]
@@ -211,6 +220,8 @@ def test_partial_raw_buffers_incomplete_submit_ownership_membership_and_session(
         json=partial | {"confirm": True},
     )
     assert result.status_code == 200 and result.json()["completed_count"] == 0
+    assert result.json()["immediate_score"]["status"] == "incomplete"
+    assert result.json()["immediate_score"]["earned_points"] is None
     with Session(engine) as db, db.begin():
         db.scalar(select(UserSession).where(UserSession.user_id == student_id)).revoked_at = datetime.now(timezone.utc)
     assert client.get(endpoint(attempt), headers=auth).status_code == 401

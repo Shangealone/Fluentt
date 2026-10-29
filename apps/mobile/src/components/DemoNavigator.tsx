@@ -11,6 +11,7 @@ import {
 import { router } from "expo-router";
 import { useSession, type DemoRole } from "../session/provider";
 import { theme } from "../theme/tokens";
+import { BrandWordmark } from "./BrandWordmark";
 
 type RouteItem = {
   title: string;
@@ -238,7 +239,7 @@ export function DemoNavigator() {
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <View style={styles.brandBadgeRow}>
-                  <Text style={styles.brandTitle}>FLUENTT</Text>
+                  <BrandWordmark />
                   <View style={styles.activePill}>
                     <Text style={styles.activePillText}>DEMO MODE ACTIVE</Text>
                   </View>
@@ -471,12 +472,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-  },
-  brandTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    letterSpacing: 2,
-    color: "#0F172A",
   },
   activePill: {
     backgroundColor: "#ECFDF5",

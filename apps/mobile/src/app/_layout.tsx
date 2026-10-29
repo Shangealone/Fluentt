@@ -10,10 +10,11 @@ import { DemoNavigator } from "../components/DemoNavigator";
 import { PersonalBottomNavigation } from "../components/PersonalBottomNavigation";
 import { ClassroomBottomNavigation } from "../components/ClassroomBottomNavigation";
 import { InstructorBottomNavigation } from "../components/InstructorBottomNavigation";
+import { BrandWordmark } from "../components/BrandWordmark";
 function Navigator() {
   const session = useSession();
   if (session.loading || session.error) return <Screen>
-    <Text style={s.brand}>FLUENTT</Text>
+    <BrandWordmark />
     <Text accessibilityRole="header" style={s.heading}>
       {session.recovery === "logout" ? "Signing out safely" : session.recovery === "clear" ? "Clearing an invalid session" : "Restoring your learning space"}
     </Text>

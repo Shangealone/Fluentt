@@ -2,6 +2,8 @@ import type { ClassDetails, ClassDraft, ClassUpdate, ClassAccess } from "../serv
 import type { EnrollmentAccess, ClassPreview, Membership, Confirmation } from "../services/api/enrollment";
 import type { AssignmentDraft, AssignmentItem, AssignmentSummary, PublishedAssignment, LessonContext, AssignmentAccess, AssignmentPage } from "../services/api/assignments";
 import type { Attempt, CaptureAccess, CaptureItem, Progress, RevealedBack } from "../services/api/capture";
+import { scoreDemoAttempt } from "./scoreDemoAttempt";
+import { responseComplete } from "../features/assignments/captureState";
 import type { AssessmentResult, ResultsAccess, Submission, Evaluation } from "../services/api/results";
 import type { ProgressSummary, ProgressClass, ProgressAccess, HistoryItem, LearningHistory } from "../services/api/progress";
 import type { MonitoringAccess, Overview, MonitoredStudent, MonitoredAssignment, StudentDetail, AssignmentDetail, ContextOption } from "../services/api/monitoring";
@@ -1052,6 +1054,9 @@ export function createDemoCaptureApi(): CaptureAccess {
     async submit(row, body: Progress) {
       const saved = get(row.id);
       if (saved.status === "submitted") return copy(saved);
+      const immediate_score = saved.id === demoStore.attempt.id ? null
+        : scoreDemoAttempt(saved, body.responses, demoStore.privateAnswerKeys);
+      const answered = new Map(body.responses.map(response => [response.assignment_question_id, response.answer]));
       return keep({
         ...saved,
         status: "submitted",
@@ -1059,8 +1064,9 @@ export function createDemoCaptureApi(): CaptureAccess {
         position: body.position,
         responses: [],
         questions: [],
-        completed_count: body.responses.length,
+        completed_count: saved.questions.filter(item => responseComplete(item, answered.get(item.assignment_question_id))).length,
         revealed_item_ids: [],
+        immediate_score,
       });
     },
     async reveal(row, item) {

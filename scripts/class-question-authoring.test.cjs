@@ -55,6 +55,16 @@ test('new demo class can author private-keyed questions, select exact revisions,
     assert.deepEqual(attempt.questions.map(item => item.id), input.question_revision_ids);
     assert(!JSON.stringify(attempt).includes('correct_option_id'));
     assert(!JSON.stringify(attempt).includes('accepted_answers'));
+    const submitted = await createDemoCaptureApi().submit(attempt, { position: 2, responses: [
+      { assignment_question_id: attempt.questions[0].assignment_question_id,
+        answer: { option_id: choice.definition.content.options[1].id } },
+      { assignment_question_id: attempt.questions[1].assignment_question_id, answer: { text: 'Moon' } },
+    ] });
+    assert.equal(submitted.immediate_score.status, 'complete');
+    assert.equal(submitted.immediate_score.earned_points, '1.00');
+    assert.equal(submitted.immediate_score.possible_points, '2.00');
+    assert.equal((await createDemoCaptureApi().read(attempt.id)).immediate_score.earned_points, '1.00');
+    assert(!JSON.stringify(submitted).includes('correct_option_id'));
   } finally { demoStore.reset(); }
 });
 

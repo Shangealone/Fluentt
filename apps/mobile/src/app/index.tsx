@@ -4,6 +4,7 @@ import { Screen, Button, Badge, s } from "../components/ui";
 import { LearningBanner } from "../components/LearningBanner";
 import { theme } from "../theme/tokens";
 import { useSession, type DemoRole } from "../session/provider";
+import { BrandWordmark } from "../components/BrandWordmark";
 
 export default function Welcome() {
   const session = useSession();
@@ -11,8 +12,8 @@ export default function Welcome() {
     session.switchDemoRole(role);
     router.push(role === "instructor" ? "/instructor" : "/student");
   };
-  return <Screen>
-    <View style={styles.brand}><Text style={s.brand}>FLUENTT</Text><Text style={s.body}>English & Tagalog</Text></View>
+  return <Screen showBack={false}>
+    <View style={styles.brand}><BrandWordmark /><Text style={s.body}>English & Tagalog</Text></View>
     <LearningBanner title="A clearer path to learning." description="One place for your classes, assignments, and conversations. Start by choosing how you’ll use Fluentt." />
     <View style={styles.section}>
       <Text accessibilityRole="header" style={s.heading}>How would you like to get started?</Text>

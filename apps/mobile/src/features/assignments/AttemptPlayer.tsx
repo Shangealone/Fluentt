@@ -135,6 +135,20 @@ export function AttemptPlayer({ initial, api, active = true }: { initial: Attemp
                 Submitted {new Date(row.submitted_at!).toLocaleString()} •{" "}
                 {row.completed_count}/{row.question_count} structurally answered.
               </Text>
+              {row.immediate_score?.status === "complete" ? (
+                <View style={{ alignItems: "center", gap: 4 }}>
+                  <Text accessibilityRole="header" style={[s.heading, { color: "#17213e" }]}>
+                    {row.immediate_score.earned_points} / {row.immediate_score.possible_points} points
+                  </Text>
+                  <Text style={[s.body, { textAlign: "center" }]}>Exact-answer score for objectively graded questions. Flashcards are not counted.</Text>
+                </View>
+              ) : row.immediate_score ? (
+                <Text style={[s.body, { textAlign: "center" }]}>
+                  {row.immediate_score.status === "incomplete" ? "Complete every question to receive an immediate score."
+                    : row.immediate_score.status === "not_applicable" ? "This lesson has no objectively scored questions."
+                    : "This submission needs review before a reliable score can be shown."}
+                </Text>
+              ) : null}
               <Button
                 label="Return to Published Assignments →"
                 variant="primary"

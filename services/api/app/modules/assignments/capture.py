@@ -3,22 +3,69 @@
 import hashlib
 import json
 from datetime import datetime, timezone
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.exc import DBAPIError
 from app.models.assessments import (
     Assignment,
     AssignmentVersion,
     AssignmentAttempt,
+    AssignmentQuestion,
     StudentResponse,
     QuestionRevision,
     QuestionAnswerKey,
 )
 from app.modules.assignments.publication import student_context, CONTRACT as PUBLICATION
 from app.modules.assignments.service import children, public_item, fail
-from app.modules.assignments.capture_schemas import AttemptView, CaptureItem, ResponseInput, BackView
+from app.modules.assignments.capture_schemas import AttemptView, CaptureItem, ResponseInput, BackView, ImmediateScore
 from app.modules.identity.errors import IdentityError
 from app.models.operations import AuditLog
 from app.schemas.capture import CONTRACT, validate_capture, complete
+from app.modules.grading.engine import ENGINE_VERSION, POLICY_VERSION, Outcome, evaluate, aggregate
+
+
+IMMEDIATE_SCORE_CONTRACT = "immediate-objective-v1"
+
+
+def submitted_score(db, version, attempt, completed_count, question_count):
+    """Student-owned, key-free projection for newly finalized ordinary classroom work."""
+    if attempt.status != "submitted" or attempt.capture_state.get("score_contract") != IMMEDIATE_SCORE_CONTRACT:
+        return None
+    if completed_count != question_count:
+        return ImmediateScore(status="incomplete", earned_points=None, possible_points=None,
+                              engine_version=ENGINE_VERSION, policy_version=POLICY_VERSION)
+    evidence = db.execute(
+        select(AssignmentQuestion, QuestionRevision, QuestionAnswerKey, StudentResponse)
+        .join(QuestionRevision, AssignmentQuestion.question_revision_id == QuestionRevision.id)
+        .outerjoin(QuestionAnswerKey, QuestionAnswerKey.question_revision_id == QuestionRevision.id)
+        .outerjoin(StudentResponse, and_(StudentResponse.assignment_question_id == AssignmentQuestion.id,
+                                         StudentResponse.attempt_id == attempt.id))
+        .where(AssignmentQuestion.assignment_version_id == version.id)
+        .order_by(AssignmentQuestion.position)
+    ).all()
+    if not evidence or len(evidence) != question_count or [entry.position for entry, *_ in evidence] != list(range(1, question_count + 1)):
+        outcomes = [Outcome("MANUAL_REVIEW_REQUIRED", "invalid_assignment_evidence")]
+    else:
+        outcomes = []
+        for entry, row, key, response in evidence:
+            if response is None or response.submitted_at != attempt.submitted_at or response.grading_status != "unscored" \
+                    or any(value is not None for value in (response.correct, response.awarded_points,
+                                                           response.response_duration_ms, response.feedback,
+                                                           response.grading_version)):
+                outcomes.append(Outcome("MANUAL_REVIEW_REQUIRED", "invalid_submission_evidence"))
+                continue
+            if row.method == "flashcards" and str(entry.id) not in attempt.capture_state.get("revealed", []):
+                outcomes.append(Outcome("MANUAL_REVIEW_REQUIRED", "invalid_flashcard_evidence"))
+                continue
+            outcomes.append(evaluate(row.method, row.content, key.configuration if key else None, response.answer,
+                                     schema_version=row.schema_version, revision_locked=row.locked_at is not None,
+                                     key_locked=row.locked_at is not None,
+                                     source_grading_version=key.grading_version if key else None))
+    result = aggregate(outcomes)
+    state = {"COMPLETE": "complete", "REVIEW_REQUIRED": "review_required", "NOT_APPLICABLE": "not_applicable"}[result["status"]]
+    return ImmediateScore(status=state,
+                          earned_points=f"{result['earned_points']:.2f}" if state == "complete" else None,
+                          possible_points=f"{result['possible_points']:.2f}" if state == "complete" else None,
+                          engine_version=ENGINE_VERSION, policy_version=POLICY_VERSION)
 
 
 def responses(db, attempt):
@@ -69,6 +116,7 @@ def view(db, classroom, root, version, attempt):
         if final
         else [ResponseInput(assignment_question_id=id, answer=value) for id, value in saved.items()],
         revealed_item_ids=[] if final else attempt.capture_state["revealed"],
+        immediate_score=submitted_score(db, version, attempt, count, len(entries)) if final else None,
     )
 
 
@@ -224,6 +272,7 @@ def execute(
                 attempt.submitted_at = now
                 attempt.submission_key = request_key
                 attempt.submission_fingerprint = digest
+                attempt.capture_state = {**attempt.capture_state, "score_contract": IMMEDIATE_SCORE_CONTRACT}
             audit(db, user.id, attempt, action, request_id)
             db.flush()
             return view(db, classroom, root, version, attempt)

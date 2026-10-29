@@ -19,7 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../theme/tokens";
 import { BackButton } from "./BackButton";
 
-export function Screen({ children, style, backDisabled = false }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; backDisabled?: boolean }) {
+export function Screen({ children, style, backDisabled = false, showBack = true }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; backDisabled?: boolean; showBack?: boolean }) {
   return (
     <SafeAreaView style={[s.safe, style]}>
       <KeyboardAvoidingView
@@ -31,7 +31,7 @@ export function Screen({ children, style, backDisabled = false }: { children: Re
           contentContainerStyle={s.container}
           showsVerticalScrollIndicator={false}
         >
-          <BackButton disabled={backDisabled} />
+          {showBack && <BackButton disabled={backDisabled} />}
           {children}
         </ScrollView>
       </KeyboardAvoidingView>

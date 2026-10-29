@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useSession } from "../session/provider";
 import { PersonalDesign, pc, p } from "../theme/personal";
 import { NotificationButton } from "./NotificationButton";
+import { BrandWordmark } from "./BrandWordmark";
 
 /** Classroom presentation using the existing learning palette; no learning/session state. */
 export function ClassroomScreen({ children, title, description, instructor = false, backDisabled = false }: {
@@ -14,8 +15,7 @@ export function ClassroomScreen({ children, title, description, instructor = fal
     <SafeAreaView edges={["top", "left", "right"]} style={styles.screen}>
       <View style={styles.header}><View style={styles.headerInner}>
         <View style={styles.brand}>
-          <View style={styles.logo}><Text style={styles.logoText}>F<Text style={{ color: "#7EE1D5" }}>.</Text></Text></View>
-          <View><Text style={styles.wordmark}>FLUENTT</Text><Text style={styles.contextLabel}>{instructor ? "Class teaching" : "Class learning"}</Text></View>
+          <BrandWordmark subtitle={instructor ? "Class teaching" : "Class learning"} />
         </View>
         <View style={styles.brand}>
           <NotificationButton disabled={backDisabled} />
@@ -46,10 +46,6 @@ const styles = StyleSheet.create({
   header: { borderBottomWidth: 1, borderBottomColor: pc.line },
   headerInner: { width: "100%", maxWidth: 1000, alignSelf: "center", minHeight: 65, paddingHorizontal: 18, paddingVertical: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   brand: { flexDirection: "row", alignItems: "center", gap: 9 },
-  logo: { width: 33, height: 33, backgroundColor: "#4545F3", borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  logoText: { fontSize: 25, color: "white", fontWeight: "800", lineHeight: 30 },
-  wordmark: { fontSize: 20, fontWeight: "700", letterSpacing: -0.8, color: pc.ink },
-  contextLabel: { fontSize: 10, lineHeight: 15, color: pc.muted },
   avatar: { width: 44, height: 44, borderRadius: 24, backgroundColor: "#F6E4E8", alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "white" },
   content: { width: "100%", maxWidth: 960, alignSelf: "center", padding: 18, paddingBottom: 36, gap: 26, flexGrow: 1 },
   back: { minHeight: 44, width: 44, borderRadius: 24, backgroundColor: pc.soft, alignItems: "center", justifyContent: "center" },

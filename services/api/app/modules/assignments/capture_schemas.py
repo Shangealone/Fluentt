@@ -29,6 +29,14 @@ class CaptureItem(Item):
     assignment_question_id: UUID
 
 
+class ImmediateScore(Model):
+    status: Literal["complete", "incomplete", "review_required", "not_applicable"]
+    earned_points: str | None
+    possible_points: str | None
+    engine_version: str
+    policy_version: str
+
+
 class AttemptView(Model):
     id: UUID
     assignment_id: UUID
@@ -46,6 +54,7 @@ class AttemptView(Model):
     questions: list[CaptureItem]
     responses: list[ResponseInput]
     revealed_item_ids: list[UUID]
+    immediate_score: ImmediateScore | None = None
 
 
 class BackView(Model):
