@@ -1,0 +1,34 @@
+# Optional private workers. Attach the API to this network or configure private
+# service routing; these ports are deliberately not published to the host/phones.
+services:
+  wav2vec2:
+    build:
+      context: .
+      dockerfile: speech-workers/wav2vec2/Dockerfile
+    environment:
+      SPEECH_SERVICE_TOKEN: ${SPEECH_SERVICE_TOKEN:?Set a private worker token}
+      SPEECH_MODEL_DIR: /models
+    volumes:
+      - ${WAV2VEC2_MODEL_DIR:?Set a prepared model path}:/models:ro
+    networks: [speech]
+    read_only: true
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+  wavlm:
+    build:
+      context: .
+      dockerfile: speech-workers/wavlm/Dockerfile
+    environment:
+      SPEECH_SERVICE_TOKEN: ${SPEECH_SERVICE_TOKEN:?Set a private worker token}
+      SPEECH_MODEL_DIR: /models
+    volumes:
+      - ${WAVLM_MODEL_DIR:?Set a prepared model path}:/models:ro
+    networks: [speech]
+    read_only: true
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+networks:
+  speech:
+    internal: true

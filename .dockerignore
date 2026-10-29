@@ -1,0 +1,19 @@
+# The root-context Dockerfiles build only the optional speech workers.
+**
+!backend/
+!backend/app/
+!backend/app/__init__.py
+!backend/app/speech/
+!backend/app/speech/*.py
+!speech-workers/
+!speech-workers/common.py
+!speech-workers/wav2vec2/
+!speech-workers/wav2vec2/*.py
+!speech-workers/wav2vec2/Dockerfile
+!speech-workers/wav2vec2/requirements.lock
+!speech-workers/wav2vec2/NOTICE.md
+!speech-workers/wavlm/
+!speech-workers/wavlm/*.py
+!speech-workers/wavlm/Dockerfile
+!speech-workers/wavlm/requirements.lock
+!speech-workers/wavlm/NOTICE.md

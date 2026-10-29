@@ -1,0 +1,5 @@
+[project]
+name = "fluentt-wavlm-worker"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+# requirements.lock is the deployable dependency lock; no model weights are installed.
