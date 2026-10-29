@@ -83,3 +83,8 @@ coverage/
 .env.*
 !.env.example
 !*.env.example
+
+# Local speech dependency caches and execution notes (never model/audio uploads)
+.cache/
+.superpowers/sdd/
+speech-models/
