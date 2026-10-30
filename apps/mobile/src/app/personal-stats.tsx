@@ -1,37 +1,30 @@
 import { useState } from "react";
-import { View } from "react-native";
-import { Text } from "../accessibility/Primitives";
-
+import { Pressable, ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { PersonalScreen } from "../components/PersonalScreen";
-import { Button } from "../components/ui";
+import { Text, useWindowDimensions } from "../accessibility/Primitives";
+import { FluenttLogo } from "../components/FluenttLogo";
+import { PersonalIcon } from "../components/PersonalIcon";
 import { useSession } from "../session/provider";
-import { p, pc } from "../theme/personal";
-import { PersonalIcon, type PersonalIconName } from "../components/PersonalIcon";
 import { PersonalHistory } from "../features/history/PersonalHistory";
+import { PracticeLogArt } from "../features/history/PracticeLogArt";
+import { hs as s } from "../features/history/historyStyles";
+import { PracticeButton } from "../features/pronunciation/PracticeUI";
 
 export default function PersonalStats() {
   const { profile, activityHistory } = useSession();
-  const [tab, setTab] = useState<"overview" | "history">("overview");
+  const { width, fontScale } = useWindowDimensions();
+  const [aboutOpen, setAboutOpen] = useState(false);
   if (profile?.role !== "personal_student") return null;
-  return <PersonalScreen title={tab === "history" ? "Your learning history" : "Your learning overview"} eyebrow="Personal insights" description="Look back at what you practised in Learn, Voice and Tutor.">
-    <View style={{ flexDirection: "row", gap: 10 }}><Button label="Overview" secondary={tab !== "overview"} onPress={() => setTab("overview")} /><Button label="History" secondary={tab !== "history"} onPress={() => setTab("history")} /></View>
-    {tab === "history" ? <PersonalHistory api={activityHistory} owner={profile.id} /> : <>
-    <View style={[p.note, { backgroundColor: pc.aqua }]}><Text style={[p.eyebrow, { color: pc.teal }]}>Ability metrics unavailable</Text>
-      <Text style={p.body}>History records your practice activity. Retention, fluency, streaks, and mastery are not measured by this log.</Text></View>
-    <View style={p.grid}>{[
-      { title: "Vocabulary", icon: "learn", note: "Explore lessons and word activities" },
-      { title: "Pronunciation", icon: "voice", note: "Record, listen, and practise" },
-      { title: "Conversation", icon: "tutor", note: "Try guided everyday scenarios" },
-      { title: "Consistency", icon: "stats", note: "Learn at your own pace" },
-    ].map(item => <View key={item.title} style={p.metric}><View style={p.row}><PersonalIcon name={item.icon as PersonalIconName} color={pc.rose} /><View style={p.chip}><Text style={p.chipText}>Not measured</Text></View></View>
-      <Text style={p.metricValue}>—</Text><Text style={{ color: pc.ink, fontWeight: "600", fontSize: 14 }}>{item.title}</Text><Text style={p.caption}>{item.note}</Text></View>)}</View>
-    <View style={p.card}><Text accessibilityRole="header" style={p.heading}>Your learning focus</Text><Text style={p.body}>These are the topics you chose, rather than a prediction about your ability.</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>{[...(profile.learning_focus?.topics ?? []), ...(profile.learning_focus?.lessons ?? [])].map((value, index) => <View style={p.chip} key={`${index}-${value}`}><Text style={p.chipText}>{value}</Text></View>)}</View>
-      <Button secondary label="Edit learning preferences" onPress={() => router.push("/preferences")} /></View>
-    <View style={[p.card, { backgroundColor: pc.navy, gap: 18 }]}><Text style={[p.eyebrow, { color: "#F2CBD6" }]}>Your next step</Text>
-      <Text style={[p.heading, { color: "white" }]}>Keep your curiosity going.</Text><Text style={[p.body, { color: "#BCC5D9" }]}>Choose a lesson or practise an everyday conversation. You decide what comes next.</Text>
-      <Button style={{ backgroundColor: pc.rose }} label="Explore lessons" onPress={() => router.push("/question-practice")} /></View>
-    </>}
-  </PersonalScreen>;
+  const focus = [...(profile.learning_focus?.topics ?? []), ...(profile.learning_focus?.lessons ?? [])];
+  return <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.screen}>
+    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="Go back" style={[s.circle, s.back]} onPress={() => { if (router.canGoBack()) router.back(); else router.replace("/student"); }}><PersonalIcon name="chevron" size={18} /></Pressable><FluenttLogo size={32} /><Pressable accessibilityRole="button" accessibilityLabel="My account" onPress={() => router.push("/account")} style={s.circle}><PersonalIcon name="account" size={18} /></Pressable></View>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, width < 360 && s.compact]}>
+      <View style={[s.hero, fontScale > 1.2 && s.stackedHero]}><View style={s.heroCopy}><Text accessibilityRole="header" style={s.title}>My progress</Text><Text style={s.body}>Look back at what you’ve practiced.</Text></View><PracticeLogArt /></View>
+      <PersonalHistory api={activityHistory} owner={profile.id} />
+      <View style={s.card}><Text accessibilityRole="header" style={s.heading}>Your learning focus</Text>{focus.length ? <><Text style={s.small}>The topics you chose to explore.</Text><View style={s.chips}>{focus.map((value, index) => <View key={`${index}-${value}`} style={s.chip}><Text style={s.label}>{value}</Text></View>)}</View></> : <Text style={s.body}>What would you like to work on? Choose topics that interest you.</Text>}<PracticeButton secondary label={focus.length ? "Change learning preferences" : "Choose your learning focus"} onPress={() => router.push("/preferences")} /></View>
+      <View style={s.next}><Text accessibilityRole="header" style={s.heading}>Ready for another small step?</Text><Text style={s.body}>Choose a lesson and keep practicing at your own pace.</Text><PracticeButton label="Explore lessons" icon="arrow" onPress={() => router.push("/question-practice")} /></View>
+      <View style={s.section}><Pressable accessibilityRole="button" accessibilityState={{ expanded: aboutOpen }} onPress={() => setAboutOpen(value => !value)} style={s.disclosure}><PersonalIcon name="chevron" size={14} /><Text style={s.quietText}>About your activity</Text></Pressable>{aboutOpen && <><Text style={s.small}>This shows your saved practice activity. It doesn’t measure your ability or give you a grade.</Text><Text style={s.small}>Recordings, answers, and private conversation text aren’t saved in this activity log.</Text><Text style={s.small}>Earlier practice that wasn’t saved won’t appear here.</Text></>}</View>
+    </ScrollView>
+  </SafeAreaView>;
 }

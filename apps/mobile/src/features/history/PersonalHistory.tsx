@@ -1,12 +1,14 @@
 import { useCallback, useState } from "react";
-import { View } from "react-native";
+import { ActivityIndicator, Image, Pressable, View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
 
 import { useFocusEffect } from "expo-router";
-import { Button, ErrorMessage, Loading } from "../../components/ui";
 import { PersonalIcon } from "../../components/PersonalIcon";
 import type { HistoryArea, PersonalHistoryAccess, PersonalHistoryPage } from "../../services/api/personalHistory";
-import { p, pc } from "../../theme/personal";
+import { homeColors as c } from "../../theme/personal";
+import { hs as s } from "./historyStyles";
+import { PracticeLogArt } from "./PracticeLogArt";
+import { PracticeButton, PracticeNotice } from "../pronunciation/PracticeUI";
 
 export function PersonalHistory({ api, owner }: { api?: PersonalHistoryAccess; owner: string; demo?: boolean }) {
   const [area, setArea] = useState<HistoryArea>("all"), [offset, setOffset] = useState(0), [refresh, setRefresh] = useState(0);
@@ -23,31 +25,21 @@ export function PersonalHistory({ api, owner }: { api?: PersonalHistoryAccess; o
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; setResult(null); setError(""); setExpanded(null); };
   }, [api, scope, area, offset]));
-  return <View style={{ gap: 18 }}>
-    <View style={p.note}><Text style={p.eyebrow}>{"Your personal activity"}</Text>
-      <Text style={p.body}>{"Your answered questions, finished lesson sets, pronunciation practice and Tutor activity appear here from now on."}</Text>
-      <Text style={p.caption}>Earlier unsaved practice cannot be recovered. This is an activity log, not a grade or mastery report. Audio, typed answers and private chats are not saved here.</Text></View>
-    <View accessibilityRole="tablist" accessibilityLabel="Filter personal history" style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-      {(["all", "learn", "voice", "tutor"] as const).map(value => <Button key={value} label={value === "all" ? "All activity" : value[0].toUpperCase() + value.slice(1)} secondary={area !== value}
-        onPress={() => { setArea(value); setOffset(0); }} />)}
+  return <View style={s.section}>
+    <View style={s.row}><Text accessibilityRole="header" style={s.heading}>Your practice</Text><Pressable accessibilityRole="button" accessibilityLabel="Refresh practice history" accessibilityState={{ disabled: loading, busy: loading }} disabled={loading} onPress={() => setRefresh(value => value + 1)} style={[s.refresh, loading && s.disabled]}><PersonalIcon name="refresh" size={18} /></Pressable></View>
+    <View accessibilityRole="tablist" accessibilityLabel="Filter your practice" style={s.tabs}>
+      {([ ["all", "All"], ["learn", "Learn"], ["voice", "Speak"], ["tutor", "Chat"] ] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: area === value }} onPress={() => { setArea(value); setOffset(0); }} style={[s.tab, area === value && s.selectedTab]}><Text style={s.label}>{label}</Text></Pressable>)}
     </View>
-    <Button secondary label="Refresh history" onPress={() => setRefresh(value => value + 1)} />
-    {loading ? <Loading /> : error ? <ErrorMessage message={error} /> : !page?.items.length ? <View style={p.card}>
-      <Text accessibilityRole="header" style={p.heading}>No activity here yet</Text><Text style={p.body}>Answer a question in Learn, finish a Voice phrase, or send a reply in Tutor. Then return here to see it.</Text>
-    </View> : page.items.map(row => {
+    {loading ? <View style={[s.card, s.state]} accessibilityLiveRegion="polite"><ActivityIndicator color={c.teal} /><Text style={s.itemTitle}>Loading your practice…</Text><Text style={[s.small, s.centered]}>Your saved activities will appear here.</Text></View> : error ? <View style={[s.card, s.state]}><Text accessibilityRole="header" style={[s.itemTitle, s.centered]}>We couldn’t load your practice</Text><PracticeNotice error message={error} /><PracticeButton label="Try again" onPress={() => setRefresh(value => value + 1)} /></View> : !page?.items.length ? <View style={[s.card, s.state]}><PracticeLogArt /><Text accessibilityRole="header" style={[s.itemTitle, s.centered]}>Your practice starts here</Text><Text style={[s.small, s.centered]}>Your saved activities will appear here.</Text></View> : page.items.map(row => {
       const section = row.kind.startsWith("learn_") ? "learn" : row.kind === "voice_phrase" ? "voice" : "tutor";
-      const labels = { learn_question: "Question answered", learn_lesson: "Lesson set finished", voice_phrase: "Phrase practised", tutor_reply: "Conversation reply sent", tutor_session: "Conversation ended" };
-      return <View key={row.id} style={p.card}>
-        <View style={p.row}><View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}><PersonalIcon name={section} color={pc.rose} /><Text style={p.eyebrow}>{section} · {row.language === "english" ? "English" : "Tagalog"}</Text></View><View style={p.chip}><Text style={p.chipText}>{labels[row.kind]}</Text></View></View>
-        <Text accessibilityRole="header" style={p.heading}>{row.title}</Text>
-        {!!row.prompt && <><Text style={p.body} numberOfLines={expanded === row.id ? undefined : 3}>{row.prompt}</Text>
-          {row.prompt.length > 160 && <Button secondary size="sm" label={expanded === row.id ? "Show less" : "Show full question"} onPress={() => setExpanded(value => value === row.id ? null : row.id)} />}</>}
-        <Text style={p.caption}>{new Date(row.recorded_at).toLocaleString()}</Text>
-        {section === "voice" && <Text style={p.caption}>Practice recorded · Word recognition is not a pronunciation score.</Text>}
-        {section === "tutor" && <Text style={p.caption}>Scenario activity only · Private messages are not copied to History.</Text>}
+      const labels = { learn_question: "Question answered", learn_lesson: "Lesson set finished", voice_phrase: "Phrase practiced", tutor_reply: "Conversation reply sent", tutor_session: "Conversation finished" };
+      const illustration = section === "learn" ? require("../../../assets/illustrations/activity-learn.png") : section === "voice" ? require("../../../assets/illustrations/activity-speak.png") : require("../../../assets/illustrations/activity-chat.png");
+      return <View key={row.id} style={s.card}>
+        <View style={s.record}><View style={[s.tile, section === "voice" && { backgroundColor: "#E5F1F6" }, section === "tutor" && { backgroundColor: "#EEE8FA" }]}><Image accessible={false} source={illustration} resizeMode="contain" style={s.artImage} /></View><View style={s.recordCopy}><Text style={s.label}>{labels[row.kind]}</Text><Text accessibilityRole="header" style={s.itemTitle}>{row.title}</Text><View style={s.meta}><Text style={s.small}>{section === "learn" ? "Learn" : section === "voice" ? "Speak" : "Chat"}</Text><Text accessible={false} style={s.small}>·</Text><View style={s.badge}><Text style={s.badgeText}>{row.language === "english" ? "English" : "Tagalog"}</Text></View></View></View></View>
+        {!!row.prompt && <View style={s.question}><Text style={s.questionText} numberOfLines={expanded === row.id || row.prompt.length <= 160 ? undefined : 3}>{row.prompt}</Text>{row.prompt.length > 160 && <Pressable accessibilityRole="button" accessibilityState={{ expanded: expanded === row.id }} onPress={() => setExpanded(value => value === row.id ? null : row.id)} style={s.quiet}><Text style={s.quietText}>{expanded === row.id ? "Show less" : "Show full question"}</Text></Pressable>}</View>}
+        <Text style={s.small}>{new Date(row.recorded_at).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</Text>
       </View>;
     })}
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{offset > 0 && <Button secondary label="Newer activity" onPress={() => setOffset(value => Math.max(0, value - 20))} />}
-      {page?.has_more && !error && <Button label="Older activity" onPress={() => setOffset(value => value + 20)} />}</View>
+    <View style={s.row}>{offset > 0 && <PracticeButton secondary label="Newer activity" disabled={loading} onPress={() => setOffset(value => Math.max(0, value - 20))} />}{page?.has_more && !error && <PracticeButton secondary label="Older activity" disabled={loading} onPress={() => setOffset(value => value + 20)} />}</View>
   </View>;
 }

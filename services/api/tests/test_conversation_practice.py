@@ -355,4 +355,5 @@ def test_end_conversation_session_summary():
     assert summary.status == "ended"
     assert summary.turns_completed == 6
     assert len(summary.strengths) >= 1
-    assert db.commit.called
+    assert db.flush.called
+    db.commit.assert_not_called()  # The authenticated route owns the transaction.
