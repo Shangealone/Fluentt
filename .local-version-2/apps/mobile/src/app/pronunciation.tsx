@@ -1,17 +1,16 @@
 import React, { useState, useCallback } from "react";
-import { StyleSheet, View, Pressable, ScrollView } from "react-native";
+import { ActivityIndicator, View, Pressable, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router, useFocusEffect } from "expo-router";
 import { Text } from "../accessibility/Primitives";
-
-import { useFocusEffect } from "expo-router";
-import { Screen, Button, Loading, ErrorMessage } from "../components/ui";
-import { AppHeader } from "../components/navigation";
-import { theme as baseTheme } from "../theme/tokens";
-import { pc, p } from "../theme/personal";
-import { PersonalScreen } from "../components/PersonalScreen";
+import { FluenttLogo } from "../components/FluenttLogo";
+import { PersonalIcon } from "../components/PersonalIcon";
+import { homeColors as c } from "../theme/personal";
+import { PracticeHero, PracticeButton, PracticeNotice } from "../features/pronunciation/PracticeUI";
+import { practiceStyles as s } from "../features/pronunciation/practiceStyles";
 import { useSession } from "../session/provider";
-import { PronunciationActivityView } from "../services/api/pronunciation";
+import type { PronunciationActivityView } from "../services/api/pronunciation";
 import { LivePronunciationPractice } from "../features/pronunciation/LivePronunciationPractice";
-const theme = { colors: { ...baseTheme.colors, primary: pc.navy, ink: pc.ink, muted: pc.muted, border: pc.line } };
 
 export default function PronunciationScreen() {
   const { profile, pronunciation, activityHistory } = useSession();
@@ -22,6 +21,7 @@ export default function PronunciationScreen() {
   const [error, setError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const profileId = profile?.id;
+  const [practiceBusy, setPracticeBusy] = useState(false);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -48,219 +48,35 @@ export default function PronunciationScreen() {
 
   if (!profile) return null;
   const personal = profile.role === "personal_student";
-  const Page = personal ? PersonalScreen : Screen;
-
-  return (
-    <Page>
-      {personal ? selectedActivity ? <View style={p.row}><Text style={p.eyebrow}>Voice studio · Guided practice</Text><Button secondary size="sm" label="Change phrase" onPress={() => setSelectedActivity(null)} /></View> : <View style={{ gap: 8 }}><Text style={p.eyebrow}>Voice studio · Pronunciation</Text><Text accessibilityRole="header" style={p.title}>Find your natural voice.</Text><Text style={p.body}>Slow down. Listen to yourself. Make every word a little clearer.</Text></View> : <AppHeader
-        navigation
-        title="Learn pronunciation"
-        subtitle="Choose a phrase, speak, and listen"
-      />}
-      <View style={[p.note, { backgroundColor: pc.aqua }]}><Text style={[p.caption, { color: pc.teal }]}>Read aloud · Matched words turn green; mismatches turn red.</Text></View>
-
-      {/* Language Filter Tabs */}
-      {!personal && <View style={styles.tabRow}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Filter all languages"
-          style={[styles.tabButton, languageFilter === "all" && styles.tabButtonActive]}
-          onPress={() => {
-            setLanguageFilter("all");
-            setSelectedActivity(null);
-          }}
-        >
-          <Text style={[styles.tabText, languageFilter === "all" && styles.tabTextActive]}>
-            All Prompts
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Filter Tagalog prompts"
-          style={[styles.tabButton, languageFilter === "tagalog" && styles.tabButtonActive]}
-          onPress={() => {
-            setLanguageFilter("tagalog");
-            setSelectedActivity(null);
-          }}
-        >
-          <Text style={[styles.tabText, languageFilter === "tagalog" && styles.tabTextActive]}>
-            🇵🇭 Filipino / Tagalog
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Filter English prompts"
-          style={[styles.tabButton, languageFilter === "english" && styles.tabButtonActive]}
-          onPress={() => {
-            setLanguageFilter("english");
-            setSelectedActivity(null);
-          }}
-        >
-          <Text style={[styles.tabText, languageFilter === "english" && styles.tabTextActive]}>
-            🇺🇸 English
-          </Text>
-        </Pressable>
-      </View>}
-
-      {loading ? (
-        <View style={styles.centerBox}>
-          <Loading />
-          <Text style={styles.loadingText}>Loading pronunciation prompts…</Text>
-        </View>
-      ) : error ? (
-        <View style={{ gap: 12 }}>
-          <ErrorMessage message={error} />
-          <Button label="Retry Loading" variant="secondary" onPress={() => setReload(value => value + 1)} />
-        </View>
-      ) : selectedActivity ? (
-        <View style={{ gap: 16 }}>
-          <LivePronunciationPractice key={selectedActivity.id} activity={selectedActivity} api={pronunciation}
-            history={personal ? activityHistory : undefined} owner={personal ? profile.id : undefined}
-            guidedSubmissionMode={!personal} onDone={() => setSelectedActivity(null)} />
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.listContainer}>
-          <Text style={styles.listHeader}>Select a Phrase to Practice</Text>
-          {activities.length === 0 ? (
-            <Text style={styles.emptyText}>No activities available for this language.</Text>
-          ) : (
-            activities.map(act => {
-              const isTl = act.language === "tagalog";
-              return (
-                <Pressable
-                  key={act.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Practise pronunciation: ${act.target_text}`}
-                  style={styles.card}
-                  onPress={() => setSelectedActivity(act)}
-                >
-                  <View style={styles.cardHeader}>
-                    <View style={[styles.langBadge, isTl ? styles.tagalogBadge : styles.englishBadge]}>
-                      <Text style={[styles.langBadgeText, isTl ? styles.tagalogBadgeText : styles.englishBadgeText]}>
-                        {isTl ? "Tagalog" : "English"}
-                      </Text>
-                    </View>
-                    <Text style={styles.arrowIcon}>→</Text>
-                  </View>
-                  <Text style={styles.cardTitle}>{act.target_text}</Text>
-                  {act.instructions && (
-                    <Text style={styles.cardDesc} numberOfLines={2}>
-                      {act.instructions}
-                    </Text>
-                  )}
-                </Pressable>
-              );
-            })
-          )}
-        </ScrollView>
-      )}
-    </Page>
-  );
+  const language = personal ? profile.language : languageFilter;
+  const back = () => {
+    if (selectedActivity) { setSelectedActivity(null); return; }
+    if (router.canGoBack()) router.back();
+    else router.replace(personal ? "/student" : "/my-classes");
+  };
+  return <SafeAreaView edges={["top", "left", "right", "bottom"]} style={s.screen}>
+    <View style={s.header}>
+      <Pressable accessibilityRole="button" accessibilityLabel={selectedActivity ? "Back to phrases" : "Go back"} accessibilityState={{ disabled: practiceBusy }} disabled={practiceBusy} onPress={back} style={[s.circle, s.back, practiceBusy && s.disabled]}><PersonalIcon name="chevron" size={18} /></Pressable>
+      <FluenttLogo size={32} />
+      <Pressable accessibilityRole="button" accessibilityLabel="My account" accessibilityState={{ disabled: practiceBusy }} disabled={practiceBusy} onPress={() => router.push("/account")} style={[s.circle, practiceBusy && s.disabled]}><PersonalIcon name="account" size={18} /></Pressable>
+    </View>
+    <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <PracticeHero selected={!!selectedActivity} />
+      {selectedActivity ? <LivePronunciationPractice key={selectedActivity.id} activity={selectedActivity} api={pronunciation}
+        history={personal ? activityHistory : undefined} owner={personal ? profile.id : undefined}
+        guidedSubmissionMode={!personal} onBusyChange={setPracticeBusy} onDone={() => setSelectedActivity(null)} /> : <>
+        {!personal && <View accessibilityRole="tablist" accessibilityLabel="Practice language" style={s.tabs}>
+          {([ ["all", "All phrases"], ["english", "English"], ["tagalog", "Tagalog"] ] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: languageFilter === value }} onPress={() => setLanguageFilter(value)} style={[s.tab, languageFilter === value && s.selectedTab]}><Text style={s.tabText}>{label}</Text></Pressable>)}
+        </View>}
+        <View style={s.row}><Text accessibilityRole="header" style={s.heading}>Your phrases</Text>{language && language !== "all" && <View style={s.badge}><Text style={s.badgeText}>{language === "english" ? "English" : "Tagalog"}</Text></View>}</View>
+        {loading ? <View accessibilityLiveRegion="polite" style={s.state}><ActivityIndicator color={c.teal} /><Text style={s.body}>Loading your phrases…</Text></View>
+          : error ? <View style={[s.card, s.state]}><Text accessibilityRole="header" style={[s.heading, s.centered]}>We couldn’t load your phrases</Text><PracticeNotice error message={error} /><PracticeButton label="Try again" onPress={() => setReload(value => value + 1)} /></View>
+          : activities.length === 0 ? <View style={[s.card, s.state]}><View style={s.art}><PersonalIcon name="voice" size={30} /></View><Text accessibilityRole="header" style={[s.heading, s.centered]}>More practice is on the way</Text><Text style={[s.body, s.centered]}>No phrases are available for this language yet. Check back soon.</Text></View>
+          : <View style={s.list}>{activities.map(activity => <Pressable key={activity.id} accessibilityRole="button" accessibilityLabel={`Practice ${activity.language === "english" ? "English" : "Tagalog"}: ${activity.target_text}`} onPress={() => setSelectedActivity(activity)} style={({ pressed }) => [s.phrase, pressed && s.pressed]}>
+            <View style={s.tile}><PersonalIcon name="tutor" size={20} /></View><View style={s.phraseCopy}><Text style={s.phraseTitle}>{activity.target_text}</Text><Text style={s.small}>{activity.language === "english" ? "English" : "Tagalog"}</Text>{!!activity.instructions && <Text style={s.small}>{activity.instructions}</Text>}</View><PersonalIcon name="arrow" size={17} />
+          </Pressable>)}</View>}
+      </>}
+      <Text style={s.footer}>Small steps. More confidence.</Text>
+    </ScrollView>
+  </SafeAreaView>;
 }
-
-const styles = StyleSheet.create({
-  tabRow: {
-    flexDirection: "row",
-    gap: 8,
-    flexWrap: "wrap",
-    marginBottom: 8,
-  },
-  tabButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 9999,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  tabButtonActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: theme.colors.ink,
-  },
-  tabTextActive: {
-    color: "#FFFFFF",
-  },
-  centerBox: {
-    padding: 32,
-    alignItems: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: theme.colors.muted,
-  },
-  listContainer: {
-    gap: 12,
-    paddingBottom: 32,
-  },
-  listHeader: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: theme.colors.ink,
-    marginTop: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: theme.colors.subtle,
-    fontStyle: "italic",
-    padding: 16,
-  },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    padding: 18,
-    gap: 8,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  langBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  tagalogBadge: {
-    backgroundColor: "#E6F4EA",
-  },
-  tagalogBadgeText: {
-    color: "#137333",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  englishBadge: {
-    backgroundColor: "#E8F0FE",
-  },
-  englishBadgeText: {
-    color: "#1A73E8",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  langBadgeText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  arrowIcon: {
-    fontSize: 18,
-    color: theme.colors.primary,
-    fontWeight: "700",
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: theme.colors.ink,
-    lineHeight: 22,
-  },
-  cardDesc: {
-    fontSize: 13,
-    color: theme.colors.muted,
-  },
-});

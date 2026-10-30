@@ -509,7 +509,9 @@ def end_conversation_session(
     if session.status == "active":
         session.status = "ended"
         session.ended_at = now
-        db.commit()
+        # The authenticated route owns the transaction. Keep it open while
+        # reading the summary; it commits only after the response is prepared.
+        db.flush()
 
     # Calculate summary metrics
     messages_count = db.scalar(
