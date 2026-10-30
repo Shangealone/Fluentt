@@ -1,5 +1,7 @@
 import { useRef, useState, type ComponentRef } from "react";
-import { Text, TextInput, View } from "react-native";
+import { View } from "react-native";
+import { Text, TextInput } from "../../accessibility/Primitives";
+
 import { Button, EmptyState, ErrorMessage, Loading, s } from "../../components/ui";
 import { codepoints, fieldIds, textErrors, textPrompt, textResponse, type TextItem, type TextResponse, type TextValues } from "./text";
 

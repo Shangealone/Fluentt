@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { router, type Href } from "expo-router";
 import { theme } from "../theme/tokens";
 

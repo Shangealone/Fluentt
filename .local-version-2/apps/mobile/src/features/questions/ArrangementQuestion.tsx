@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { Button, EmptyState, ErrorMessage, Loading, s } from "../../components/ui";
 import { appendUnit, arrangementResponse, moveUnit, removeUnit, validSequence, type ArrangementItem, type ArrangementResponse } from "./arrangement";
 

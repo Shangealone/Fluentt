@@ -1,15 +1,34 @@
-import { useCallback, useState } from "react";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Screen } from "../components/ui";
-import { AppHeader } from "../components/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { MonitoringBrowser } from "../features/monitoring/MonitoringBrowser";
+import type { MonitoringFilters } from "../services/api/monitoring";
 import { useSession } from "../session/provider";
 export default function InstructorMonitoring() {
-  const { classId, studentId, assignmentId } = useLocalSearchParams<{ classId?: string; studentId?: string; assignmentId?: string }>();
-  const activeClassId = classId || "";
+  const { classId, studentId, assignmentId, lesson_id, curriculum_version_id, scopeLabel } = useLocalSearchParams<{
+    classId?: string; studentId?: string; assignmentId?: string; lesson_id?: string; curriculum_version_id?: string; scopeLabel?: string;
+  }>();
+  const activeClassId = typeof classId === "string" ? classId : "";
+  const activeStudentId = typeof studentId === "string" ? studentId : undefined;
+  const activeAssignmentId = typeof assignmentId === "string" ? assignmentId : undefined;
+  const activeLessonId = activeClassId && typeof lesson_id === "string" ? lesson_id : undefined;
+  const activeEditionId = activeClassId && typeof curriculum_version_id === "string" ? curriculum_version_id : undefined;
+  const scopeConflict = !!activeLessonId && !!activeEditionId;
+  const scope = useMemo<Pick<MonitoringFilters, "lesson_id" | "curriculum_version_id">>(() => scopeConflict
+    ? {}
+    : activeLessonId ? { lesson_id: activeLessonId } : activeEditionId ? { curriculum_version_id: activeEditionId } : {},
+  [scopeConflict, activeLessonId, activeEditionId]);
+  const routeScopeLabel = typeof scopeLabel === "string" && scopeLabel ? scopeLabel : undefined;
+  const activeScopeLabel = scopeConflict ? "" : activeLessonId
+    ? routeScopeLabel ?? "Selected lesson"
+    : activeEditionId ? routeScopeLabel ?? "Selected edition" : "";
   const { monitoring, profile } = useSession();
   const [focused, setFocused] = useState(false);
   useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
-  return <Screen><AppHeader title="Class progress monitoring" back />{focused && <MonitoringBrowser key={`${profile?.id}:${activeClassId}:${studentId}:${assignmentId}`} api={monitoring} classId={activeClassId} studentId={studentId} assignmentId={assignmentId} />}</Screen>;
+  useEffect(() => {
+    if (scopeConflict) router.setParams({ lesson_id: undefined, curriculum_version_id: undefined, scopeLabel: undefined });
+  }, [scopeConflict]);
+  if (scopeConflict) return null;
+  if (profile?.role !== "instructor") return null;
+  return focused ? <MonitoringBrowser key={`${profile.id}:${activeClassId}:${activeStudentId}:${activeAssignmentId}`} api={monitoring} classId={activeClassId} studentId={activeStudentId} assignmentId={activeAssignmentId} scope={scope} scopeLabel={activeScopeLabel} /> : null;
 }
 

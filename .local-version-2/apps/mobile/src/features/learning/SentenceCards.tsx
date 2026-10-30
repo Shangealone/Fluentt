@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState, type ComponentRef } from "react";
-import { PanResponder, Platform, Pressable, Text, View, type ViewStyle } from "react-native";
-import { Button } from "../../components/ui";
-import { p, pc } from "../../theme/personal";
+import { PanResponder, Platform, Pressable, View, type ViewStyle } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
+import { homeColors } from "../../theme/personal";
+import { l, LearnButton as Button } from "./LearnUI";
 import type { StarterSentence } from "./beginnerLessons";
+
+const pc = { ...homeColors, rose: homeColors.teal, pink: homeColors.selected, aqua: homeColors.selected };
+const p = { card: l.card, caption: l.caption, eyebrow: l.caption, row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 } as const };
 
 export type CardRect = { x: number; y: number; width: number; height: number };
 export function containsPoint(rect: CardRect, x: number, y: number): boolean {
@@ -99,7 +104,7 @@ export function SentenceCards({ item, answer, locked, onChange }: { item: Starte
   };
   return <View style={p.card}>
     <View style={p.row}><Text style={p.eyebrow}>Your sentence</Text><Text style={p.caption}>{answer.length} / {item.orderedIds.length} words</Text></View>
-    <Text style={p.caption}>Drag cards here in the order you hear. Extra words can stay below.</Text>
+    <Text style={p.caption}>Tap or drag words here. Leave extra words below.</Text>
     <View ref={sentenceRef} collapsable={false} accessibilityLabel="Sentence drop area" style={{ minHeight: 100, padding: 10, borderWidth: 2, borderStyle: "dashed", borderRadius: 14,
       borderColor: dragging ? pc.rose : pc.line, backgroundColor: pc.background, flexDirection: "row", flexWrap: "wrap", alignContent: "flex-start", gap: 8,
       zIndex: dragging && answer.includes(dragging) ? 10 : 0 }}>

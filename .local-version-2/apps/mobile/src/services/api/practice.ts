@@ -4,7 +4,8 @@ import { validateItem, type AssignmentItem } from "./assignments.ts";
 
 export const difficulties = ["easy", "medium", "hard"] as const;
 export type Difficulty = typeof difficulties[number];
-export type PracticeLesson = { id: string; title: string; topic: string; difficulties: Difficulty[] };
+export type PracticeLesson = { id: string; title: string; topic: string; difficulties: Difficulty[]; introduction?: string | null; feedback_available?: boolean };
+export type PracticeFeedback = { revision_id: string; correct: boolean; message: string };
 export type PracticeQuestion = AssignmentItem & { definition: AssignmentItem["definition"] & { difficulty: Difficulty } };
 export type PracticePage<T> = { items: T[]; has_more: boolean; offset: number };
 export type PracticeBack = { revision_id: string; back: string };
@@ -12,6 +13,7 @@ export type PracticeAccess = {
   lessons: (q?: string, difficulty?: Difficulty, offset?: number) => Promise<PracticePage<PracticeLesson>>;
   questions: (lessonId: string, difficulty?: Difficulty, offset?: number) => Promise<PracticePage<PracticeQuestion>>;
   reveal: (revisionId: string) => Promise<PracticeBack>;
+  check?: (revisionId: string, answer: Record<string, unknown>) => Promise<PracticeFeedback>;
 };
 function invalid(): never { throw new ApiError(0, "Practice content could not be verified. Please retry."); }
 export function validatePracticePage<T>(value: PracticePage<T>, validate: (row: T) => T): PracticePage<T> {
@@ -21,6 +23,8 @@ export function validatePracticePage<T>(value: PracticePage<T>, validate: (row: 
 export function validatePracticeLesson(row: PracticeLesson): PracticeLesson {
   if (!row || typeof row.id !== "string" || typeof row.title !== "string" || typeof row.topic !== "string" || !Array.isArray(row.difficulties)
     || row.difficulties.some(level => !difficulties.includes(level)) || "grade" in row) invalid();
+  if (row.introduction != null && typeof row.introduction !== "string") invalid();
+  if (row.feedback_available !== undefined && typeof row.feedback_available !== "boolean") invalid();
   return row;
 }
 export function validatePracticeQuestion(row: PracticeQuestion): PracticeQuestion {
@@ -31,6 +35,11 @@ export function validatePracticeQuestion(row: PracticeQuestion): PracticeQuestio
 export function practiceAccess(run: <T>(operation: (credential: AuthContext) => Promise<T>) => Promise<T>): PracticeAccess {
   const query = (difficulty?: Difficulty, offset = 0, q?: string) => new URLSearchParams({ offset: String(offset), ...(difficulty ? { difficulty } : {}), ...(q ? { q } : {}) });
   return {
+    check: (id, answer) => run(async secret => {
+      const row = await request<PracticeFeedback>(`/me/practice/questions/${encodeURIComponent(id)}/check`, "POST", { answer }, secret);
+      if (!row || row.revision_id !== id || typeof row.correct !== "boolean" || typeof row.message !== "string") invalid();
+      return { revision_id: row.revision_id, correct: row.correct, message: row.message };
+    }),
     lessons: (q = "", difficulty, offset = 0) => run(async secret => validatePracticePage(await request<PracticePage<PracticeLesson>>(`/me/practice/lessons?${query(difficulty, offset, q)}`, "GET", undefined, secret), validatePracticeLesson)),
     questions: (id, difficulty, offset = 0) => run(async secret => validatePracticePage(await request<PracticePage<PracticeQuestion>>(`/me/practice/lessons/${encodeURIComponent(id)}/questions?${query(difficulty, offset)}`, "GET", undefined, secret), validatePracticeQuestion)),
     reveal: id => run(async secret => {

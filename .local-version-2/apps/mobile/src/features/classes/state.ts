@@ -66,7 +66,7 @@ export async function shareClassCode(
   if (!/^[0-9]{6}$/.test(code))
     throw new Error("No active six-digit code is available.");
   const opened = await share(
-    `Join ${name} on FLUENTT. Create your username, then enter class code ${code}. Share only with intended students.`,
+    `Join ${name} on FLUENTT with class code ${code}. Share only with intended students.`,
   );
   return opened ? "Share sheet opened." : "Sharing cancelled.";
 }

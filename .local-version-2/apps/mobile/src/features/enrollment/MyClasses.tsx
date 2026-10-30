@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { router } from "expo-router";
 import { Button, EmptyState } from "../../components/ui";
 import { PersonalIcon } from "../../components/PersonalIcon";

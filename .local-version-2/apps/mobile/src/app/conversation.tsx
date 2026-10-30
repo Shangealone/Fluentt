@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
-import { Text } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { router, useFocusEffect } from "expo-router";
 import { Screen, s } from "../components/ui";
 import { AppHeader } from "../components/navigation";

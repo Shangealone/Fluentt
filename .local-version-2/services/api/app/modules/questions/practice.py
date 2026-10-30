@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import func, select, text
+from sqlalchemy import case, func, select, text
 
 from app.models.assessments import Question, QuestionRevision, QuestionAnswerKey
 from app.models.curriculum import CurriculumTopic, Lesson
@@ -20,6 +20,7 @@ from app.modules.identity.errors import IdentityError
 from app.modules.identity.session_service import authenticated_session
 from app.modules.assignments.schemas import Item
 from app.modules.questions.schemas import PUBLIC_MODELS
+from app.schemas.question_config import validate_response
 
 Difficulty = Literal["easy", "medium", "hard"]
 router = APIRouter(prefix="/me/practice", tags=["personal practice"],
@@ -35,6 +36,8 @@ class PracticeLesson(Model):
     title: str
     topic: str
     difficulties: list[Difficulty]
+    introduction: str | None = None
+    feedback_available: bool = False
 
 
 class LessonPage(Model):
@@ -52,6 +55,16 @@ class QuestionPage(Model):
 class CardBack(Model):
     revision_id: UUID
     back: str
+
+
+class PracticeCheck(Model):
+    answer: dict
+
+
+class PracticeFeedback(Model):
+    revision_id: UUID
+    correct: bool
+    message: str
 
 
 def unavailable():
@@ -102,7 +115,7 @@ def lessons(credential: Credential, repo: Repo, settings: Config,
             questions = questions.where(QuestionRevision.difficulty == difficulty)
         eligible = questions.with_only_columns(QuestionRevision.lesson_id, QuestionRevision.difficulty).subquery()
         query = (lesson_path().join(eligible, eligible.c.lesson_id == Lesson.id)
-                 .add_columns(func.array_agg(func.distinct(eligible.c.difficulty)))
+                 .add_columns(func.array_agg(func.distinct(eligible.c.difficulty)), Lesson.description, Lesson.source_metadata)
                  .group_by(Lesson.id, Lesson.name, CurriculumTopic.name))
         if q.strip():
             term = q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -110,8 +123,37 @@ def lessons(credential: Credential, repo: Repo, settings: Config,
                                 CurriculumTopic.name.ilike(f"%{term}%", escape="\\"))
         rows = db.execute(query.order_by(CurriculumTopic.name, Lesson.name, Lesson.id).offset(offset).limit(21)).all()
         return LessonPage(items=[PracticeLesson(id=row[0], title=row[1], topic=row[2],
+                           introduction=row[4],
+                           feedback_available=row[5].get("practice_feedback") == "exact-practice-v1",
                            difficulties=[level for level in ("easy", "medium", "hard") if level in row[3]])
                           for row in rows[:20]], has_more=len(rows) > 20, offset=offset)
+
+
+@router.post("/questions/{revision_id}/check", response_model=PracticeFeedback)
+def check_answer(revision_id: UUID, payload: PracticeCheck, credential: Credential, repo: Repo, settings: Config):
+    # Only the explicitly authored pilot opts in. No formal grades or answer storage.
+    with personal_context(repo, credential, settings) as (db, language):
+        row = db.scalar(latest_questions(language).where(QuestionRevision.id == revision_id))
+        if row is None or db.execute(lesson_path(row.lesson_id)).first() is None:
+            raise unavailable()
+        lesson = db.get(Lesson, row.lesson_id)
+        if lesson.source_metadata.get("practice_feedback") != "exact-practice-v1" or row.method not in {"multiple_choice", "word_arrangement"}:
+            raise unavailable()
+        if len(str(payload.answer)) > 16000:
+            raise IdentityError(422, "invalid_practice_answer", "Choose an answer before checking.")
+        try:
+            validate_response(row.method, row.content, payload.answer, require_complete=True)
+            if row.method == "word_arrangement" and len(payload.answer.get("ordered_token_ids", [])) != len(row.content["items"]):
+                raise ValueError("Incomplete sequence")
+        except (ValueError, TypeError):
+            raise IdentityError(422, "invalid_practice_answer", "Complete your answer before checking.") from None
+        key = db.scalar(select(QuestionAnswerKey).where(QuestionAnswerKey.question_revision_id == row.id))
+        if key is None:
+            raise unavailable()
+        correct = (payload.answer["option_id"] == key.configuration["correct_option_id"] if row.method == "multiple_choice"
+                   else payload.answer["ordered_token_ids"] == key.configuration["ordered_ids"])
+        return PracticeFeedback(revision_id=row.id, correct=correct,
+                                message=(key.explanation or "You got it!") if correct else "Not quite. Read the lesson tip and try again.")
 
 
 @router.get("/lessons/{lesson_id}/questions", response_model=QuestionPage)
@@ -123,7 +165,13 @@ def questions(lesson_id: UUID, credential: Credential, repo: Repo, settings: Con
         query = latest_questions(language).where(QuestionRevision.lesson_id == lesson_id)
         if difficulty:
             query = query.where(QuestionRevision.difficulty == difficulty)
-        rows = db.scalars(query.order_by(QuestionRevision.question_id).offset(offset).limit(21)).all()
+        lesson = db.get(Lesson, lesson_id)
+        authored_order = lesson.source_metadata.get("practice_order", [])
+        ordering = []
+        if lesson.source_metadata.get("practice_feedback") == "exact-practice-v1" and authored_order:
+            ordering.append(case({UUID(key): position for position, key in enumerate(authored_order)},
+                                 value=QuestionRevision.question_id, else_=len(authored_order)))
+        rows = db.scalars(query.order_by(*ordering, QuestionRevision.question_id).offset(offset).limit(21)).all()
         return QuestionPage(items=[project_question(row) for row in rows[:20]], has_more=len(rows) > 20, offset=offset)
 
 

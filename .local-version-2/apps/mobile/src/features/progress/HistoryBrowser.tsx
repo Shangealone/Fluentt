@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { router } from "expo-router";
 import { Button, EmptyState, ErrorMessage, Input, s } from "../../components/ui";
 import { Choices } from "../../components/onboarding";

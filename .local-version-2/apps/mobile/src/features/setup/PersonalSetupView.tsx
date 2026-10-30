@@ -1,5 +1,7 @@
 import { useEffect, useRef, type ComponentRef } from "react";
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FluenttLogo } from "../../components/FluenttLogo";
 import { PersonalIcon } from "../../components/PersonalIcon";
@@ -52,7 +54,7 @@ export function PersonalSetupView(props: PersonalSetupViewProps) {
             <Text accessible={false} style={a.hint}>Step {props.step} of 2</Text>
             <View accessible={false} style={v.progressTrack}><View style={[v.progressPart, v.progressDone]} /><View style={[v.progressPart, !first && v.progressDone]} /></View>
           </View>}
-          <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={a.title}>{props.showExit ? "Leave setup?" : first ? "What would you like to practise?" : "How would you like to start?"}</Text>
+          <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={a.title}>{props.showExit ? "Leave setup?" : first ? "What would you like to practice?" : "How would you like to start?"}</Text>
           <Text style={a.description}>{props.showExit ? "You can come back whenever you’re ready." : first ? "Choose a language for your practice." : `Choose a starting level for your ${language} practice.`}</Text>
         </View>
         {props.showExit ? <View style={a.card}>

@@ -1,4 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { router } from "expo-router";
 import { Button, ErrorMessage, Loading, s } from "./ui";
 import { useSession } from "../session/provider";

@@ -79,8 +79,23 @@ def test_personal_role_language_and_unpublished_content(bank, context):  # noqa:
     publish(client, row)
     english = personal(client, "english")
     assert client.get(ROOT + "/lessons", headers=english).json()["items"] == []
+    owner, _ = account(client, "instructor")
+    classroom = client.post("/api/v1/classes", headers={**owner, "Idempotency-Key": str(uuid4())},
+                           json={"class_name": "Practice role fixture", "grade_level": 7, "language": "tagalog"})
+    assert classroom.status_code == 201, classroom.text
+    code = classroom.json()["join_code"]
+    client.headers.pop("origin", None)  # Native registration flow; no browser Origin/CSRF context.
+    preview = client.post("/api/v1/class-enrollment-registration-previews", json={"code": code})
+    assert preview.status_code == 200, preview.text
     for role in ("instructor", "school_student"):
-        other, _ = account(client, role)
+        if role == "school_student":
+            registration = client.post("/api/v1/users", json={"username": "Practice_" + uuid4().hex[:12],
+                "password": "SyntheticPass123!", "role": role, "class_code": code,
+                "class_version": preview.json()["class_version"]})
+            assert registration.status_code == 201, registration.text
+            other = {"Authorization": "Bearer " + registration.json()["session"]["credential"]}
+        else:
+            other = owner
         for url in (ROOT + "/lessons", f"{ROOT}/lessons/{context[5]['id']}/questions"):
             assert client.get(url, headers=other).status_code == 403
     assert client.get(ROOT + "/lessons").status_code == 401

@@ -1,20 +1,8 @@
 import { useContext } from "react";
 import { PersonalDesign, pc } from "../theme/personal";
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  type StyleProp,
-  type TextInputProps,
-  type ViewStyle,
-  type TextStyle,
-} from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, type StyleProp, type TextInputProps, type ViewStyle, type TextStyle } from "react-native";
+import { Text, TextInput } from "../accessibility/Primitives";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { theme } from "../theme/tokens";
 import { BackButton } from "./BackButton";

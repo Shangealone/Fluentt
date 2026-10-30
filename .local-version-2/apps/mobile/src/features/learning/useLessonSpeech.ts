@@ -25,11 +25,11 @@ export function useLessonSpeech(language: Language, exerciseId: string) {
       let voiceTimeout: ReturnType<typeof setTimeout> | undefined;
       const voices = await Promise.race([
         Speech.getAvailableVoicesAsync(),
-        new Promise<never>((_, reject) => { voiceTimeout = setTimeout(() => reject(new Error("Device voices did not load. Check your speech settings and retry, or show the transcript to practise reading.")), 5000); }),
+        new Promise<never>((_, reject) => { voiceTimeout = setTimeout(() => reject(new Error("Audio isn’t ready. Try again, or tap Show words to keep practicing.")), 5000); }),
       ]).finally(() => clearTimeout(voiceTimeout));
       if (!active.current || current !== generation.current) return false;
       const voice = voices.find(item => voiceMatches(language, item.language));
-      if (!voice) throw new Error(`No ${language === "english" ? "English" : "Tagalog"} voice is available on this device. Enable or install a matching text-to-speech voice in your device settings, then retry. You can also show the transcript to practise reading.`);
+      if (!voice) throw new Error(`No ${language === "english" ? "English" : "Tagalog"} voice is available on this device. Add one in your device’s speech settings, or tap Show words to keep practicing.`);
       setSpeaking(true);
       Speech.speak(text, {
         voice: voice.identifier, language: voice.language, rate: slow ? 0.65 : 0.9,

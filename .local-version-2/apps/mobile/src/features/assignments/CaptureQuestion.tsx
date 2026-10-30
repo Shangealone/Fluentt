@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { Button, ErrorMessage, s } from "../../components/ui";
 import type { AssignmentItem } from "../../services/api/assignments";
 import type { RevealedBack } from "../../services/api/capture";

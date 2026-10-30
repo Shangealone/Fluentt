@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Text } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { router } from "expo-router";
 import { Screen, Button, ErrorMessage, s } from "../components/ui";
 import { AppHeader } from "../components/navigation";

@@ -1,14 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  ActivityIndicator,
-  Alert,
-  TextInput,
-} from "react-native";
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from "react-native";
+import { Text, TextInput } from "../../accessibility/Primitives";
+
 import { useSession } from "../../session/provider";
 import {
   ResearchStudy,

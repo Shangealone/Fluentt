@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { BackHandler, Text } from "react-native";
+import { BackHandler } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { router } from "expo-router";
 import { Button, ErrorMessage, s } from "../components/ui";
 import { PersonalScreen } from "../components/PersonalScreen";

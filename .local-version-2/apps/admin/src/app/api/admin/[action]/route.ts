@@ -45,8 +45,32 @@ async function handle(request: NextRequest, context: { params: Promise<{ action:
   if (!target || request.method !== target.method) return unavailable(404);
   try {
     const origin = webOrigin();
-    if (request.method !== "GET" && (request.headers.get("origin") !== origin
-        || request.headers.get("sec-fetch-site") === "cross-site")) return unavailable(403);
+    const requestOrigin = request.headers.get("origin");
+    const fetchSite = request.headers.get("sec-fetch-site");
+    const localOpaqueLoginForm = process.env.NODE_ENV === "development"
+      && action === "start"
+      && request.method === "POST"
+      && requestOrigin === "null"
+      && fetchSite === "same-origin"
+      && request.headers.get("sec-fetch-mode") === "navigate"
+      && request.headers.get("sec-fetch-dest") === "document"
+      && request.headers.get("host") === new URL(origin).host;
+    if (request.method !== "GET" && ((requestOrigin !== origin && !localOpaqueLoginForm)
+        || fetchSite === "cross-site")) {
+      if (process.env.NODE_ENV === "development" && action === "start") {
+        console.warn("[admin-auth] rejected sign-in start", {
+          requestOrigin,
+          expectedOrigin: origin,
+          fetchSite,
+          fetchMode: request.headers.get("sec-fetch-mode"),
+          fetchDest: request.headers.get("sec-fetch-dest"),
+          requestHost: request.headers.get("host"),
+          expectedHost: new URL(origin).host,
+          localOpaqueLoginForm,
+        });
+      }
+      return unavailable(403);
+    }
 
     let path = target.path;
     if (action === "callback") {

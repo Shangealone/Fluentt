@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { Text } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { Input, Button, ErrorMessage, s } from "../../components/ui";
 import { Choices, grades, languages } from "../../components/onboarding";
 import type { ClassDraft } from "../../services/api/classes";

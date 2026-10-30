@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { BackHandler, Platform, Text, View } from "react-native";
+import { BackHandler, Platform, View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { Button, EmptyState, ErrorMessage, Loading, s } from "../../components/ui";
 import { p, pc } from "../../theme/personal";
 import { flashcardResponse, initialCardState, rateCard, recallLabels, revealCard, usableBack, validDeck,

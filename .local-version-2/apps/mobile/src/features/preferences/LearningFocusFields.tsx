@@ -1,4 +1,6 @@
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { Input, s } from "../../components/ui";
 import { validLearningFocus, type LearningFocus } from "../../services/api/identity";
 

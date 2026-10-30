@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { router, useFocusEffect } from "expo-router";
 import { Button, EmptyState, s } from "../../components/ui";
 import { LoadState } from "../../components/navigation";

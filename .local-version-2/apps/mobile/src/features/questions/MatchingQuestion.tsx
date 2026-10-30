@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { Button, EmptyState, ErrorMessage, Loading, s } from "../../components/ui";
 import { choiceStyles } from "./ChoiceQuestion";
 import { assignMatch, matchingResponse, validMatches, type MatchPair, type MatchingItem, type MatchingResponse } from "./matching";
