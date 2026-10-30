@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { StyleSheet, Text, View, Pressable, ScrollView } from "react-native";
+import { StyleSheet, View, Pressable, ScrollView } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { theme as baseTheme } from "../../theme/tokens";
 import { pc } from "../../theme/personal";
 import { Button, ErrorMessage, Loading } from "../../components/ui";

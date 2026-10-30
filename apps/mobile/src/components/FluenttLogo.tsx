@@ -1,4 +1,6 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 
 /** The approved Open dialogue mark, bundled for both web and native. */
 export function FluenttLogo({ size = 36 }: { size?: number }) {

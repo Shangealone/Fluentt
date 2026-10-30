@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { router, usePreventRemove } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { Button, ErrorMessage, s } from "../../components/ui";

@@ -14,13 +14,16 @@ let hasPreviousScreen = true;
 let currentPath = '/student';
 const originalLoad = Module._load;
 Module._load = function(name, parent, isMain) {
-  if (name === 'react-native') return local('react-native-web');
+  if (name === 'react-native') return {...local('react-native-web'), useWindowDimensions: () => ({width:390,height:844,scale:1,fontScale:1})};
   if (name === 'react-native-safe-area-context') return { SafeAreaView: local('react-native-web').View };
   if (name === 'expo-clipboard') return { setStringAsync: async () => false };
-  if (name === 'expo-router') return { router: { push() {}, navigate(path) { routerEvents.push(['navigate', path]); }, replace(path) { routerEvents.push(['replace', path]); }, canGoBack() { return hasPreviousScreen; }, back() { routerEvents.push(['back']); } }, usePathname: () => currentPath, useLocalSearchParams: () => ({ id: 'synthetic' }), useFocusEffect() {} };
+  if (name === 'expo-router') return { router: { push(path) { routerEvents.push(['push', path]); }, navigate(path) { routerEvents.push(['navigate', path]); }, replace(path) { routerEvents.push(['replace', path]); }, canGoBack() { return hasPreviousScreen; }, back() { routerEvents.push(['back']); } }, usePathname: () => currentPath, useLocalSearchParams: () => ({ id: 'synthetic' }), useFocusEffect() {} };
   if (name.endsWith('/session/provider')) return { useSession: () => currentSession };
   if (name.endsWith('/dashboard/usePagedList')) return { usePagedList: () => ({ state: currentState, reload() {}, more() {} }) };
   return originalLoad.call(this, name, parent, isMain);
+};
+for (const ext of ['.png', '.jpg']) Module._extensions[ext] = function(module, filename) {
+  module.exports = { uri: `asset://${path.basename(filename)}` };
 };
 for (const ext of ['.ts', '.tsx']) Module._extensions[ext] = function(module, filename) {
   const result = babel.transformSync(fs.readFileSync(filename, 'utf8'), { filename, babelrc: false, configFile: false,
@@ -114,13 +117,68 @@ for (const [label, rows] of [['zero', []], ['one', [owned]], ['multiple', [owned
   test(`instructor ${label}-class dashboard uses returned class records and owner actions`, () => {
     const html = render('instructor', 'instructor', 'ready', rows);
     assert.ok(html.includes('Create a class')); assert.ok(html.includes('Refresh classes')); assert.ok(html.includes('My account'));
-    assert.equal(html.includes('No classes are saved yet'), rows.length === 0);
+    assert.equal(html.includes('Your first class starts here'), rows.length === 0);
+    assert.ok(html.includes('Your teaching space'));
+    assert.ok(html.includes('Let’s make room for learning.'));
+    assert.ok(!html.includes('Go back to the previous screen'));
     for (const row of rows) assert.ok(html.includes(row.class_name));
     assert.ok(!html.includes('student count')); assert.ok(!html.includes('Edit learning preferences'));
   });
 for (const phase of ['loading', 'error']) test(`instructor ${phase} hides old owned classes`, () => {
   const html = render('instructor', 'instructor', phase, [owned]);
   assert.ok(!html.includes('Synthetic owned class')); assert.ok(!html.includes('000042'));
+  assert.ok(html.includes(phase === 'loading' ? 'Loading your classes…' : 'We couldn’t load your classes'));
+  if (phase === 'error') assert.ok(html.includes('Backend unavailable') && html.includes('Try again'));
+});
+test('instructor cards retain real codes and restrict class overview to active classes', () => {
+  const html = render('instructor', 'instructor', 'ready', [owned, {...owned, id:'archived', class_name:'Archived class', status:'archived', join_code:null}]);
+  assert.ok(html.includes('Class code 000042'));
+  assert.ok(html.includes('No active code'));
+  assert.ok(html.includes('Archived'));
+  assert.ok(html.includes('Overview: Synthetic owned class'));
+  assert.ok(!html.includes('Overview: Archived class'));
+  assert.ok(!html.includes('123 456') && !html.includes('654 321'));
+});
+function elementsIn(element) {
+  if (!React.isValidElement(element)) return [];
+  return [element, ...React.Children.toArray(element.props.children).flatMap(elementsIn)];
+}
+test('instructor navigation preserves destinations without duplicating the current home', () => {
+  const { InstructorHomeNavigation } = local(path.join(mobile, 'src/features/dashboard/InstructorHome.tsx'));
+  const items = elementsIn(InstructorHomeNavigation()).filter(element => element.props.accessibilityRole === 'tab');
+  assert.deepEqual(items.map(item => item.props.accessibilityLabel), ['Home','Messages','Notifications','Overview']);
+  assert.equal(items.filter(item => item.props.accessibilityState.selected).length, 1);
+  routerEvents.length = 0; items[0].props.onPress(); assert.deepEqual(routerEvents, []);
+  for (const item of items.slice(1)) item.props.onPress();
+  assert.deepEqual(routerEvents, [['navigate','/communication'],['navigate','/notifications'],['navigate','/instructor-monitoring']]);
+});
+test('instructor class actions retain the exact returned class identifier', () => {
+  const { InstructorClassCard } = local(path.join(mobile, 'src/features/dashboard/InstructorClassCard.tsx'));
+  routerEvents.length = 0;
+  for (const item of elementsIn(InstructorClassCard({row:owned})).filter(item => item.props.onPress)) item.props.onPress();
+  assert.deepEqual(routerEvents, [['push',{pathname:'/class-details',params:{id:owned.id}}],['push',{pathname:'/instructor-monitoring',params:{classId:owned.id}}]]);
+});
+test('instructor homepage keeps retry, refresh and pagination connected to their supplied actions', () => {
+  const { InstructorHome } = local(path.join(mobile, 'src/features/dashboard/InstructorHome.tsx'));
+  let refreshed = 0; let paged = 0;
+  const props = {username:'Teacher',state:{phase:'ready',rows:[owned],error:null,hasMore:true},onRefresh:()=>refreshed++,onMore:()=>paged++};
+  let items = elementsIn(InstructorHome(props));
+  items.find(item => item.props.accessibilityLabel === 'Refresh classes').props.onPress();
+  items.find(item => item.props.onPress === props.onMore).props.onPress();
+  assert.equal(refreshed,1); assert.equal(paged,1);
+  for (const phase of ['loading','error']) {
+    items = elementsIn(InstructorHome({...props,state:{...props.state,phase,error:'Backend unavailable'}}));
+    assert.ok(!items.some(item => item.props.onPress === props.onMore));
+    if (phase === 'loading') assert.equal(items.find(item => item.props.accessibilityLabel === 'Refresh classes').props.disabled,true);
+    else assert.equal(items.filter(item => item.props.onPress === props.onRefresh).length,2);
+  }
+});
+test('instructor homepage stays hidden after role or session loss', () => {
+  render('instructor','instructor');
+  for (const profile of [null,{...currentSession.profile,role:'school_student'},{...currentSession.profile,role:'personal_student'}]) {
+    currentSession = {...currentSession,profile};
+    assert.equal(screens.instructor(),null);
+  }
 });
 test('account offers existing personal editing and explains device-only access before sign-out', () => {
   const html = render('account', 'personal_student');
@@ -138,7 +196,7 @@ test('preference editor renders supported saved choices and no unsupported ident
 test('class details hide old class data when current read fails', () => {
   const html = render('class-details', 'instructor', 'error', [owned]);
   assert.ok(!html.includes('Synthetic owned class')); assert.ok(!html.includes('000042'));
-  assert.ok(html.includes('Retry loading')); assert.ok(html.includes('Go back to the previous screen'));
+  assert.ok(html.includes('Try again')); assert.ok(html.includes('Back to classes'));
 });
 
 test('shared back control uses real history, with a safe entry fallback for direct links', () => {
@@ -150,7 +208,7 @@ test('shared back control uses real history, with a safe entry fallback for dire
   BackButton({}).props.onPress();
   assert.deepEqual(routerEvents, [['replace', '/']]);
   hasPreviousScreen = true;
-  for (const name of ['student', 'instructor', 'account', 'preferences', 'class-details'])
+  for (const name of ['student', 'account', 'preferences'])
     assert.ok(render(name, name === 'instructor' || name === 'class-details' ? 'instructor' : 'personal_student').includes('Go back to the previous screen'), name);
 });
 

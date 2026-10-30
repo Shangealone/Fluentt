@@ -1,5 +1,7 @@
 import { useEffect, useRef, type ComponentRef } from "react";
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text, TextInput } from "../../accessibility/Primitives";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FluenttLogo } from "../../components/FluenttLogo";
 import { PersonalIcon } from "../../components/PersonalIcon";

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { useLocalSearchParams } from "expo-router";
 import { Screen, Button, EmptyState, s } from "../components/ui";
 import { AppHeader, LoadState } from "../components/navigation";

@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { router } from "expo-router";
 import { Button } from "../../components/ui";
 import { PersonalIcon } from "../../components/PersonalIcon";

@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { Button, EmptyState, ErrorMessage, Loading, s } from "../../components/ui";
 import { theme } from "../../theme/tokens";
 import { selectedChoice, selectChoice, type ChoiceItem, type ChoiceResponse } from "./choice";

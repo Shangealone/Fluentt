@@ -1,5 +1,7 @@
 import React, { useState, useCallback } from "react";
-import { StyleSheet, Text, View, Pressable, ScrollView } from "react-native";
+import { StyleSheet, View, Pressable, ScrollView } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { useFocusEffect } from "expo-router";
 import { Screen, Button, Loading, ErrorMessage } from "../components/ui";
 import { AppHeader } from "../components/navigation";

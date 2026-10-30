@@ -32,7 +32,7 @@ test('instructor resume uses backend completion and does not generate another cl
 test('copy preserves leading zeros and share contains only invitation data',async()=>{
  let copied;assert.equal(await copyClassCode('000042',async value=>{copied=value;return true;}),'Class code copied.');assert.equal(copied,'000042');
  let message;assert.equal(await shareClassCode('000042',row.class_name,async value=>{message=value;return true;}),'Share sheet opened.');
- assert.match(message,/000042/);assert.match(message,/intended students/);assert.doesNotMatch(message,/Bearer|flt_/);
+ assert.match(message,/000042/);assert.match(message,/intended students/);assert.doesNotMatch(message,/Bearer|flt_|Create your username/);
  assert.equal(await shareClassCode('000042','A',async()=>false),'Sharing cancelled.');
  await assert.rejects(copyClassCode('000042',async()=>false),/Clipboard/);await assert.rejects(copyClassCode('42',async()=>true),/six-digit/);await assert.rejects(shareClassCode('42','A',async()=>true),/six-digit/);
 });

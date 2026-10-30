@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { AppState, Platform, Pressable, Text, View } from "react-native";
+import { AppState, Platform, Pressable, View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import type { PronunciationAccess, PronunciationActivityView, PronunciationAttemptSubmission } from "../../services/api/pronunciation";
 import { Button, ErrorMessage } from "../../components/ui";
 import { p, pc } from "../../theme/personal";

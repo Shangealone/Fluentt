@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { router } from "expo-router";
 import { PersonalScreen } from "../components/PersonalScreen";
 import { Button } from "../components/ui";

@@ -1,5 +1,7 @@
 import {useState} from "react";
-import {Text,TextInput,Pressable,View} from "react-native";
+import { Pressable, View } from "react-native";
+import { Text, TextInput } from "../accessibility/Primitives";
+
 import {router} from "expo-router";
 import {Screen} from "../components/ui";
 import {FluenttLogo} from "../components/FluenttLogo";

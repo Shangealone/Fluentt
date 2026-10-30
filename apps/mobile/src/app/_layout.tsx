@@ -1,5 +1,7 @@
 import { useEffect } from "react";
-import { Platform, Text, View } from "react-native";
+import { Platform, View } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -8,8 +10,10 @@ import { destination, routeAllowed } from "../session/routing";
 import { Screen, Loading, ErrorMessage, Button, s } from "../components/ui";
 import { PersonalBottomNavigation } from "../components/PersonalBottomNavigation";
 import { ClassroomBottomNavigation } from "../components/ClassroomBottomNavigation";
+import { ReadingPreferencesProvider, useReadingPreferences } from "../accessibility/provider";
 function Navigator() {
   const session = useSession();
+  const { reduceMotion } = useReadingPreferences();
   if (session.loading || session.error) return <Screen>
     <Text style={s.brand}>FLUENTT</Text>
     <Text accessibilityRole="header" style={s.heading}>
@@ -22,7 +26,7 @@ function Navigator() {
   </Screen>;
   const target = session.profile ? destination(session.profile) : "/";
   const allowed = (route: string) => routeAllowed(session.profile, route, session.pending);
-  return <Stack screenOptions={{ headerShown: false }}>
+  return <Stack screenOptions={{ headerShown: false, ...(reduceMotion ? { animation: "none" as const } : {}) }}>
     <Stack.Protected guard={!session.profile} redirectTo={target}>
       <Stack.Protected guard={!session.pending}>
         <Stack.Screen name="index" />
@@ -126,14 +130,16 @@ export default function Layout() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <SessionProvider>
-        <View style={{ flex: 1 }}>
-          <View style={{ flex: 1 }}><Navigator /></View>
-          <PersonalBottomNavigation />
-          <ClassroomBottomNavigation />
-        </View>
-      </SessionProvider>
+      <ReadingPreferencesProvider>
+        <StatusBar style="dark" />
+        <SessionProvider>
+          <View style={{ flex: 1 }}>
+            <View style={{ flex: 1 }}><Navigator /></View>
+            <PersonalBottomNavigation />
+            <ClassroomBottomNavigation />
+          </View>
+        </SessionProvider>
+      </ReadingPreferencesProvider>
     </SafeAreaProvider>
   );
 }

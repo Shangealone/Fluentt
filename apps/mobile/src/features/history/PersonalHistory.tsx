@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { useFocusEffect } from "expo-router";
 import { Button, ErrorMessage, Loading } from "../../components/ui";
 import { PersonalIcon } from "../../components/PersonalIcon";

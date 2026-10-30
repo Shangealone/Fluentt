@@ -1,4 +1,6 @@
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { s } from "../../components/ui";
 import type { PublishedAssignment } from "../../services/api/assignments";
 

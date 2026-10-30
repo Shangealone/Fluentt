@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
+
 import { router, usePreventRemove } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { Button, EmptyState, ErrorMessage, Input, Loading, s } from "../../components/ui";

@@ -1,4 +1,6 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { s } from "./ui";
 export function Choices<T extends string | number>({
   values,

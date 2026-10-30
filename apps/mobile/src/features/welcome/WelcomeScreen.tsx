@@ -1,4 +1,6 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Text, useWindowDimensions } from "../../accessibility/Primitives";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FluenttLogo } from "../../components/FluenttLogo";
 import { PersonalIcon } from "../../components/PersonalIcon";

@@ -1,6 +1,7 @@
 // Synthetic QA activity only; no live voice, provider or human research observations.
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),Module=require('node:module');
 const mobile=path.resolve(__dirname,'../apps/mobile'),local=Module.createRequire(path.join(mobile,'package.json'));
+for (const extension of ['.png', '.jpg']) Module._extensions[extension] = (module, filename) => { module.exports = { uri: filename }; };
 const React=local('react'),babel=local('@babel/core'),original=Module._load;let session;
 Module._load=function(name,parent,main){
   if(name==='react-native')return local('react-native-web');

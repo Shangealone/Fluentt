@@ -1,4 +1,6 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../accessibility/Primitives";
+
 import { theme } from "../theme/tokens";
 
 /** Decorative, code-native artwork; never represents learner activity. */
