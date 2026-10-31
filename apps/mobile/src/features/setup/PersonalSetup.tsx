@@ -7,6 +7,12 @@ import { experienceForLevel, languageBackTarget, levelFromExperience, type Setup
 import { PersonalSetupView } from "./PersonalSetupView";
 
 export function PersonalSetup({ step }: { step: 1 | 2 }) {
+  const { profile } = useSession();
+  if (profile?.role !== "personal_student") return null;
+  return <PersonalSetupEditor key={`${profile.id}-${step}`} step={step} />;
+}
+
+function PersonalSetupEditor({ step }: { step: 1 | 2 }) {
   const session = useSession();
   const savedLanguage = session.profile?.language ?? null;
   const savedExperience = session.profile?.experience ?? null;
@@ -49,7 +55,7 @@ export function PersonalSetup({ step }: { step: 1 | 2 }) {
     setError("");
   }
   async function save() {
-    if (saving.current || showExit || (step === 1 ? !language : !level || !savedLanguage)) return;
+    if (saving.current || !focused.current || showExit || (step === 1 ? !language : !level || !savedLanguage)) return;
     saving.current = true;
     const current = generation.current;
     setBusy(true); setError("");

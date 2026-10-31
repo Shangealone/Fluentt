@@ -1,4 +1,5 @@
-import { useRef, useState, type ComponentRef } from "react";
+import { AssignmentPresentation, useAssignmentQuestionStyles } from "../../theme/assignment";
+import { useContext, useRef, useState, type ComponentRef } from "react";
 import { View } from "react-native";
 import { Text, TextInput } from "../../accessibility/Primitives";
 
@@ -9,30 +10,32 @@ import { codepoints, fieldIds, textErrors, textPrompt, textResponse, type TextIt
 export function TextQuestion({ item, value, onChange, disabled = false, review = false }: {
   item: TextItem; value: TextValues; onChange: (values: TextValues) => void; disabled?: boolean; review?: boolean;
 }) {
+  const questionStyles = useAssignmentQuestionStyles(s);
+  const assignment = useContext(AssignmentPresentation);
   const inputs = useRef<Record<string, ComponentRef<typeof TextInput> | null>>(Object.create(null));
   const ids = fieldIds(item), errors = textErrors(item, value), limit = item.content.input_max_length;
-  return <View style={[s.card, { gap: 16 }]}>
-    <Text style={s.heading} accessibilityRole="header">{textPrompt(item)}</Text>
-    {!!item.instructions && <Text style={s.body}>{item.instructions}</Text>}
-    <Text style={s.body}>{limit === undefined ? "No declared input limit." : `Up to ${limit} Unicode code points per answer.`} Raw text is preserved. No automatic grading is performed.</Text>
+  return <View style={[questionStyles.card, { gap: 16 }]}>
+    <Text style={questionStyles.heading} accessibilityRole="header">{textPrompt(item)}</Text>
+    {!!item.instructions && <Text style={questionStyles.body}>{item.instructions}</Text>}
+    <Text style={questionStyles.body}>{assignment ? limit === undefined ? "Type your answer below." : `Up to ${limit} characters per answer.` : `${limit === undefined ? "No declared input limit." : `Up to ${limit} Unicode code points per answer.`} Raw text is preserved. No automatic grading is performed.`}</Text>
     {ids.map((id, index) => {
       const label = item.method === "identification" ? "Your answer" : `Gap ${index + 1}`;
       const raw = Object.hasOwn(value, id) ? value[id] : "";
       const error = raw ? errors[id] : null;
       return <View key={id} style={{ gap: 8 }}>
-        <Text style={s.body} nativeID={`answer-label-${index}`}>{label}</Text>
-        <TextInput ref={node => { inputs.current[id] = node; }} style={s.input} value={raw} editable={!disabled} multiline
-          accessibilityLabel={label} accessibilityHint={error || (limit === undefined ? "Raw text answer" : `Maximum ${limit} Unicode code points`)}
+        <Text style={questionStyles.body} nativeID={`answer-label-${index}`}>{label}</Text>
+        <TextInput ref={node => { inputs.current[id] = node; }} style={questionStyles.input} value={raw} editable={!disabled} multiline
+          accessibilityLabel={label} accessibilityHint={error || (limit === undefined ? assignment ? "Type your answer" : "Raw text answer" : `Maximum ${limit} ${assignment ? "characters" : "Unicode code points"}`)}
           aria-invalid={!!error} aria-disabled={disabled} accessibilityState={{ disabled }}
           autoCorrect={false} autoCapitalize="none" autoComplete="off" spellCheck={false}
           enterKeyHint={index < ids.length - 1 ? "next" : "done"} submitBehavior={index < ids.length - 1 ? "submit" : "blurAndSubmit"}
           onSubmitEditing={() => { if (!disabled && index < ids.length - 1) inputs.current[ids[index + 1]]?.focus(); }}
           onChangeText={text => { if (!disabled) onChange({ ...value, [id]: text }); }} />
-        <Text style={s.body}>{codepoints(raw)} code points</Text>
+        <Text style={questionStyles.body}>{codepoints(raw)} {assignment ? "characters" : "code points"}</Text>
         {!!error && <ErrorMessage message={error} />}
       </View>;
     })}
-    <Text style={s.body} accessibilityLiveRegion="polite">{review ? "Original submitted text (read-only, without normalization)." : textResponse(item, value) ? "Response complete. Not submitted or scored." : "Complete every answer within its declared limit."}</Text>
+    <Text style={questionStyles.body} accessibilityLiveRegion="polite">{review ? "Original submitted text (read-only, without normalization)." : textResponse(item, value) ? "Response complete. Not submitted or scored." : "Complete every answer within its declared limit."}</Text>
   </View>;
 }
 

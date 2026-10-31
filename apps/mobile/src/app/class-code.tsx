@@ -33,11 +33,12 @@ export default function ClassCode() {
   const goBack = useCallback(() => {
     if (flow.busy || working.current) return;
     if (showExit) { setShowExit(false); return; }
+    if (router.canGoBack()) { router.back(); return; }
+    if (flow.confirmed || session.profile?.profile_status === "active") {
+      router.replace("/my-classes"); return;
+    }
     if (flow.preview && !flow.pending) {
       flow.cancel(); setError(""); render(value => value + 1); return;
-    }
-    if (flow.confirmed || session.profile?.profile_status === "active") {
-      router.replace("/student"); return;
     }
     setShowExit(true);
   }, [flow, session.profile?.profile_status, showExit]);

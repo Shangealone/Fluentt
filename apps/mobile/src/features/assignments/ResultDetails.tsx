@@ -7,6 +7,8 @@ import { usePreventRemove } from "expo-router";
 import { Button, ErrorMessage, Loading, s } from "../../components/ui";
 import type { AssessmentResult, ResultsAccess } from "../../services/api/results";
 import { CaptureQuestion } from "./CaptureQuestion";
+import { InstructorResultView } from "./InstructorResultView";
+import type { ReactNode } from "react";
 
 export const resultMessage = (row: Pick<AssessmentResult, "state" | "submission_status">) => ({
   not_submitted: row.submission_status === "in_progress" ? "Work in progress. Submit before evaluation." : "No submission yet.",
@@ -17,13 +19,14 @@ export const resultMessage = (row: Pick<AssessmentResult, "state" | "submission_
   not_applicable: "Objective scoring is not applicable. There is no score or denominator.",
 })[row.state];
 
-export function ResultDetails({ initial, api, instructor = false, onVisibilityChanged }: { initial: AssessmentResult; api: ResultsAccess; instructor?: boolean; onVisibilityChanged?: () => void }) {
+export function ResultDetails({ initial, api, instructor = false, onVisibilityChanged, evaluationHistory, onBusyChange }: { initial: AssessmentResult; api: ResultsAccess; instructor?: boolean; onVisibilityChanged?: () => void; evaluationHistory?: ReactNode; onBusyChange?: (busy: boolean) => void }) {
   const [row, setRow] = useState(initial), [position, setPosition] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [confirm, setConfirm] = useState(false), [pending, setPending] = useState<{ row: AssessmentResult; released: boolean; key: string } | null>(null);
   const [blocked, setBlocked] = useState(false), [uncertain, setUncertain] = useState(false);
   const [leave, setLeave] = useState<(() => void) | null>(null);
   const alive = useRef(true), lock = useRef(false);
+  useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false); }, [busy, onBusyChange]);
   usePreventRemove(busy || !!pending || confirm, ({ repeat }) => {
     if (lock.current) { setError("Wait for the visibility request to finish before leaving."); return; }
     setLeave(() => repeat);
@@ -46,6 +49,8 @@ export function ResultDetails({ initial, api, instructor = false, onVisibilityCh
       }
     } finally { lock.current = false; if (alive.current) setBusy(false); }
   }
+  if (instructor) return <InstructorResultView row={row} position={position} busy={busy} error={error} uncertain={uncertain} blocked={blocked} confirm={confirm} pending={!!pending} leaving={!!leave} evaluationHistory={evaluationHistory}
+    onShare={() => setConfirm(true)} onConfirm={() => void change()} onCancel={() => setConfirm(false)} onRetry={() => void change()} onStay={() => setLeave(null)} onLeave={() => { setPending(null); setConfirm(false); leave?.(); }} onPosition={setPosition} />;
   if (blocked) return <ErrorMessage message="Access is no longer available. Refresh to verify your class and session." />;
   const item = row.items[position];
   return <View style={{ gap: 16 }}>

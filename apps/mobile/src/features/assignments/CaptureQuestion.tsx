@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { AssignmentPresentation, useAssignmentQuestionStyles } from "../../theme/assignment";
+import { useContext, useState } from "react";
 import { View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
 
@@ -25,6 +26,8 @@ export function CaptureQuestion({ item, answer, back, disabled, onChange, onReve
   review?: boolean;
   practice?: boolean;
 }) {
+  const questionStyles = useAssignmentQuestionStyles(s);
+  const assignment = useContext(AssignmentPresentation);
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const method = item.definition.method;
   if (method === "multiple_choice" || method === "true_false") {
@@ -47,13 +50,13 @@ export function CaptureQuestion({ item, answer, back, disabled, onChange, onReve
     if (value) return <MatchingQuestion item={value} value={(answer?.pairs ?? []) as MatchPair[]} selectedLeft={selectedLeft} onSelectLeft={setSelectedLeft} disabled={disabled || review} review={review} onChange={pairs => { setSelectedLeft(null); onChange({ pairs }); }} />;
   } else {
     const front = flashcardFrontFromRevision(item);
-    if (front && review) return <View style={s.card}><Text style={s.heading} accessibilityRole="header">{front.prompt}</Text>
-      {!!front.instructions && <Text style={s.body}>{front.instructions}</Text>}<Text style={s.body}>{front.cue}</Text>
-      <Text style={s.body}>Submitted recall: {typeof answer?.recall === "string" ? answer.recall : "No self-report"}. Subjective recall is not objectively scored. Card back withheld.</Text></View>;
-    if (front && !back) return <View style={practice ? p.card : s.card}>{practice && <Text style={p.eyebrow}>Active recall · Flashcard</Text>}<Text style={practice ? p.heading : s.heading} accessibilityRole="header">{front.prompt}</Text>
-      {!!front.instructions && <Text style={s.body}>{front.instructions}</Text>}<Text style={practice ? { fontSize: 30, color: pc.ink, fontWeight: "600", paddingVertical: 12 } : s.body}>{front.cue}</Text>
+    if (front && review) return <View style={questionStyles.card}><Text style={questionStyles.heading} accessibilityRole="header">{front.prompt}</Text>
+      {!!front.instructions && <Text style={questionStyles.body}>{front.instructions}</Text>}<Text style={questionStyles.body}>{front.cue}</Text>
+      <Text style={questionStyles.body}>Submitted recall: {typeof answer?.recall === "string" ? answer.recall : "No self-report"}. Subjective recall is not objectively scored. Card back withheld.</Text></View>;
+    if (front && !back) return <View style={practice ? p.card : questionStyles.card}>{practice && <Text style={p.eyebrow}>Active recall · Flashcard</Text>}<Text style={practice ? p.heading : questionStyles.heading} accessibilityRole="header">{front.prompt}</Text>
+      {!!front.instructions && <Text style={questionStyles.body}>{front.instructions}</Text>}<Text style={practice ? { fontSize: 30, color: pc.ink, fontWeight: "600", paddingVertical: 12 } : questionStyles.body}>{front.cue}</Text>
       <Button label={practice ? "Reveal card back" : "Reveal assignment card back"} disabled={disabled} onPress={onReveal} />
-      <Text style={s.body}>{practice ? "Think of your answer, reveal the card, then optionally report how it felt." : "Reveal deliberately, then optionally report recall. This is unscored classroom capture, without spaced-repetition scheduling."}</Text></View>;
+      <Text style={questionStyles.body}>{assignment ? "Think of your answer, then reveal the card. You can choose how recalling it felt." : practice ? "Think of your answer, reveal the card, then optionally report how it felt." : "Reveal deliberately, then optionally report recall. This is unscored classroom capture, without spaced-repetition scheduling."}</Text></View>;
     if (front && back) return <FlashcardQuestion front={front} back={back} value={{ revealed: true, recall: answer?.recall as Recall ?? null }}
       practice={practice} allowRecallRevision={!practice} disabled={disabled || review} onChange={next => { if (next.recall) onChange({ recall: next.recall }); }} />;
   }

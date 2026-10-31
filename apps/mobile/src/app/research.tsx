@@ -1,23 +1,14 @@
-import React from "react";
-import { router } from "expo-router";
-import { Screen } from "../components/ui";
-import { AppHeader } from "../components/navigation";
+import { useCallback, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { useSession } from "../session/provider";
 import { ResearchParticipationView } from "../features/research/ResearchParticipationView";
 
 export default function ResearchScreen() {
   const { profile } = useSession();
-
-  if (!profile) return null;
-
-  return (
-    <Screen>
-      <AppHeader
-        navigation
-        title="Research Participation"
-        subtitle="Study enrollment, informed consent & lifecycle"
-      />
-      <ResearchParticipationView onDone={() => router.push(profile.role === "instructor" ? "/instructor" : "/student")} />
-    </Screen>
-  );
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
+  if (!focused || profile?.role !== "school_student") return null;
+  return <ResearchParticipationView key={profile.id}
+    onDone={() => { if (router.canGoBack()) router.back(); else router.replace("/student"); }}
+    onAccount={() => router.push("/account")} />;
 }

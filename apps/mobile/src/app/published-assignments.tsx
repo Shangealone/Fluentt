@@ -1,33 +1,32 @@
 import { useCallback, useState } from "react";
-import { View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { Screen, Button } from "../components/ui";
-import { AppHeader } from "../components/navigation";
-import { Picker } from "../features/assignments/AssignmentEditor";
 import { useSession } from "../session/provider";
-import { PublishedDetails } from "../features/assignments/PublishedDetails";
+import type { AssignmentPage, PublishedAssignment } from "../services/api/assignments";
+import { StudentPublishedAssignmentsView } from "../features/assignments/StudentPublishedAssignmentsView";
 
 export default function PublishedAssignments() {
   const { classId, id } = useLocalSearchParams<{ classId?: string; id?: string }>();
-  const resolvedClassId = classId || "";
+  const resolvedClassId = typeof classId === "string" ? classId : "";
+  const assignmentId = typeof id === "string" ? id : "";
   const { assignments } = useSession();
   const [focused, setFocused] = useState(false), [reload, setReload] = useState(0);
   useFocusEffect(useCallback(() => { setFocused(true); setReload(value => value + 1); return () => setFocused(false); }, []));
-  const fetch = useCallback(async (offset: number) => {
-    if (!id && !resolvedClassId) throw new Error("Choose a class to see its assignments.");
-    if (!id) return assignments.published(resolvedClassId, offset);
-    const row = await assignments.publishedDetail(id);
+  const fetch = useCallback(async (offset: number): Promise<AssignmentPage<PublishedAssignment>> => {
+    if (!assignmentId && !resolvedClassId) throw new Error("Choose a class to see its assignments.");
+    if (!assignmentId) return assignments.published(resolvedClassId, offset);
+    const row = await assignments.publishedDetail(assignmentId);
     return { items: [row], has_more: false, limit: 20, offset: 0 };
-  }, [assignments, resolvedClassId, id]);
+  }, [assignments, resolvedClassId, assignmentId]);
 
-  return <Screen><AppHeader title={id ? "Published assignment" : "Published class assignments"} back />
-    <Button label="Refresh published assignments" secondary onPress={() => setReload(value => value + 1)} />
-    {focused && <Picker key={`${classId}:${id}:${reload}`} fetch={fetch}
-      emptyTitle="No published assignments" emptyDescription="Your instructor has not published assignments for this class yet. Refresh to check again."
-      render={row => <View key={row.id} style={{ gap: 12 }}><PublishedDetails row={row} />
-        {!id && <Button label={`View assignment: ${row.title}`} onPress={() => router.push({ pathname: "/published-assignments", params: { classId, id: row.id } })} />}
-        {!!id && <Button label="Start, resume or view submitted receipt" onPress={() => router.push({ pathname: "/assignment-attempt", params: { id: row.id } })} />}
-        <Button label={`Results: ${row.title}`} secondary onPress={() => router.push({ pathname: "/assessment-results", params: { id: row.id } })} />
-      </View>} />}
-  </Screen>;
+  return focused ? <StudentPublishedAssignmentsView key={`${resolvedClassId}:${assignmentId}:${reload}`} fetch={fetch}
+    detail={!!assignmentId} canLoad={!!(assignmentId || resolvedClassId)} onRefresh={() => setReload(value => value + 1)}
+    onBack={returnedClassId => {
+      const targetClassId = returnedClassId || resolvedClassId;
+      if (assignmentId && targetClassId) router.replace({ pathname: "/published-assignments", params: { classId: targetClassId } });
+      else router.replace("/my-classes");
+    }}
+    onAccount={() => router.push("/account")}
+    onView={row => router.push({ pathname: "/published-assignments", params: { classId: row.class_id, id: row.id } })}
+    onOpen={row => router.push({ pathname: "/assignment-attempt", params: { id: row.id } })}
+    onResults={row => router.push({ pathname: "/assessment-results", params: { id: row.id } })} /> : null;
 }

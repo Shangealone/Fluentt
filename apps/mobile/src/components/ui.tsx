@@ -1,5 +1,6 @@
 import { useContext } from "react";
 import { PersonalDesign, pc } from "../theme/personal";
+import { AssignmentPresentation } from "../theme/assignment";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, type StyleProp, type TextInputProps, type ViewStyle, type TextStyle } from "react-native";
 import { Text, TextInput } from "../accessibility/Primitives";
 
@@ -143,7 +144,8 @@ export function Button({
 }) {
   const activeVariant: ButtonVariant = variant ?? (secondary ? "secondary" : "primary");
   const personal = useContext(PersonalDesign);
-  const visualIcon = icon ?? actionIcon(label);
+  const assignment = useContext(AssignmentPresentation);
+  const visualIcon = assignment ? undefined : icon ?? actionIcon(label);
 
   return (
     <Pressable
@@ -159,6 +161,7 @@ export function Button({
         personal && { borderRadius: 10, minHeight: 44, boxShadow: "none" },
         personal && activeVariant === "primary" && { backgroundColor: pc.navy },
         personal && activeVariant === "secondary" && { backgroundColor: pc.soft, borderColor: pc.soft },
+        assignment && { borderRadius: 14, minHeight: 44, boxShadow: "none", backgroundColor: activeVariant === "primary" ? "#C64A2C" : activeVariant === "ghost" ? "transparent" : "#FFFFFF", borderWidth: activeVariant === "ghost" ? 0 : 1, borderColor: activeVariant === "primary" ? "#C64A2C" : "#E4EBE5" },
         {
           opacity: disabled ? 0.45 : pressed ? 0.88 : 1,
           transform: [{ scale: pressed && !disabled ? 0.985 : 1 }],
@@ -173,6 +176,7 @@ export function Button({
             s.buttonText,
             btnTextVariantStyles[activeVariant],
             btnTextSizeStyles[size],
+            assignment && { color: activeVariant === "primary" ? "#FFFFFF" : "#176556", fontWeight: "600" },
             textStyle,
           ]}
         >

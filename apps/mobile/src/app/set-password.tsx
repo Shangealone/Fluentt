@@ -1,15 +1,57 @@
-import {useState} from "react";
-import { Pressable, View } from "react-native";
-import { Text, TextInput } from "../accessibility/Primitives";
+import { useCallback, useRef, useState } from "react";
+import { BackHandler } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { SetPasswordView, type PasswordErrors } from "../features/auth/SetPasswordView";
+import { useSession } from "../session/provider";
+import { destination } from "../session/routing";
 
-import {router} from "expo-router";
-import {Screen} from "../components/ui";
-import {FluenttLogo} from "../components/FluenttLogo";
-import {useSession} from "../session/provider";
-import {destination} from "../session/routing";
-import {a} from "../features/auth/styles";
-export default function SetPassword(){
- const session=useSession();const [password,setPassword]=useState("");const [confirmation,setConfirmation]=useState("");const [visible,setVisible]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState("");
- async function submit(){if(busy)return;setError("");if(Array.from(password).length<6||Array.from(password).length>128){setError("Choose a password with 6–128 characters.");return;}if(password!==confirmation){setError("Your passwords do not match.");return;}setBusy(true);try{const profile=await session.setPassword(password);setPassword("");setConfirmation("");router.replace(destination(profile));}catch(e){setError(e instanceof Error?e.message:"Please try again.");}finally{setBusy(false);}}
- return <Screen style={a.safe} backDisabled={busy}><FluenttLogo size={32}/><Text accessibilityRole="header" style={a.title}>Keep your account.</Text><Text style={a.description}>Add a password so you can sign in again. Your learning stays with you.</Text><View style={a.card}><Text style={a.label}>New password</Text><TextInput accessibilityLabel="New password" style={a.input} value={password} onChangeText={setPassword} autoCapitalize="none" autoCorrect={false} autoComplete="new-password" secureTextEntry={!visible} editable={!busy}/><Text style={a.label}>Confirm password</Text><TextInput accessibilityLabel="Confirm password" style={a.input} value={confirmation} onChangeText={setConfirmation} autoCapitalize="none" autoCorrect={false} autoComplete="new-password" secureTextEntry={!visible} editable={!busy} onSubmitEditing={()=>void submit()}/><Pressable accessibilityRole="button" onPress={()=>setVisible(v=>!v)} style={a.show}><Text style={a.showText}>{visible?"Hide passwords":"Show passwords"}</Text></Pressable>{!!error&&<Text accessibilityRole="alert" style={a.error}>{error}</Text>}<Pressable accessibilityRole="button" disabled={busy} onPress={()=>void submit()} style={a.submit}><Text style={a.submitText}>{busy?"Saving…":"Save password"}</Text></Pressable></View></Screen>;
+export default function SetPassword() {
+  const { profile } = useSession();
+  if (!profile || profile.has_password) return null;
+  return <PasswordEditor key={profile.id} />;
+}
+
+function PasswordEditor() {
+  const session = useSession();
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const [errors, setErrors] = useState<PasswordErrors>({ password: "", confirmation: "" });
+  const lock = useRef(false), active = useRef(false), generation = useRef(0);
+  useFocusEffect(useCallback(() => {
+    active.current = true;
+    setBusy(lock.current);
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => lock.current);
+    return () => { active.current = false; generation.current += 1; subscription.remove(); };
+  }, []));
+
+  async function submit() {
+    if (lock.current || !active.current) return;
+    setError("");
+    const validation = {
+      password: Array.from(password).length < 6 || Array.from(password).length > 128 ? "Choose a password with 6–128 characters." : "",
+      confirmation: password !== confirmation ? "Your passwords don’t match. Enter the same password again." : "",
+    };
+    setErrors(validation);
+    if (validation.password || validation.confirmation) return;
+    lock.current = true; setBusy(true);
+    const request = generation.current;
+    try {
+      const profile = await session.setPassword(password);
+      if (active.current && request === generation.current) {
+        setPassword(""); setConfirmation("");
+        router.replace(destination(profile));
+      }
+    } catch (cause) {
+      if (active.current && request === generation.current) setError(cause instanceof Error ? cause.message : "Please try again.");
+    } finally {
+      lock.current = false;
+      if (active.current) setBusy(false);
+    }
+  }
+
+  return <SetPasswordView password={password} confirmation={confirmation} busy={busy} error={error} errors={errors}
+    onPassword={value => { if (!lock.current) { setPassword(value); setError(""); setErrors({ password: "", confirmation: "" }); } }}
+    onConfirmation={value => { if (!lock.current) { setConfirmation(value); setError(""); setErrors(current => ({ ...current, confirmation: "" })); } }}
+    onSave={() => { void submit(); }} />;
 }
