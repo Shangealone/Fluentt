@@ -1,148 +1,69 @@
-import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { Text } from "../accessibility/Primitives";
-
-import { useLocalSearchParams } from "expo-router";
-import { Screen, Button, EmptyState, s } from "../components/ui";
-import { AppHeader, LoadState } from "../components/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BackHandler } from "react-native";
+import { router, useFocusEffect, useLocalSearchParams, usePreventRemove } from "expo-router";
 import { useSession } from "../session/provider";
-import { theme } from "../theme/tokens";
-import type { MaterialPage, MaterialView } from "../services/api/materials";
+import { LearningMaterialsView } from "../features/materials/LearningMaterialsView";
+import type { MaterialPage, MaterialsAccess } from "../services/api/materials";
+
+type Selection = { owner: string; lessonId: string; id: string };
+type Read = { owner: string; lessonId: string; api: MaterialsAccess; reload: number; page?: MaterialPage; error?: Error };
 
 export default function MaterialsScreen() {
   const params = useLocalSearchParams<{ lessonId?: string }>();
-  const lessonId = params.lessonId ?? "";
-  const { materials } = useSession();
+  const lessonId = typeof params.lessonId === "string" ? params.lessonId : "";
+  const { profile, materials: api } = useSession();
+  const owner = profile?.id ?? "";
+  const [focused, setFocused] = useState(false), [reload, setReload] = useState(0);
+  const [read, setRead] = useState<Read | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null), [materialRemoved, setMaterialRemoved] = useState(false);
+  const selectionRef = useRef<Selection | null>(null);
+  const select = useCallback((value: Selection | null) => { selectionRef.current = value; setSelection(value); }, []);
+  useEffect(() => { select(null); setMaterialRemoved(false); }, [owner, lessonId, select]);
 
-  const [state, setState] = useState<{
-    phase: "loading" | "ready" | "error";
-    page: MaterialPage | null;
-    error: string | null;
-  }>({
-    phase: "loading",
-    page: null,
-    error: null,
-  });
+  useFocusEffect(useCallback(() => {
+    if (!owner) return;
+    let active = true;
+    setFocused(true); setRead(null); setMaterialRemoved(false);
+    if (lessonId) {
+      void api.getLessonMaterials(lessonId).then(page => {
+        if (!active) return;
+        const selected = selectionRef.current;
+        if (selected?.owner === owner && selected.lessonId === lessonId && !page.items.some(item => item.id === selected.id)) {
+          select(null); setMaterialRemoved(true);
+        }
+        setRead({ owner, lessonId, api, reload, page });
+      }).catch(cause => {
+        if (!active) return;
+        select(null);
+        setRead({ owner, lessonId, api, reload, error: cause instanceof Error ? cause : new Error("Check your connection and try again.") });
+      });
+    }
+    return () => { active = false; setFocused(false); setRead(null); };
+  }, [api, owner, lessonId, reload, select]));
 
-  const load = useCallback(() => {
-    if (!lessonId) { setState({ phase: "error", page: null, error: "Choose a lesson to see its materials." }); return; }
-    setState({ phase: "loading", page: null, error: null });
-    materials
-      .getLessonMaterials(lessonId)
-      .then((page) => setState({ phase: "ready", page, error: null }))
-      .catch((err) =>
-        setState({
-          phase: "error",
-          page: null,
-          error: err instanceof Error ? err.message : "Unable to load learning materials.",
-        })
-      );
-  }, [materials, lessonId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <Screen>
-      <AppHeader
-        navigation
-        title="Learning Materials"
-        subtitle={state.page?.lesson_name ? `Lesson: ${state.page.lesson_name}` : "Curriculum resources"}
-      />
-
-      <LoadState phase={state.phase} error={state.error} retry={load} />
-
-      {state.phase === "ready" && state.page && (
-        <>
-          {state.page.items.length === 0 ? (
-            <EmptyState
-              icon="📖"
-              title="No materials available"
-              description="Materials for this lesson are being compiled or verified."
-            />
-          ) : (
-            <View style={{ gap: 14 }}>
-              {state.page.items.map((mat) => (
-                <MaterialCard key={mat.id} material={mat} />
-              ))}
-            </View>
-          )}
-        </>
-      )}
-
-      <Button label="Refresh materials" secondary onPress={load} />
-    </Screen>
-  );
+  const current = focused && read?.owner === owner && read.lessonId === lessonId && read.api === api && read.reload === reload ? read : null;
+  const selectedId = selection?.owner === owner && selection.lessonId === lessonId ? selection.id : null;
+  // Native/system Back leaves the reading view before leaving the materials route.
+  usePreventRemove(focused && !!selectedId, () => select(null));
+  useFocusEffect(useCallback(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (selectedId) { select(null); return true; }
+      if (!router.canGoBack()) { router.replace(profile?.role === "instructor" ? "/instructor" : "/student"); return true; }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [selectedId, select, profile?.role]));
+  const back = () => {
+    if (selectedId) select(null);
+    else if (router.canGoBack()) router.back();
+    else router.replace(profile?.role === "instructor" ? "/instructor" : "/student");
+  };
+  const error = current?.error;
+  const unavailable = !!error && [401, 403, 404].includes((error as Error & { status?: number }).status ?? 0);
+  if (!profile || !focused) return null;
+  return <LearningMaterialsView lessonId={lessonId} page={current?.page ?? null}
+    loading={!!lessonId && !current} missingLesson={!lessonId} error={error?.message ?? ""} unavailable={unavailable}
+    selectedId={selectedId} materialRemoved={materialRemoved} onBack={back} onList={() => select(null)}
+    onAccount={() => router.push("/account")} onRefresh={() => setReload(value => value + 1)}
+    onRead={id => { if (current?.page?.items.some(item => item.id === id)) { setMaterialRemoved(false); select({ owner, lessonId, id }); } }} />;
 }
-
-function MaterialCard({ material }: { material: MaterialView }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <View style={s.card}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <Text accessibilityRole="header" style={[s.heading, { flex: 1 }]}>
-          {material.title}
-        </Text>
-        <Text style={styles.badge}>
-          {material.resource_type.replace("_", " ").toUpperCase()}
-        </Text>
-      </View>
-
-      {material.description && <Text style={s.body}>{material.description}</Text>}
-
-      {material.content_text && (
-        <View style={styles.contentBox}>
-          <Text
-            style={[styles.contentText, !expanded && styles.collapsedText]}
-            numberOfLines={expanded ? undefined : 4}
-          >
-            {material.content_text}
-          </Text>
-          {material.content_text.length > 150 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              label={expanded ? "Show less" : "Read full text"}
-              onPress={() => setExpanded(!expanded)}
-            />
-          )}
-        </View>
-      )}
-
-      {material.is_required && (
-        <Text style={styles.requiredLabel}>★ Required reading for curriculum progression</Text>
-      )}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  badge: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: theme.colors.primary,
-    backgroundColor: theme.colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  contentBox: {
-    backgroundColor: "#F4F6FB",
-    padding: 12,
-    borderRadius: 8,
-    gap: 8,
-  },
-  contentText: {
-    fontSize: 13,
-    color: theme.colors.ink,
-    lineHeight: 20,
-  },
-  collapsedText: {
-    opacity: 0.9,
-  },
-  requiredLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#B42318",
-  },
-});

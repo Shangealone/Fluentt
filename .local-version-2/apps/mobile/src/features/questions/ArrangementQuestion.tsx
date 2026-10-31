@@ -1,3 +1,4 @@
+import { useAssignmentQuestionStyles } from "../../theme/assignment";
 import { useState } from "react";
 import { View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
@@ -9,22 +10,23 @@ import { appendUnit, arrangementResponse, moveUnit, removeUnit, validSequence, t
 export function ArrangementQuestion({ item, value, onChange, disabled = false, review = false }: {
   item: ArrangementItem; value: string[]; onChange: (ids: string[]) => void; disabled?: boolean; review?: boolean;
 }) {
+  const questionStyles = useAssignmentQuestionStyles(s);
   const valid = validSequence(item, value);
   function change(next: string[]) { if (!disabled && next !== value) onChange(next); }
-  return <View style={[s.card, { gap: 16 }]}>
-    <Text style={s.heading} accessibilityRole="header">{item.prompt}</Text>
-    {!!item.instructions && <Text style={s.body}>{item.instructions}</Text>}
-    <Text style={s.body}>{review ? "Original submitted sequence (read-only). Unit numbers distinguish repeated labels." : "Append each unit once, then move or remove it. Unit numbers distinguish repeated labels. No score is calculated."}</Text>
+  return <View style={[questionStyles.card, { gap: 16 }]}>
+    <Text style={questionStyles.heading} accessibilityRole="header">{item.prompt}</Text>
+    {!!item.instructions && <Text style={questionStyles.body}>{item.instructions}</Text>}
+    <Text style={questionStyles.body}>{review ? "Original submitted sequence (read-only). Unit numbers distinguish repeated labels." : "Append each unit once, then move or remove it. Unit numbers distinguish repeated labels. No score is calculated."}</Text>
     {!valid && <ErrorMessage message="The sequence is invalid. Reset it before arranging units." />}
-    <Text style={s.heading} accessibilityRole="header">Available units</Text>
+    <Text style={questionStyles.heading} accessibilityRole="header">Available units</Text>
     {item.content.items.map((row, index) => <Button key={row.id} secondary
       label={`Append unit ${index + 1}: ${row.text}`} disabled={disabled || !valid || value.includes(row.id)}
       onPress={() => change(appendUnit(item, value, row.id))} />)}
-    <Text style={s.heading} accessibilityRole="header">Your sequence</Text>
+    <Text style={questionStyles.heading} accessibilityRole="header">Your sequence</Text>
     {valid && value.map((id, index) => {
       const source = item.content.items.findIndex(row => row.id === id);
       return <View key={id} style={{ gap: 8 }}>
-        <Text style={s.body}>{index + 1}. Unit {source + 1}: {item.content.items[source].text}</Text>
+        <Text style={questionStyles.body}>{index + 1}. Unit {source + 1}: {item.content.items[source].text}</Text>
         <View style={{ gap: 8 }}>
           <Button label={`Move position ${index + 1} earlier`} secondary disabled={disabled || index === 0} onPress={() => change(moveUnit(value, index, -1))} />
           <Button label={`Move position ${index + 1} later`} secondary disabled={disabled || index === value.length - 1} onPress={() => change(moveUnit(value, index, 1))} />
@@ -32,7 +34,7 @@ export function ArrangementQuestion({ item, value, onChange, disabled = false, r
         </View>
       </View>;
     })}
-    <Text style={s.body} accessibilityLiveRegion="polite">{review ? `${value.length} units in the submitted sequence.` : arrangementResponse(item, value) ? "All units arranged. Ready; not submitted or scored." : `${valid ? value.length : 0} of ${item.content.items.length} units arranged. Sequence unfinished.`}</Text>
+    <Text style={questionStyles.body} accessibilityLiveRegion="polite">{review ? `${value.length} units in the submitted sequence.` : arrangementResponse(item, value) ? "All units arranged. Ready; not submitted or scored." : `${valid ? value.length : 0} of ${item.content.items.length} units arranged. Sequence unfinished.`}</Text>
     <Button label="Reset sequence" secondary disabled={disabled || !value.length} onPress={() => change([])} />
   </View>;
 }

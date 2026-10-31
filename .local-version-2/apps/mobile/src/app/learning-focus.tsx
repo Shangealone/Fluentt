@@ -1,31 +1,53 @@
-import { useRef, useState } from "react";
-import { Text } from "../accessibility/Primitives";
-
-import { router } from "expo-router";
-import { Screen, Button, ErrorMessage, s } from "../components/ui";
-import { AppHeader } from "../components/navigation";
-import { LearningFocusFields, parseFocus } from "../features/preferences/LearningFocusFields";
-import { validLearningFocus } from "../services/api/identity";
+import { useCallback, useRef, useState } from "react";
+import { BackHandler } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { parseFocus } from "../features/preferences/LearningFocusFields";
+import { LearningFocusSetupView } from "../features/setup/LearningFocusSetupView";
+import { validLearningFocus, type LearningFocus } from "../services/api/identity";
 import { useSession } from "../session/provider";
 
+function fieldError(lines: string[]) {
+  if (lines.length > 10) return "Keep this list to 10 requests or fewer.";
+  if (lines.some(line => Array.from(line).length > 120)) return "Keep each request to 120 characters or fewer.";
+  if (new Set(lines).size !== lines.length) return "Each request should be different. Remove the repeated line.";
+  return "";
+}
 export default function LearningFocusSetup() {
+  const { profile } = useSession();
+  if (profile?.role !== "personal_student") return null;
+  return <FocusEditor key={profile.id} initial={profile.learning_focus} />;
+}
+function FocusEditor({ initial }: { initial: LearningFocus | null | undefined }) {
   const session = useSession();
-  const [topics, setTopics] = useState(session.profile?.learning_focus?.topics.join("\n") ?? "");
-  const [lessons, setLessons] = useState(session.profile?.learning_focus?.lessons.join("\n") ?? "");
+  const [topics, setTopics] = useState(initial?.topics.join("\n") ?? "");
+  const [lessons, setLessons] = useState(initial?.lessons.join("\n") ?? "");
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const lock = useRef(false);
+  const lock = useRef(false), active = useRef(false), generation = useRef(0);
+  useFocusEffect(useCallback(() => {
+    active.current = true;
+    setBusy(lock.current);
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => lock.current);
+    return () => { active.current = false; generation.current++; subscription.remove(); };
+  }, []));
   const focus = parseFocus(topics, lessons);
-  return <Screen backDisabled={busy}>
-    <AppHeader title="What would you like to learn?" account={false} subtitle="Personal setup · 1 of 2" />
-    <Text style={s.body}>Tell us the topics and lessons you need. You do not need to choose a grade.</Text>
-    <LearningFocusFields topics={topics} lessons={lessons} onTopics={setTopics} onLessons={setLessons} disabled={busy} />
-    {!!error && <ErrorMessage message={error} />}
-    <Button icon="→" label={busy ? "Saving…" : "Save and continue"} disabled={busy || !validLearningFocus(focus)} onPress={() => {
-      if (lock.current || !validLearningFocus(focus)) return;
-      lock.current = true; setBusy(true); setError("");
-      void session.save({ learning_focus: focus }).then(() => router.push("/language"))
-        .catch(cause => setError(cause instanceof Error ? cause.message : "Please retry."))
-        .finally(() => { lock.current = false; setBusy(false); });
-    }} />
-  </Screen>;
+  const valid = validLearningFocus(focus);
+  async function save() {
+    if (lock.current || !active.current || !valid) return;
+    lock.current = true; setBusy(true); setError("");
+    const request = generation.current;
+    try {
+      await session.save({ learning_focus: focus });
+      if (active.current && request === generation.current) router.push("/language");
+    } catch (cause) {
+      if (active.current && request === generation.current) setError(cause instanceof Error ? cause.message : "Check your connection and try again.");
+    } finally {
+      lock.current = false;
+      if (active.current) setBusy(false);
+    }
+  }
+  return <LearningFocusSetupView topics={topics} lessons={lessons} topicsError={fieldError(focus.topics)} lessonsError={fieldError(focus.lessons)} valid={valid} busy={busy} error={error}
+    onTopics={value => { if (!lock.current) { setTopics(value); setError(""); } }}
+    onLessons={value => { if (!lock.current) { setLessons(value); setError(""); } }} onSave={() => void save()}
+    onBack={() => { if (!lock.current) { if (router.canGoBack()) router.back(); else router.replace("/"); } }}
+    onAccount={() => { if (!lock.current) router.push("/account"); }} />;
 }

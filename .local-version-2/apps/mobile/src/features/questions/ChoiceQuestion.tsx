@@ -4,27 +4,30 @@ import { Text } from "../../accessibility/Primitives";
 
 import { Button, EmptyState, ErrorMessage, Loading, s } from "../../components/ui";
 import { theme } from "../../theme/tokens";
+import { useAssignmentQuestionStyles, useAssignmentChoiceStyles } from "../../theme/assignment";
 import { selectedChoice, selectChoice, type ChoiceItem, type ChoiceResponse } from "./choice";
 
 export function ChoiceQuestion({ item, value, onChange, disabled = false, review = false }: {
   item: ChoiceItem; value: ChoiceResponse | null; onChange: (answer: ChoiceResponse) => void; disabled?: boolean; review?: boolean;
 }) {
+  const questionStyles = useAssignmentQuestionStyles(s);
+  const optionStyles = useAssignmentChoiceStyles(styles);
   const selected = selectedChoice(item, value);
   const options = item.method === "multiple_choice" ? item.content.options.map(option => ({ ...option, value: option.id }))
     : [{ id: "true", text: "True", value: true }, { id: "false", text: "False", value: false }];
-  return <View style={s.card}>
-    <Text style={s.heading} accessibilityRole="header">{item.prompt}</Text>
-    {!!item.instructions && <Text style={s.body}>{item.instructions}</Text>}
-    <View accessibilityRole="radiogroup" accessibilityLabel="Choose one answer" style={styles.options}>
+  return <View style={questionStyles.card}>
+    <Text style={questionStyles.heading} accessibilityRole="header">{item.prompt}</Text>
+    {!!item.instructions && <Text style={questionStyles.body}>{item.instructions}</Text>}
+    <View accessibilityRole="radiogroup" accessibilityLabel="Choose one answer" style={optionStyles.options}>
       {options.map(option => <Pressable key={option.id} accessibilityRole="radio" accessibilityLabel={option.text}
         aria-checked={selected === option.value} aria-disabled={disabled}
         accessibilityState={{ checked: selected === option.value, disabled }} disabled={disabled}
         onPress={() => { if (!disabled) { const next = selectChoice(item, value, option.value); if (next && next !== value) onChange(next); } }}
-        style={({ pressed }) => [styles.option, selected === option.value && styles.selected, { opacity: disabled ? 0.5 : pressed ? 0.8 : 1 }]}>
-        <Text style={styles.answer}>{selected === option.value ? "◉" : "○"} {option.text}</Text>
+        style={({ pressed }) => [optionStyles.option, selected === option.value && optionStyles.selected, { opacity: disabled ? 0.5 : pressed ? 0.8 : 1 }]}>
+        <Text style={optionStyles.answer}>{selected === option.value ? "◉" : "○"} {option.text}</Text>
       </Pressable>)}
     </View>
-    <Text style={s.body} accessibilityLiveRegion="polite">{review ? "Original submitted selection (read-only)." : selected === null ? "No answer selected." : "One answer selected. This response is not scored."}</Text>
+    <Text style={questionStyles.body} accessibilityLiveRegion="polite">{review ? "Original submitted selection (read-only)." : selected === null ? "No answer selected." : "One answer selected. This response is not scored."}</Text>
   </View>;
 }
 

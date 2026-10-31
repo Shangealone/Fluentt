@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { AssignmentPresentation, useAssignmentQuestionStyles } from "../../theme/assignment";
+import { useContext, useEffect, useRef, useState } from "react";
 import { BackHandler, Platform, View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
 
@@ -13,6 +14,8 @@ export function FlashcardQuestion({ front, back, value, onChange, disabled = fal
   disabled?: boolean; onRetry?: () => void; allowRecallRevision?: boolean;
   practice?: boolean;
 }) {
+  const questionStyles = useAssignmentQuestionStyles(s);
+  const assignment = useContext(AssignmentPresentation);
   const available = usableBack(front, back), revealed = available && value.revealed;
   function change(next: FlashcardState) { if (!disabled && next !== value) onChange(next); }
   if (practice) return <View style={{ gap: 20 }}>
@@ -27,19 +30,19 @@ export function FlashcardQuestion({ front, back, value, onChange, disabled = fal
         disabled={disabled || value.recall !== null} onPress={() => change(rateCard(value, rating))} style={{ flex: 1, minWidth: 65, backgroundColor: ["#F9DDE4", "#E5E8EE", pc.navy, pc.teal][index] }} textStyle={{ color: index < 2 ? pc.ink : "white", fontSize: 12 }} />)}</View>
       <Text accessibilityLiveRegion="polite" style={p.caption}>{value.recall ? `You chose ${value.recall}. Nothing is scheduled or saved.` : "Optional · Choose once for this card visit."}</Text></>}
   </View>;
-  return <View style={[s.card, { gap: 16 }]}>
-    <Text accessibilityRole="header" style={s.heading}>{front.prompt}</Text>
-    {!!front.instructions && <Text style={s.body}>{front.instructions}</Text>}
-    <Text accessibilityRole="header" style={s.heading}>Front / cue</Text><Text style={s.body}>{front.cue}</Text>
-    <Text style={s.body}>Recall silently, then deliberately reveal the back. Ratings describe your recall; they are not test scores.</Text>
+  return <View style={[questionStyles.card, { gap: 16 }]}>
+    <Text accessibilityRole="header" style={questionStyles.heading}>{front.prompt}</Text>
+    {!!front.instructions && <Text style={questionStyles.body}>{front.instructions}</Text>}
+    <Text accessibilityRole="header" style={questionStyles.heading}>Front / cue</Text><Text style={questionStyles.body}>{front.cue}</Text>
+    <Text style={questionStyles.body}>Recall silently, then deliberately reveal the back. Ratings describe your recall; they are not test scores.</Text>
     {!available && <><ErrorMessage message="The authorized back for this version is unavailable." />{onRetry && <Button label="Retry card" disabled={disabled} onPress={onRetry} />}</>}
     <Button label="Reveal back" disabled={disabled || !available || revealed} onPress={() => change(revealCard(front, back, value))} />
-    {revealed && <View style={{ gap: 12 }}><Text accessibilityRole="header" style={s.heading}>Back</Text><Text style={s.body}>{back!.back}</Text>
-      <Text style={s.body}>{allowRecallRevision ? "Unscored assignment recall. You may revise it before final submission; use Save progress to persist it." : "Optional self-recall rating. Choose once per visit; moving to another card clears this local state."}</Text>
+    {revealed && <View style={{ gap: 12 }}><Text accessibilityRole="header" style={questionStyles.heading}>Back</Text><Text style={questionStyles.body}>{back!.back}</Text>
+      <Text style={questionStyles.body}>{assignment ? "How did recalling this feel? You can change your choice before submitting. Choose Save progress to keep it." : allowRecallRevision ? "Unscored assignment recall. You may revise it before final submission; use Save progress to persist it." : "Optional self-recall rating. Choose once per visit; moving to another card clears this local state."}</Text>
       {(Object.keys(recallLabels) as Recall[]).map(rating => <Button key={rating} label={recallLabels[rating]} secondary
         disabled={disabled || (!allowRecallRevision && value.recall !== null)} onPress={() => change(allowRecallRevision ? { ...value, recall: rating } : rateCard(value, rating))} />)}
     </View>}
-    <Text style={s.body} accessibilityLiveRegion="polite">{revealed ? value.recall ? `${recallLabels[value.recall]}. ${allowRecallRevision ? "Use Save progress. No score or scheduler update." : "Local only; not saved, scored or scheduled."}` : "Back revealed. No rating selected." : "Back hidden."}</Text>
+    <Text style={questionStyles.body} accessibilityLiveRegion="polite">{assignment ? value.recall ? `You chose ${value.recall}. Choose Save progress to keep your response.` : "The card is revealed. Your recall choice is optional." : revealed ? value.recall ? `${recallLabels[value.recall]}. ${allowRecallRevision ? "Use Save progress. No score or scheduler update." : "Local only; not saved, scored or scheduled."}` : "Back revealed. No rating selected." : "Back hidden."}</Text>
   </View>;
 }
 

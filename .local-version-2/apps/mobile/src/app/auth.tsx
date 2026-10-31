@@ -1,120 +1,144 @@
-import { useRef, useState, type ComponentRef } from "react";
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
-import { Text, TextInput } from "../accessibility/Primitives";
-
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
-import { FluenttLogo } from "../components/FluenttLogo";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BackHandler } from "react-native";
+import { router, useFocusEffect, useLocalSearchParams, usePreventRemove } from "expo-router";
+import { AuthScreenView, type AuthErrors, type AuthFields } from "../features/auth/AuthScreenView";
+import { authRoles } from "../features/auth/AuthArtwork";
 import { useSession } from "../session/provider";
 import { destination, usernameError } from "../session/routing";
-import {a} from "../features/auth/styles";
 import { ApiError, type Role } from "../services/api/identity";
 import type { ClassPreview } from "../services/api/enrollment";
 
-const roles = [
-  {value:"personal_student",label:"Personal learner",hint:"Learn at your own pace.",image:require("../../assets/illustrations/activity-learn.png"),color:"#E7F1CF"},
-  {value:"school_student",label:"Student",hint:"Join your class.",image:require("../../assets/illustrations/account-student.png"),color:"#EDE8FB"},
-  {value:"instructor",label:"Teacher",hint:"Guide your learners.",image:require("../../assets/illustrations/account-teacher.png"),color:"#E2F2F8"},
-] as const;
+type Mode = "signin" | "create";
+const emptyFields: AuthFields = { username: "", password: "", confirmation: "", classCode: "" };
+
 export default function Auth() {
-  const params=useLocalSearchParams<{mode?:string;role?:string}>();
-  const session=useSession();
-  const [mode,setMode]=useState(params.mode==="create"?"create":"signin");
-  const [role,setRole]=useState<Role>(roles.find(r=>r.value===params.role)?.value??"personal_student");
-  const [username,setUsername]=useState("");
-  const [password,setPassword]=useState("");
-  const [confirmation,setConfirmation]=useState("");
-  const [classCode,setClassCode]=useState("");
-  const [classPreview,setClassPreview]=useState<ClassPreview|null>(null);
-  const [visible,setVisible]=useState(false);
-  const [busy,setBusy]=useState(false);
-  const [previewBusy,setPreviewBusy]=useState(false);
-  const [error,setError]=useState("");
-  const passwordRef=useRef<ComponentRef<typeof TextInput>>(null);
-  const confirmRef=useRef<ComponentRef<typeof TextInput>>(null);
-  const creating=mode==="create";
-  const locked=busy||session.pending||previewBusy;
-  const showCreateFields=!creating||role!=="school_student"||classPreview!==null||session.pending;
-  const submitDisabled=busy||previewBusy||(creating&&role==="school_student"&&!session.pending&&!classPreview);
-  async function verifyClassCode(){
-    if(previewBusy)return;
-    setError("");
-    if(!/^[0-9]{6}$/.test(classCode)){setError("Enter the six-digit code from your teacher.");return;}
-    setPreviewBusy(true);
-    try{setClassPreview(await session.registrationPreview(classCode));}
-    catch(e){setClassPreview(null);setError(e instanceof Error?e.message:"We could not check that class code. Please try again.");}
-    finally{setPreviewBusy(false);}
+  const params = useLocalSearchParams<{ mode?: string; role?: string }>();
+  const initialMode = params.mode === "create" ? "create" : "signin";
+  const initialRole = authRoles.find(value => value.value === params.role)?.value ?? "personal_student";
+  return <AuthForm initialMode={initialMode} initialRole={initialRole} />;
+}
+
+function AuthForm({ initialMode, initialRole }: { initialMode: Mode; initialRole: Role }) {
+  const session = useSession();
+  const sessionRef = useRef(session); sessionRef.current = session;
+  const [mode, setMode] = useState<Mode>(initialMode), [step, setStep] = useState<"type" | "account">("type"), [role, setRole] = useState<Role>(initialRole);
+  const [fields, setFields] = useState<AuthFields>(emptyFields), [errors, setErrors] = useState<AuthErrors>({});
+  const [preview, setPreview] = useState<{ code: string; data: ClassPreview } | null>(null);
+  const [operation, setOperation] = useState<"auth" | "class" | null>(null), [error, setError] = useState(""), [uncertain, setUncertain] = useState(false);
+  const [focusKey, setFocusKey] = useState(0), [visibilityReset, setVisibilityReset] = useState(0);
+  const active = useRef(false), generation = useRef(0), lock = useRef(false), allowExit = useRef(false);
+  const incoming = useRef({ mode: initialMode, role: initialRole });
+  const operationRef = useRef<"auth" | "class" | null>(null), backRef = useRef<() => void>(() => {});
+  const classPreview = preview?.code === fields.classCode ? preview.data : null;
+  const locked = () => lock.current || sessionRef.current.pending;
+
+  // Param updates do not remove the route. Defer them instead of replacing a form with an active operation.
+  useEffect(() => {
+    if (incoming.current.mode === initialMode && incoming.current.role === initialRole) return;
+    if (lock.current || session.pending) return;
+    incoming.current = { mode: initialMode, role: initialRole };
+    setMode(initialMode); setRole(initialRole); setStep("type"); setPreview(null); setErrors({});
+    setFields(value => ({ ...value, password: "", confirmation: "", classCode: "" }));
+    if (initialMode === "signin") setUncertain(false);
+    if (initialMode === "signin" || !uncertain) setError("");
+    setVisibilityReset(value => value + 1); setFocusKey(value => value + 1);
+  }, [initialMode, initialRole, operation, session.pending, uncertain]);
+
+  useFocusEffect(useCallback(() => {
+    active.current = true; setOperation(operationRef.current);
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => { backRef.current(); return true; });
+    return () => {
+      active.current = false; generation.current += 1; subscription.remove();
+      setFields(value => ({ ...value, password: "", confirmation: "" })); setVisibilityReset(value => value + 1);
+    };
+  }, []));
+  useEffect(() => {
+    if (!session.pending) return;
+    setFields(value => ({ ...value, password: "", confirmation: "" })); setVisibilityReset(value => value + 1); setUncertain(false); setErrors({});
+  }, [session.pending]);
+  usePreventRemove((!!operation || session.pending) && !session.profile, ({ repeat }) => {
+    if (allowExit.current || sessionRef.current.profile) repeat();
+  });
+
+  function resetMessages() { if (!uncertain) setError(""); setErrors({}); }
+  function back() {
+    if (locked()) return;
+    if (mode === "create" && step === "account") { setStep("type"); resetMessages(); setFocusKey(value => value + 1); }
+    else router.replace("/");
+  }
+  backRef.current = back;
+  function changeMode(next: Mode) {
+    if (locked()) return;
+    setMode(next); setStep("type"); resetMessages(); setError(""); setUncertain(false);
+    setFields(value => ({ ...value, password: "", confirmation: "" })); setVisibilityReset(value => value + 1); setFocusKey(value => value + 1);
+  }
+  function changeRole(next: Role) {
+    if (locked() || next === role) return;
+    setRole(next); setFields(value => ({ ...value, classCode: "" })); setPreview(null); resetMessages(); setFocusKey(value => value + 1);
+  }
+  function change(field: keyof AuthFields, value: string) {
+    if (locked()) return;
+    const next = field === "classCode" ? value.replace(/[^0-9]/g, "").slice(0, 6) : value;
+    setFields(current => ({ ...current, [field]: next })); setErrors(current => ({ ...current, [field]: "" }));
+    if (field === "classCode") { setPreview(null); if (!uncertain) setError(""); }
+  }
+  function nextStep() {
+    if (locked()) return;
+    if (role === "school_student" && !classPreview) { setErrors({ classCode: "Check your class code before continuing." }); setFocusKey(value => value + 1); return; }
+    resetMessages(); setStep("account"); setFocusKey(value => value + 1);
+  }
+  async function checkClass() {
+    if (locked() || !active.current || mode !== "create" || role !== "school_student") return;
+    if (!/^[0-9]{6}$/.test(fields.classCode)) { setErrors({ classCode: "Enter the six-digit code from your teacher." }); setFocusKey(value => value + 1); return; }
+    const code = fields.classCode, request = generation.current;
+    lock.current = true; operationRef.current = "class"; setOperation("class"); setPreview(null); resetMessages();
+    try {
+      const data = await sessionRef.current.registrationPreview(code);
+      if (active.current && generation.current === request) setPreview({ code, data });
+    } catch (cause) {
+      if (active.current && generation.current === request) { setErrors({ classCode: cause instanceof Error ? cause.message : "We could not check that class code. Please try again." }); setFocusKey(value => value + 1); }
+    } finally { lock.current = false; operationRef.current = null; if (active.current) setOperation(null); }
   }
   async function submit() {
-    if(busy||previewBusy)return;
-    setError("");
-    if(!session.pending){
-      if(creating&&role==="school_student"&&!classPreview){setError("Check your class code before creating your account.");return;}
-      const invalid=creating?usernameError(username):!username.trim()?"Enter your username.":null;
-      if(invalid){setError(invalid);return;}
-      if(Array.from(password).length<(creating?6:1)||Array.from(password).length>128){setError(creating?"Choose a password with 6–128 characters.":"Enter your password.");return;}
-      if(creating&&password!==confirmation){setError("Your passwords do not match.");return;}
+    if (lock.current || !active.current) return;
+    const currentSession = sessionRef.current, creating = mode === "create";
+    if (!currentSession.pending) {
+      if (creating && (step !== "account" || (role === "school_student" && !classPreview))) { setStep("type"); setErrors({ classCode: "Check your class code before creating your account." }); setFocusKey(value => value + 1); return; }
+      if (creating && uncertain) return;
+      const validation: AuthErrors = {};
+      const invalid = creating ? usernameError(fields.username) : !fields.username.trim() ? "Enter your username." : null;
+      if (invalid) validation.username = invalid;
+      const length = Array.from(fields.password).length;
+      if (length < (creating ? 6 : 1) || length > 128) validation.password = creating ? "Choose a password with 6–128 characters." : "Enter your password.";
+      if (creating && fields.password !== fields.confirmation) validation.confirmation = "Your passwords don’t match.";
+      setErrors(validation);
+      if (Object.keys(validation).length) { setFocusKey(value => value + 1); return; }
     }
-    setBusy(true);
-    try{
-      const classDetails=creating&&role==="school_student"&&classPreview?{code:classCode,class_version:classPreview.class_version}:undefined;
-      const profile=creating?await session.create(username,role,password,classDetails):await session.login(username.trim(),password);
-      setPassword("");setConfirmation("");
-      router.replace(destination(profile));
-    }catch(e){
-      if(e instanceof ApiError&&(e.status===404||e.message==="Class details changed. Verify the code and review again."))setClassPreview(null);
-      const message=e instanceof Error?e.message:"We could not sign you in. Please try again.";
-      const uncertain=creating && (e as {status?:number}|null)?.status===0 && !message.includes("did not keep the sign-in cookie");
-      setError(uncertain?message+" Your account may already be saved. Try signing in before creating it again.":message);
-    }
-    finally{setBusy(false);}
+    const request = generation.current;
+    lock.current = true; operationRef.current = "auth"; allowExit.current = false; setOperation("auth"); setError("");
+    try {
+      const classDetails = creating && role === "school_student" && classPreview ? { code: fields.classCode, class_version: classPreview.class_version } : undefined;
+      // The session controller retries retained issuance when pending; it never creates a second account for recovery.
+      const profile = creating ? await currentSession.create(fields.username, role, fields.password, classDetails) : await currentSession.login(fields.username.trim(), fields.password);
+      if (active.current && request === generation.current) {
+        setFields(value => ({ ...value, password: "", confirmation: "" })); setVisibilityReset(value => value + 1);
+        allowExit.current = true; router.replace(destination(profile));
+      }
+    } catch (cause) {
+      if (active.current && request === generation.current) {
+        const usernameTaken = creating && cause instanceof ApiError && cause.status === 409 && cause.message === "This username is already taken.";
+        if (usernameTaken) setErrors({ username: cause.message });
+        if (creating && role === "school_student" && cause instanceof ApiError && (cause.status === 404 || cause.message === "Class details changed. Verify the code and review again.")) {
+          setPreview(null); setStep("type"); setErrors({ classCode: cause.message });
+        }
+        const message = cause instanceof Error ? cause.message : "We could not sign you in. Please try again.";
+        const unknownCreation = creating && (cause as { status?: number } | null)?.status === 0 && !message.includes("did not keep the sign-in cookie");
+        setUncertain(unknownCreation); setError(usernameTaken ? "" : unknownCreation ? `${message} Your account may already be saved. Try signing in before creating it again.` : message); setFocusKey(value => value + 1);
+      }
+    } finally { lock.current = false; operationRef.current = null; if (active.current) setOperation(null); }
   }
-  return <SafeAreaView style={a.safe}>
-    <KeyboardAvoidingView style={a.flex} behavior={Platform.OS==="ios"?"padding":"height"}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={a.content}>
-        <View style={a.top}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Back to welcome" disabled={locked} onPress={()=>router.replace("/")} style={a.back}><Text style={a.backText}>‹</Text></Pressable>
-          <FluenttLogo size={32}/>
-        </View>
-        <View style={a.intro}>
-          <View style={a.art}><Image accessible={false} source={require("../../assets/illustrations/account-welcome.png")} style={a.heroImage}/></View>
-          <Text accessibilityRole="header" style={a.title}>{creating?"Your next chapter starts here.":"Welcome back."}</Text>
-          <Text style={a.description}>{creating?"A little practice. A little more confidence.":"Let’s keep learning, one step at a time."}</Text>
-        </View>
-        <View style={a.card}>
-          <View accessibilityRole="tablist" style={a.tabs}>
-            {[["signin","Sign in"],["create","Create account"]].map(([value,label])=><Pressable key={value} accessibilityRole="tab" accessibilityState={{selected:mode===value,disabled:locked}} disabled={locked} onPress={()=>{setMode(value);setError("");setPassword("");setConfirmation("");setVisible(false);}} style={[a.tab,mode===value&&a.selectedTab]}><Text style={[a.tabText,mode===value&&a.selectedTabText]}>{label}</Text></Pressable>)}
-          </View>
-          {creating&&<View style={a.field}><Text style={a.label}>I’m a…</Text><View accessibilityRole="radiogroup" accessibilityLabel="Account type" style={a.roles}>{roles.map(r=><Pressable key={r.value} accessibilityRole="radio" accessibilityLabel={r.label} accessibilityState={{checked:role===r.value,disabled:locked}} disabled={locked} onPress={()=>{if(role!==r.value){setRole(r.value);setClassCode("");setClassPreview(null);setError("");}}} style={[a.role,role===r.value&&a.selectedRole]}>
-            <View style={[a.roleIcon,{backgroundColor:r.color}]}><Image accessible={false} source={r.image} style={a.roleImage}/></View>
-            <View style={a.roleCopy}><Text style={a.roleTitle}>{r.label}</Text><Text style={a.hint}>{r.hint}</Text></View><Text accessible={false} style={a.radio}>{role===r.value?"●":"○"}</Text>
-          </Pressable>)}</View></View>}
-          {creating&&role==="school_student"&&<View style={a.field}>
-            <Text style={a.label}>Your class code</Text>
-            <Text style={a.hint}>Enter the six-digit code from your teacher. We’ll show the class before creating your account.</Text>
-            <TextInput accessibilityLabel="Six-digit class code" style={a.input} value={classCode} onChangeText={value=>{setClassCode(value.replace(/[^0-9]/g,"").slice(0,6));setClassPreview(null);setError("");}} editable={!locked} keyboardType="number-pad" inputMode="numeric" autoCorrect={false} maxLength={6} returnKeyType="done" placeholder="000000" placeholderTextColor="#7B887F"/>
-            <Pressable accessibilityRole="button" accessibilityLabel="Check class code" accessibilityState={{disabled:locked||!/^[0-9]{6}$/.test(classCode),busy:previewBusy}} disabled={locked||!/^[0-9]{6}$/.test(classCode)} onPress={()=>void verifyClassCode()} style={[a.codeAction,(locked||!/^[0-9]{6}$/.test(classCode))&&a.dim]}><Text style={a.codeActionText}>{previewBusy?"Checking class…":classPreview?"Check code again":"Check class code"}</Text></Pressable>
-            {classPreview&&<View style={a.classPreview}><Text style={a.previewHeading}>{classPreview.class_name}</Text>{classPreview.instructor_display_name&&<Text style={a.hint}>Teacher: {classPreview.instructor_display_name}</Text>}<Text style={a.hint}>Grade {classPreview.grade_level} · {classPreview.language==="english"?"English":"Tagalog"}</Text><Text style={a.previewNote}>You’ll join this class when your account is created.</Text></View>}
-          </View>}
-          {!!error&&<Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={a.error}>{error}</Text>}
-          {showCreateFields&&<>
-          <View style={a.field}>
-            <Text style={a.label} nativeID="username-label">Username</Text>
-            <TextInput accessibilityLabel="Username" accessibilityLabelledBy="username-label" style={a.input} value={username} onChangeText={setUsername} editable={!locked} autoCapitalize="none" autoCorrect={false} autoComplete="username" textContentType="username" maxLength={creating?24:128} returnKeyType="next" onSubmitEditing={()=>passwordRef.current?.focus()} placeholder="Your username" placeholderTextColor="#7B887F"/>
-            {creating&&<Text style={a.hint}>3–24 letters, numbers, underscores or spaces between words.</Text>}
-          </View>
-          <View style={a.field}>
-            <Text style={a.label}>{creating ? "Password (6 or more characters)" : "Password"}</Text>
-            <View style={a.passwordRow}><TextInput ref={passwordRef} accessibilityLabel="Password" style={[a.input,a.password]} value={password} onChangeText={setPassword} editable={!locked} autoCapitalize="none" autoCorrect={false} autoComplete={creating?"new-password":"current-password"} textContentType={creating?"newPassword":"password"} secureTextEntry={!visible} maxLength={128} returnKeyType={creating?"next":"go"} onSubmitEditing={()=>creating?confirmRef.current?.focus():void submit()} placeholder={creating?"At least 6 characters":"Your password"} placeholderTextColor="#7B887F"/>
-              <Pressable accessibilityRole="button" accessibilityLabel={visible?"Hide passwords":"Show passwords"} accessibilityState={{checked:visible}} onPress={()=>setVisible(v=>!v)} style={a.show}><Text style={a.showText}>{visible?"Hide":"Show"}</Text></Pressable></View>
-          </View>
-          {creating&&<View style={a.field}><Text style={a.label}>Confirm password</Text><TextInput ref={confirmRef} accessibilityLabel="Confirm password" style={a.input} value={confirmation} onChangeText={setConfirmation} editable={!locked} autoCapitalize="none" autoCorrect={false} autoComplete="new-password" textContentType="newPassword" secureTextEntry={!visible} maxLength={128} returnKeyType="go" onSubmitEditing={()=>void submit()} placeholder="Enter it again" placeholderTextColor="#7B887F"/></View>}
-          {session.pending&&<Text style={a.hint}>Your account is ready. Tap below to finish saving sign-in on this device.</Text>}
-          <Pressable accessibilityRole="button" accessibilityState={{disabled:submitDisabled,busy}} disabled={submitDisabled} onPress={()=>void submit()} style={[a.submit,submitDisabled&&a.dim]}><Text style={a.submitText}>{busy?"Please wait…":session.pending?"Finish sign-in":creating?"Create account":"Sign in"}</Text></Pressable>
-          </>}
-        </View>
-        <Text style={a.footer}>Small steps. More confidence.</Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  </SafeAreaView>;
+
+  return <AuthScreenView mode={mode} step={step} role={role} fields={fields} errors={errors} preview={classPreview} operation={operation}
+    pending={session.pending} uncertain={uncertain} error={error} focusKey={focusKey} visibilityReset={visibilityReset}
+    onChange={change} onMode={changeMode} onRole={changeRole} onCheck={() => { void checkClass(); }} onNext={nextStep} onSubmit={() => { void submit(); }} onBack={back} />;
 }

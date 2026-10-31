@@ -1,3 +1,4 @@
+import { useAssignmentQuestionStyles, useAssignmentChoiceStyles } from "../../theme/assignment";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
@@ -11,37 +12,39 @@ export function MatchingQuestion({ item, value, selectedLeft, onSelectLeft, onCh
   item: MatchingItem; value: MatchPair[]; selectedLeft: string | null; onSelectLeft: (id: string | null) => void;
   onChange: (pairs: MatchPair[]) => void; disabled?: boolean; review?: boolean;
 }) {
+  const questionStyles = useAssignmentQuestionStyles(s);
+  const optionStyles = useAssignmentChoiceStyles(choiceStyles);
   const valid = validMatches(item, value), selected = item.content.left.findIndex(row => row.id === selectedLeft);
   function change(next: MatchPair[]) { if (!disabled && next !== value) onChange(next); }
-  return <View style={[s.card, { gap: 16 }]}>
-    <Text style={s.heading} accessibilityRole="header">{item.prompt}</Text>
-    {!!item.instructions && <Text style={s.body}>{item.instructions}</Text>}
-    <Text style={s.body}>{review ? "Original submitted associations (read-only)." : "Select a left item, then a right item. Each target can be used once. Reusing a target clears its previous association. No score is calculated."}</Text>
+  return <View style={[questionStyles.card, { gap: 16 }]}>
+    <Text style={questionStyles.heading} accessibilityRole="header">{item.prompt}</Text>
+    {!!item.instructions && <Text style={questionStyles.body}>{item.instructions}</Text>}
+    <Text style={questionStyles.body}>{review ? "Original submitted associations (read-only)." : "Select a left item, then a right item. Each target can be used once. Reusing a target clears its previous association. No score is calculated."}</Text>
     {!valid && <ErrorMessage message="The associations are invalid. Reset before matching." />}
-    <Text style={s.heading} accessibilityRole="header">Left items</Text>
+    <Text style={questionStyles.heading} accessibilityRole="header">Left items</Text>
     <View accessibilityRole="radiogroup" accessibilityLabel="Choose a left item" style={{ gap: 12 }}>{item.content.left.map((row, index) => <Pressable key={row.id} accessibilityRole="radio"
       aria-checked={selectedLeft === row.id} aria-disabled={disabled || !valid}
       accessibilityState={{ checked: selectedLeft === row.id, disabled: disabled || !valid }} disabled={disabled || !valid}
-      accessibilityLabel={`Left ${index + 1}: ${row.text}`} style={[choiceStyles.option, selectedLeft === row.id && choiceStyles.selected]}
+      accessibilityLabel={`Left ${index + 1}: ${row.text}`} style={[optionStyles.option, selectedLeft === row.id && optionStyles.selected]}
       onPress={() => { if (!disabled && valid) onSelectLeft(selectedLeft === row.id ? null : row.id); }}>
-      <Text style={s.body}>Left {index + 1}: {row.text}{selectedLeft === row.id ? " · Selected" : ""}</Text>
+      <Text style={questionStyles.body}>Left {index + 1}: {row.text}{selectedLeft === row.id ? " · Selected" : ""}</Text>
     </Pressable>)}</View>
-    <Text style={s.body} accessibilityLiveRegion="polite">{selected < 0 ? "Choose a left item first." : `Left ${selected + 1} selected. Choose a right item.`}</Text>
-    <Text style={s.heading} accessibilityRole="header">Right items</Text>
+    <Text style={questionStyles.body} accessibilityLiveRegion="polite">{selected < 0 ? "Choose a left item first." : `Left ${selected + 1} selected. Choose a right item.`}</Text>
+    <Text style={questionStyles.heading} accessibilityRole="header">Right items</Text>
     {item.content.right.map((row, index) => <Button key={row.id} secondary label={`Match with right ${index + 1}: ${row.text}`}
       disabled={disabled || !valid || selected < 0} onPress={() => {
         if (!disabled && valid && selected >= 0) { change(assignMatch(item, value, selectedLeft!, row.id)); onSelectLeft(null); }
       }} />)}
-    <Text style={s.heading} accessibilityRole="header">Your associations</Text>
+    <Text style={questionStyles.heading} accessibilityRole="header">Your associations</Text>
     {valid && item.content.left.map((row, index) => {
       const pair = value.find(pair => pair.left_id === row.id), right = item.content.right.findIndex(target => target.id === pair?.right_id);
       return <View key={row.id} style={{ gap: 8 }}>
-        <Text style={s.body}>Left {index + 1}: {row.text} → {right < 0 ? "Unmatched" : `Right ${right + 1}: ${item.content.right[right].text}`}</Text>
+        <Text style={questionStyles.body}>Left {index + 1}: {row.text} → {right < 0 ? "Unmatched" : `Right ${right + 1}: ${item.content.right[right].text}`}</Text>
         {pair && <Button secondary label={`Remove association for left ${index + 1}`} disabled={disabled}
           onPress={() => change(value.filter(pair => pair.left_id !== row.id))} />}
       </View>;
     })}
-    <Text style={s.body} accessibilityLiveRegion="polite">{review ? `${value.length} submitted associations.` : matchingResponse(item, value) ? "All items matched. Ready; not submitted or scored." : `${valid ? value.length : 0} of ${item.content.left.length} associations. Unfinished.`}</Text>
+    <Text style={questionStyles.body} accessibilityLiveRegion="polite">{review ? `${value.length} submitted associations.` : matchingResponse(item, value) ? "All items matched. Ready; not submitted or scored." : `${valid ? value.length : 0} of ${item.content.left.length} associations. Unfinished.`}</Text>
     <Button label="Reset matching" secondary disabled={disabled || !value.length && selectedLeft === null} onPress={() => {
       if (!disabled) { change([]); onSelectLeft(null); }
     }} />
