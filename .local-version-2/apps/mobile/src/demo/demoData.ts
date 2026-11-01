@@ -14,7 +14,6 @@ import type {
   PronunciationAttemptSubmission,
   PronunciationAttemptHistoryItem,
   PronunciationAccess,
-  AudioUploadPayload,
 } from "../services/api/pronunciation";
 import type {
   ResearchAccess,
@@ -1284,48 +1283,8 @@ export function createDemoPronunciationApi(): PronunciationAccess {
       if (!found) throw new Error("Pronunciation activity not found.");
       return found;
     },
-    async submitAttempt(
-      activityId: string,
-      audio: AudioUploadPayload,
-      durationMs: number
-    ): Promise<PronunciationAttemptSubmission> {
-      const act = activities.find((a) => a.id === activityId) || activities[0];
-      const attemptId = `demo-attempt-${Date.now()}`;
-      const size = typeof Blob !== "undefined" && audio instanceof Blob ? audio.size : 12400;
-      const rawTranscription = act.target_text;
-      attempts.unshift({
-        attempt_id: attemptId,
-        activity_id: act.id,
-        target_text: act.target_text,
-        language: act.language,
-        attempted_at: new Date().toISOString(),
-        scoring_status: "pending",
-        file_size_bytes: size,
-        duration_ms: durationMs,
-        transcription: rawTranscription,
-      });
-      return {
-        attempt_id: attemptId,
-        activity_id: act.id,
-        target_text: act.target_text,
-        language: act.language,
-        attempted_at: new Date().toISOString(),
-        scoring_status: "pending",
-        file_size_bytes: size,
-        duration_ms: durationMs,
-        mime_type: "audio/webm",
-        simulated: true,
-        message: "Audio recorded and transcribed successfully. Pronunciation scoring pending Section 34.",
-        transcription: rawTranscription,
-        transcription_metadata: {
-          model_id: "whisper-multilingual-v1",
-          model_version: "openai/whisper-base",
-          detected_language: act.language === "tagalog" ? "tl" : "en",
-          prompt_language: act.language === "tagalog" ? "tl" : "en",
-          confidence: 0.95,
-          silence_detected: false,
-        },
-      };
+    async submitAttempt(): Promise<PronunciationAttemptSubmission> {
+      throw new Error("Demo mode cannot transcribe or assess recordings. Use local recording practice or an authenticated model connection.");
     },
     async attempts(activityId?: string): Promise<PronunciationAttemptHistoryItem[]> {
       if (activityId) {
@@ -1333,27 +1292,8 @@ export function createDemoPronunciationApi(): PronunciationAccess {
       }
       return attempts;
     },
-    async transcribe(attemptId: string): Promise<any> {
-      const att = attempts.find(a => a.attempt_id === attemptId) || attempts[0];
-      return {
-        attempt_id: attemptId,
-        activity_id: att?.activity_id || "demo-act",
-        transcription: att?.transcription || "Magandang umaga sa inyong lahat.",
-        raw_transcript: att?.transcription || "Magandang umaga sa inyong lahat.",
-        normalized_transcript: (att?.transcription || "magandang umaga sa inyong lahat").toLowerCase(),
-        detected_language: att?.language === "tagalog" ? "tl" : "en",
-        prompt_language: att?.language === "tagalog" ? "tl" : "en",
-        confidence: 0.95,
-        duration_ms: att?.duration_ms || 3000,
-        processing_time_ms: 120,
-        model_id: "whisper-multilingual-v1",
-        model_version: "openai/whisper-base",
-        simulated: true,
-        silence_detected: false,
-        words: [],
-        scoring_status: "pending",
-        message: "Demo speech transcribed successfully.",
-      };
+    async transcribe(): Promise<never> {
+      throw new Error("Demo mode has no speech recognition model. No transcript was generated.");
     },
     async getTranscription(attemptId: string): Promise<any> {
       const att = attempts.find(a => a.attempt_id === attemptId);
@@ -1368,59 +1308,13 @@ export function createDemoPronunciationApi(): PronunciationAccess {
         simulated: true,
       };
     },
-    async evaluate(attemptId: string): Promise<any> {
-      const att = attempts.find(a => a.attempt_id === attemptId) || attempts[0];
-      const act = activities.find(a => a.id === att?.activity_id) || activities[0];
-      const isTl = act.language === "tagalog";
+    async evaluate(attemptId: string) {
       return {
-        attempt_id: attemptId,
-        activity_id: act.id,
-        scoring_status: "scored",
-        score: 88.5,
-        feedback: isTl ? "Mahusay! Malinaw ang iyong pagbigkas." : "Great job! Your pronunciation is clear.",
-        assessment: {
-          overall_score: 88.5,
-          accuracy_score: 90.0,
-          fluency_score: 86.0,
-          completeness_score: 100.0,
-          prosody_score: 85.0,
-          words: [
-            {
-              word: isTl ? "Magandang" : "Good",
-              target_phonemes: isTl ? ["M", "AA", "G", "AA", "N", "D", "AA", "NG"] : ["G", "UH", "D"],
-              accuracy_score: 92.0,
-              error_type: "none",
-              phonemes: [
-                { phoneme: isTl ? "M" : "G", accuracy_score: 95.0, status: "correct" },
-                { phoneme: isTl ? "AA" : "UH", accuracy_score: 90.0, status: "correct" },
-              ],
-            },
-            {
-              word: isTl ? "umaga" : "morning",
-              target_phonemes: isTl ? ["UW", "M", "AA", "G", "AA"] : ["M", "AO", "R", "N", "IH", "NG"],
-              accuracy_score: 87.0,
-              error_type: "none",
-              phonemes: [
-                { phoneme: isTl ? "UW" : "M", accuracy_score: 88.0, status: "correct" },
-                { phoneme: isTl ? "M" : "AO", accuracy_score: 86.0, status: "correct" },
-              ],
-            },
-          ],
-          target_language: act.language,
-          summary_feedback: isTl ? "Mahusay! Malinaw ang iyong pagbigkas." : "Great job! Your pronunciation is clear.",
-          actionable_tips: isTl
-            ? ["Bigkasin ang bawat patinig nang bukas at matatag.", "Tandaan ang diin sa mga salita."]
-            : ["Enunciate ending consonants clearly.", "Maintain a steady speech rhythm."],
-          model_id: "fluentt-multilingual-gop-evaluator",
-          model_version: "1.0.0",
-          simulated: true,
-          speech_rate_wpm: 120.0,
-          confidence: 0.95,
-        },
-        transcription: att?.transcription || act.target_text,
-        evaluator_configuration_id: "demo-eval-config-1",
-        simulated: true,
-        message: "Demo pronunciation assessment completed successfully.",
+        attempt_id: attemptId, activity_id: "demo-unavailable", scoring_status: "unsupported",
+        pronunciation_scoring: "unavailable" as const, score: null, assessment: null,
+        transcription: null, evaluator_configuration_id: null, simulated: true,
+        feedback: "No pronunciation assessment is available in demo mode.",
+        message: "Use an authenticated English WavLM or Tagalog MMS connection. No demo rating is generated.",
       };
     },
     async getAssessment(attemptId: string): Promise<any> {
@@ -1556,7 +1450,7 @@ export function createDemoConversationApi() {
         role: "user",
         content: userText,
         sent_at: now,
-        pronunciation_score: audioAttemptId ? 92.5 : null,
+        pronunciation_score: null,
         transcription: audioAttemptId ? userText : null,
         audio_attempt_id: audioAttemptId ?? null,
       };

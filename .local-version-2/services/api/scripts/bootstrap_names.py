@@ -33,15 +33,24 @@ def repair_statement(statement):
 
 def require_empty(connection):
     # Permit only an empty Alembic version table left by a disposable downgrade.
+    # Supabase creates these managed schemas before an application creates any tables.
+    # Still reject every unknown schema and every application object in public.
+    platform = connection.execute(text("""
+        SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname='auth')
+           AND EXISTS(SELECT 1 FROM pg_namespace WHERE nspname='storage')
+           AND EXISTS(SELECT 1 FROM pg_namespace WHERE nspname='vault')
+    """)).scalar_one()
     objects = connection.execute(
         text("""
         SELECT n.nspname, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
         WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
           AND n.nspname NOT LIKE 'pg_toast%' AND n.nspname NOT LIKE 'pg_temp%'
+          AND NOT (:platform AND n.nspname IN
+            ('auth','extensions','graphql','graphql_public','pgbouncer','realtime','storage','vault'))
           AND NOT (n.nspname='public' AND (c.relname='alembic_version' OR c.oid IN (
             SELECT indexrelid FROM pg_index WHERE indrelid=to_regclass('public.alembic_version'))))
     """)
-    ).all()
+    , {"platform": platform}).all()
     if objects:
         raise RuntimeError("Bootstrap naming repair requires an empty database; existing objects were found")
     version_table = connection.execute(text("SELECT to_regclass('public.alembic_version')")).scalar_one()
@@ -51,13 +60,14 @@ def require_empty(connection):
         text("""
         SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname NOT IN
             ('public','pg_catalog','information_schema') AND nspname NOT LIKE 'pg_toast%'
-            AND nspname NOT LIKE 'pg_temp%')
+            AND nspname NOT LIKE 'pg_temp%' AND NOT (:platform AND nspname IN
+            ('auth','extensions','graphql','graphql_public','pgbouncer','realtime','storage','vault')))
         OR EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
             WHERE n.nspname='public')
         OR EXISTS(SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace
             WHERE n.nspname='public' AND t.typname NOT IN ('alembic_version','_alembic_version'))
     """)
-    ).scalar_one()
+    , {"platform": platform}).scalar_one()
     if custom:
         raise RuntimeError("Bootstrap naming repair requires an empty database without custom schemas/functions")
 

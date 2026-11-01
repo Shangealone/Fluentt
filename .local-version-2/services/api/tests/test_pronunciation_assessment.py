@@ -1,4 +1,6 @@
-"""Section 34: NLP-Driven Pronunciation Assessment Unit & Integration Tests."""
+"""Historical synthetic evaluator units and disabled legacy service regressions.
+These deterministic heuristic fixtures are not pronunciation validation or runtime models.
+"""
 
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -214,7 +216,7 @@ def test_get_or_create_evaluator_configuration():
     assert db.flush.call_count == 2
 
 
-def test_evaluate_pronunciation_attempt_success():
+def test_legacy_evaluation_is_read_only_unavailable():
     db = MagicMock()
     user = MagicMock()
     user.id = uuid4()
@@ -283,15 +285,10 @@ def test_evaluate_pronunciation_attempt_success():
 
     assert isinstance(res, PronunciationAssessmentResponseDTO)
     assert res.attempt_id == attempt_id
-    assert res.scoring_status == "scored"
-    assert res.score is not None
-    assert 80.0 <= res.score <= 100.0
-    assert res.assessment is not None
-    assert res.assessment.completeness_score == 100.0
-    assert len(res.assessment.words) == 5
-    assert mock_attempt.scoring_status == "scored"
-    assert mock_attempt.score is not None
-    assert mock_attempt.evaluator_configuration_id == mc_id
+    assert res.scoring_status == "unsupported" and res.score is None and res.assessment is None
+    assert res.pronunciation_scoring == "unavailable"
+    assert mock_attempt.scoring_status == "pending" and mock_attempt.score is None
+    db.flush.assert_not_called()
 
 
 def test_evaluate_pronunciation_attempt_silence_handling():
@@ -331,9 +328,9 @@ def test_evaluate_pronunciation_attempt_silence_handling():
 
     assert res.scoring_status == "unsupported"
     assert res.score is None
-    assert mock_attempt.scoring_status == "unsupported"
+    assert mock_attempt.scoring_status == "pending"
     assert mock_attempt.score is None
-    assert "No speech detected" in res.message
+    assert res.assessment is None and res.pronunciation_scoring == "unavailable"
 
 
 def test_get_attempt_assessment_retrieval():
@@ -392,8 +389,8 @@ def test_get_attempt_assessment_retrieval():
     db.scalar.side_effect = [mock_context, mock_attempt, mock_activity]
 
     res = get_attempt_assessment(db, user, attempt_id)
-    assert res.scoring_status == "scored"
-    assert res.score == 91.5
-    assert res.assessment is not None
-    assert res.assessment.accuracy_score == 92.0
-    assert res.assessment.words[0].word == "Magandang"
+    assert res.scoring_status == "unsupported" and res.score is None
+    assert res.assessment is None and res.pronunciation_scoring == "unavailable"
+    assert mock_attempt.score == Decimal("91.50")  # Historical evidence is not rewritten.
+    assert res.transcription is None  # The retained transcript was simulated.
+    db.flush.assert_not_called()

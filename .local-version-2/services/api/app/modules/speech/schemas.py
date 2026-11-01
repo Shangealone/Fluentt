@@ -1,6 +1,6 @@
 """Speech recognition schemas and DTOs for Section 33."""
 
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -93,9 +93,10 @@ class PronunciationAssessmentResponseDTO(Model):
     attempt_id: UUID
     activity_id: UUID
     scoring_status: str
-    score: float | None = None
+    pronunciation_scoring: Literal["unavailable"] = "unavailable"
+    score: None = None
     feedback: str | None = None
-    assessment: PronunciationAssessmentDTO | None = None
+    assessment: None = None
     transcription: str | None = None
     evaluator_configuration_id: UUID | None = None
     simulated: bool = False

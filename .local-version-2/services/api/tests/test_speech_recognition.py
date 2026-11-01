@@ -153,111 +153,16 @@ def test_simulated_whisper_asr_unsupported_language():
 # ---------------------------------------------------------------------------
 
 
-def test_transcribe_pronunciation_attempt_success():
+@pytest.mark.parametrize("force", [False, True])
+def test_legacy_transcription_never_copies_reference_or_reads_audio(force):
     db = MagicMock()
-    user = MagicMock()
-    user.id = uuid4()
-    context_id = uuid4()
-    attempt_id = uuid4()
-    activity_id = uuid4()
-
-    # Create dummy storage file
-    test_storage_dir = PRIVATE_STORAGE_BASE / str(context_id)
-    test_storage_dir.mkdir(parents=True, exist_ok=True)
-    file_path = test_storage_dir / f"{attempt_id}.webm"
-    audio_content = bytes([i % 256 for i in range(1024)])
-    with open(file_path, "wb") as f:
-        f.write(audio_content)
-
-    mock_context = MagicMock()
-    mock_context.id = context_id
-
-    mock_attempt = MagicMock()
-    mock_attempt.id = attempt_id
-    mock_attempt.context_id = context_id
-    mock_attempt.activity_id = activity_id
-    mock_attempt.transcription = None
-    mock_attempt.simulated = False
-    mock_attempt.scoring_status = "pending"
-    mock_attempt.result = {
-        "storage_path": f"{attempt_id}.webm",
-        "mime_type": "audio/webm",
-        "duration_ms": 3500,
-    }
-
-    mock_activity = MagicMock()
-    mock_activity.id = activity_id
-    mock_activity.target_text = "Magandang araw sa iyo."
-    mock_activity.language = "tagalog"
-
-    db.scalar.side_effect = [mock_context, mock_attempt, mock_activity]
-
-    res = transcribe_pronunciation_attempt(
-        db,
-        user=user,
-        attempt_id=attempt_id,
-    )
-
-    assert isinstance(res, TranscriptionResponseDTO)
-    assert res.attempt_id == attempt_id
-    assert res.raw_transcript == "Magandang araw sa iyo."
-    assert res.detected_language == "tl"
-    assert res.silence_detected is False
-    assert mock_attempt.transcription == "Magandang araw sa iyo."
-    assert mock_attempt.simulated is True
-    assert "transcription_metadata" in mock_attempt.result
-
-    # Cleanup
-    try:
-        file_path.unlink()
-    except OSError:
-        pass
-
-
-def test_transcribe_pronunciation_attempt_idempotent():
-    db = MagicMock()
-    user = MagicMock()
-    context_id = uuid4()
-    attempt_id = uuid4()
-    activity_id = uuid4()
-
-    mock_context = MagicMock()
-    mock_context.id = context_id
-
-    mock_attempt = MagicMock()
-    mock_attempt.id = attempt_id
-    mock_attempt.context_id = context_id
-    mock_attempt.activity_id = activity_id
-    mock_attempt.transcription = "Already transcribed text."
-    mock_attempt.simulated = True
-    mock_attempt.scoring_status = "pending"
-    mock_attempt.result = {
-        "transcription_metadata": {
-            "raw_transcript": "Already transcribed text.",
-            "normalized_transcript": "already transcribed text",
-            "detected_language": "tl",
-            "prompt_language": "tl",
-            "confidence": 0.95,
-            "silence_detected": False,
-            "words": [],
-        }
-    }
-
-    mock_activity = MagicMock()
-    mock_activity.id = activity_id
-    mock_activity.language = "tagalog"
-
-    db.scalar.side_effect = [mock_context, mock_attempt, mock_activity]
-
-    res = transcribe_pronunciation_attempt(
-        db,
-        user=user,
-        attempt_id=attempt_id,
-        force_retranscribe=False,
-    )
-
-    assert res.transcription == "Already transcribed text."
-    assert res.message == "Existing transcription retrieved successfully."
+    attempt = MagicMock(id=uuid4())
+    db.scalar.side_effect = [MagicMock(id=uuid4()), attempt]
+    with pytest.raises(IdentityError) as error:
+        transcribe_pronunciation_attempt(db, MagicMock(), attempt.id, force_retranscribe=force)
+    assert error.value.code == "legacy_speech_unavailable"
+    db.add.assert_not_called()
+    db.flush.assert_not_called()
 
 
 def test_transcribe_pronunciation_attempt_cross_student_forbidden():
@@ -303,7 +208,7 @@ def test_get_attempt_transcription_status():
 
     status = get_attempt_transcription(db, user, attempt_id)
     assert isinstance(status, TranscriptionStatusDTO)
-    assert status.has_transcription is True
-    assert status.transcription == "Magandang gabi."
-    assert status.status == "completed"
-    assert status.detected_language == "tl"
+    assert status.has_transcription is False
+    assert status.transcription is None
+    assert status.status == "unavailable"
+    assert status.detected_language is None
