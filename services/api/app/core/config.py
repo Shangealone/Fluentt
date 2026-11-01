@@ -1,7 +1,7 @@
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
@@ -14,6 +14,17 @@ class Settings(BaseSettings):
     mobile_web_csrf_secret: SecretStr | None = None
     database_url: SecretStr | None = None
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    pronunciation_wavlm_enabled: bool = False
+    pronunciation_wavlm_python: str | None = None
+    pronunciation_wavlm_cache: str | None = None
+    pronunciation_wavlm_device: Literal["cpu", "cuda:0"] = "cpu"
+    pronunciation_wavlm_timeout_seconds: int = Field(default=120, ge=5, le=180)
+    pronunciation_mms_enabled: bool = False
+    pronunciation_mms_noncommercial_acknowledged: bool = False
+    pronunciation_mms_python: str | None = None
+    pronunciation_mms_cache: str | None = None
+    pronunciation_mms_device: Literal["cpu", "cuda:0"] = "cpu"
+    pronunciation_mms_timeout_seconds: int = Field(default=180, ge=5, le=300)
     pronunciation_azure_enabled: bool = False
     pronunciation_azure_resource: str | None = None
     pronunciation_azure_key: SecretStr | None = None

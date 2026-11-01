@@ -20,3 +20,5 @@ models-cache/
 *.key
 *.p12
 *.jks
+services/storage/
+services/api/storage/

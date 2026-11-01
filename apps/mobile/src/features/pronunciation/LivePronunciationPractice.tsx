@@ -3,7 +3,8 @@ import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
 
-import type { PronunciationAccess, PronunciationActivityView, PronunciationAttemptSubmission } from "../../services/api/pronunciation";
+import type { PronunciationAccess, PronunciationActivityView } from "../../services/api/pronunciation";
+import { ApiError } from "../../services/api/client";
 import { homeColors as c } from "../../theme/personal";
 import { PersonalIcon } from "../../components/PersonalIcon";
 import { PracticeButton, PracticeNotice } from "./PracticeUI";
@@ -13,6 +14,8 @@ import { useLiveWordTracking } from "./useLiveWordTracking";
 import { alignSpokenWords } from "./liveWordTracking";
 import { checkOfflineSpeechInstalled, prepareOfflineSpeech } from "./liveSpeech";
 import { useWholePhraseAssessment } from "./useWholePhraseAssessment";
+import { randomUUID } from "expo-crypto";
+import type { SpeechResult } from "../../services/api/mms";
 import type { PersonalHistoryAccess } from "../../services/api/personalHistory";
 import { useActivityHistory } from "../history/useActivityHistory";
 import { HistorySaveNotice } from "../history/HistorySaveNotice";
@@ -20,6 +23,15 @@ import { HistorySaveNotice } from "../history/HistorySaveNotice";
 function validScore(value: unknown): number | null {
   const score = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : Number.NaN;
   return Number.isFinite(score) && score >= 0 && score <= 100 ? score : null;
+}
+
+function availabilityMessage(reason: string, language: PronunciationActivityView["language"]): string {
+  if (reason === "insufficient_memory") {
+    return language === "english"
+      ? "The server needs at least 5 GiB of available RAM to start English scoring. No audio was uploaded."
+      : "The server needs at least 8 GiB of available RAM to start Tagalog transcription. No audio was uploaded.";
+  }
+  return `Local speech model unavailable: ${reason.replace(/_/g, " ")}. No audio was uploaded.`;
 }
 
 export function LivePronunciationPractice({ activity, api, onDone, history, owner, guidedSubmissionMode = false, onBusyChange }: {
@@ -42,13 +54,54 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
   const journal = useActivityHistory(history, owner);
   const recordHistory = journal.recordOnce;
   const [run, setRun] = useState(0);
-  const [submissionResult, setSubmissionResult] = useState<PronunciationAttemptSubmission | null>(null);
+  const [submissionResult, setSubmissionResult] = useState<SpeechResult | null>(null);
   const [submissionError, setSubmissionError] = useState("");
+  const [modelConsent, setModelConsent] = useState(false);
+  const [modelReason, setModelReason] = useState("Checking the local speech model…");
+  const [modelHistory, setModelHistory] = useState<SpeechResult[]>([]);
+  const requestId = useRef<string | null>(null);
+  const capabilityGeneration = useRef(0);
+  const invalidateCapability = useCallback(() => { capabilityGeneration.current++; }, []);
   const [submitting, setSubmitting] = useState(false);
   const [offlineSetupPending, setOfflineSetupPending] = useState(false);
   const speech = useLessonSpeech(activity.language, activity.id);
+  const checkModel = useCallback(async (): Promise<boolean> => {
+    const current = ++capabilityGeneration.current;
+    const engine = activity.language === "english" ? api?.wavlm : api?.mms;
+    setModelReason("Checking the local speech model…");
+    if (!engine) {
+      setModelReason("This preview is not connected to a local speech model. No audio was uploaded.");
+      return false;
+    }
+    try {
+      const value = await engine.capabilities(activity.language);
+      if (current === capabilityGeneration.current) {
+        setModelReason(value.available ? "" : availabilityMessage(value.reason, activity.language));
+      }
+      return value.available;
+    } catch (cause) {
+      if (current === capabilityGeneration.current) {
+        setModelReason(cause instanceof ApiError && cause.status === 404
+          ? "This browser tab is connected to an older backend without the speech models. Open the integrated local preview. No audio was uploaded."
+          : `${cause instanceof Error ? cause.message : "The local speech model could not be checked."} No audio was uploaded.`);
+      }
+      return false;
+    }
+  }, [activity.language, api]);
+  useEffect(() => {
+    if (!guidedSubmissionMode) return;
+    let active = true;
+    const engine = activity.language === "english" ? api?.wavlm : api?.mms;
+    setModelHistory([]);
+    if (engine) void engine.history(activity.id).then(rows => { if (active) setModelHistory(rows); }).catch(() => { if (active) setModelHistory([]); });
+    void checkModel();
+    return () => {
+      active = false;
+      invalidateCapability();
+    };
+  }, [activity.id, activity.language, api, checkModel, guidedSubmissionMode, invalidateCapability]);
   const scoring = useWholePhraseAssessment(activity, guidedSubmissionMode ? undefined : api);
-  const tracking = useLiveWordTracking(activity.target_text, activity.language, guidedSubmissionMode || scoring.permitted, guidedSubmissionMode ? 60000 : undefined);
+  const tracking = useLiveWordTracking(activity.target_text, activity.language, guidedSubmissionMode || scoring.permitted, guidedSubmissionMode ? 30000 : undefined);
   const [settingUp, setSettingUp] = useState(false), [setupMessage, setSetupMessage] = useState("");
   const words = activity.target_text.match(/[\p{L}\p{N}]+(?:['’‘-][\p{L}\p{N}]+)*/gu) ?? [];
   const listening = tracking.status === "listening", waiting = tracking.status === "starting" || tracking.status === "stopping", complete = tracking.status === "complete";
@@ -63,17 +116,25 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
   const simulateScore = scoring.simulate;
   const record = () => {
     if (submitting) return;
-    setSubmissionResult(null); setSubmissionError(""); scoring.reset();
+    setSubmissionResult(null); setSubmissionError(""); requestId.current = null; setModelConsent(false); scoring.reset();
     void speech.stop().then(stopped => { if (stopped) { setRun(value => value + 1); return tracking.start(); } });
   };
   const submitRecording = async () => {
     const recording = tracking.recording;
-    if (!guidedSubmissionMode || !recording || !api || submitting) return;
+    if (!guidedSubmissionMode || !recording || !api || submitting || !modelConsent) return;
     const generation = viewGeneration.current;
     setSubmitting(true); setSubmissionError(""); setSubmissionResult(null);
     try {
-      const result = await api.submitAttempt(activity.id, recording.audio, recording.durationMs);
-      if (focused.current && generation === viewGeneration.current) setSubmissionResult(result);
+      if (!await checkModel()) return;
+      if (!focused.current || generation !== viewGeneration.current) return;
+      const engine = activity.language === "english" ? api.wavlm : api.mms;
+      if (!engine) throw new Error("The local speech model is unavailable.");
+      requestId.current ??= randomUUID();
+      const result = await engine.assess(activity, recording.audio, requestId.current, recording.durationMs);
+      if (focused.current && generation === viewGeneration.current) {
+        setSubmissionResult(result);
+        void engine.history(activity.id).then(rows => { if (focused.current && generation === viewGeneration.current) setModelHistory(rows); }).catch(() => {});
+      }
       try { await recording.release(); } catch { /* The API result remains usable if cache cleanup fails. */ }
     } catch (cause) {
       if (focused.current && generation === viewGeneration.current) setSubmissionError(cause instanceof Error ? cause.message : "The recording could not be submitted. Please retry.");
@@ -81,12 +142,11 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
       if (focused.current && generation === viewGeneration.current) setSubmitting(false);
     }
   };
-  const submittedScore = validScore(submissionResult?.assessment?.overall_score) ?? validScore(submissionResult?.score);
-  const submittedFeedback = submissionResult?.feedback || submissionResult?.assessment?.summary_feedback || submissionResult?.message;
-  const submittedOutputIsSimulated = Boolean(submissionResult?.simulated || submissionResult?.assessment?.simulated);
+  const submittedScore = submissionResult?.status === "scored" ? validScore(submissionResult.overall_score) : null;
+  const submittedFeedback = submissionResult?.feedback;
   useEffect(() => {
-    if (!guidedSubmissionMode && ((complete || (scoring.result && !("kind" in scoring.result))) && tracking.settled)) recordHistory(`phrase-${run}`, { kind: "voice_phrase", source_id: activity.id, content_version: activity.version, title: "Pronunciation practice", prompt: activity.target_text, language: activity.language });
-  }, [complete, guidedSubmissionMode, scoring.result, tracking.settled, recordHistory, run, activity]);
+    if ((guidedSubmissionMode && submissionResult || !guidedSubmissionMode && ((complete || (scoring.result && !("kind" in scoring.result))) && tracking.settled))) recordHistory(`phrase-${run}`, { kind: "voice_phrase", source_id: activity.id, content_version: activity.version, title: "Pronunciation practice", prompt: activity.target_text, language: activity.language });
+  }, [complete, guidedSubmissionMode, scoring.result, tracking.settled, submissionResult, recordHistory, run, activity]);
   useEffect(() => {
     if (guidedSubmissionMode) return;
     if (simulationEnabled) {
@@ -172,11 +232,16 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
     </View>}
     {!!submissionError && <PracticeNotice error message={notice(submissionError)} />}
     {guidedSubmissionMode && submissionResult && <View style={s.card} accessibilityLiveRegion="polite">
-      <Text accessibilityRole="header" style={s.heading}>Your pronunciation result</Text>
-      {submittedScore === null ? <PracticeNotice message="A pronunciation score isn’t available for this recording." /> : <Text style={s.score}>{submittedScore.toFixed(1)}<Text style={s.denominator}> /100</Text></Text>}
+      <Text accessibilityRole="header" style={s.heading}>{submissionResult.status === "scored" ? "English model assessment" : "Tagalog speech recognition"}</Text>
+      {submittedScore !== null && <Text style={s.score}>{submittedScore.toFixed(1)}<Text style={s.denominator}> /100</Text></Text>}
+      {submissionResult.status === "transcribed" && <><Text style={s.body}>Recognized: {submissionResult.transcript}</Text><Text style={s.small}>Reference: {submissionResult.expected_text}</Text><Text style={s.small}>Text match: {submissionResult.comparison.exact_match ? "exact" : "different words heard"}. This is not a pronunciation score.</Text></>}
+      {submissionResult.status === "scored" && submissionResult.words.map((word, index) => <Text key={index} style={s.small}>{word.word}: {word.score.toFixed(1)}; {word.phonemes.filter(phone => phone.error).map(phone => phone.tip ?? phone.phone).join(" ")}</Text>)}
       {!!submittedFeedback && <Text style={s.body}>{notice(submittedFeedback)}</Text>}
-      {submittedOutputIsSimulated && <Text style={s.small}>This response includes simulated output.</Text>}
-      <Text style={s.small}>Word matches show what was heard. A pronunciation score checks how the full phrase was spoken.</Text>
+      <Text style={s.small}>Model: {submissionResult.model_id} ({submissionResult.model_version.slice(0, 8)}). Prediction is not a validated academic grade.</Text>
+    </View>}
+    {guidedSubmissionMode && modelHistory.length > 0 && <View style={s.card}>
+      <Text accessibilityRole="header" style={s.heading}>Recent practice</Text>
+      {modelHistory.slice(0, 3).map(item => <Text key={item.assessment_id} style={s.small}>{new Date(item.attempted_at).toLocaleString()}: {item.status === "scored" ? `${item.overall_score.toFixed(1)} /100 (English model prediction)` : `Tagalog transcript: ${item.transcript}`}</Text>)}
     </View>}
     {!guidedSubmissionMode && !!scoring.error && <PracticeNotice error message={notice(scoring.error)} />}
     {!guidedSubmissionMode && <HistorySaveNotice error={journal.error} retry={journal.retry} />}
@@ -189,7 +254,14 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
       <Text style={s.small}>Word matches show what was heard. The pronunciation score checks how the full phrase was spoken.</Text>
     </View>}
     {!guidedSubmissionMode && finished && !scoring.result && !scoring.assessing && !scoring.permitted && !scoring.simulationEnabled && <PracticeNotice message="A pronunciation score isn’t available for this recording. You can still practice and check which words matched." />}
-    {guidedSubmissionMode && tracking.recording && tracking.settled && !submissionResult && <PracticeButton label={submitting ? "Submitting recording…" : "Submit recording"} busy={submitting} disabled={submitting || !api || live || settingUp} onPress={() => { void submitRecording(); }} />}
+    {guidedSubmissionMode && tracking.recording && tracking.settled && !submissionResult && <>
+      <Pressable accessibilityRole="checkbox" accessibilityLabel={activity.language === "english" ? "Allow local English model assessment and save feedback" : "Allow local Tagalog transcription and save recognized text"} accessibilityState={{ checked: modelConsent, disabled: submitting }} disabled={submitting} onPress={() => setModelConsent(value => !value)} style={s.consent}>
+        <View style={[s.checkbox, modelConsent && { backgroundColor: c.teal }]}>{modelConsent && <Text style={{ color: "#FFFFFF" }}>✓</Text>}</View>
+        <Text style={s.consentText}>{activity.language === "english" ? "Allow local assessment and save model feedback." : "Allow local transcription and save recognized text. No Tagalog pronunciation rating is available."}</Text>
+      </Pressable>
+      {!!modelReason && <PracticeNotice message={modelReason} />}
+      <PracticeButton label={submitting ? "Checking local model…" : activity.language === "english" ? "Get English model assessment" : "Transcribe Tagalog speech"} busy={submitting} disabled={submitting || !api || !modelConsent || live || settingUp} onPress={() => { void submitRecording(); }} />
+    </>}
     <PracticeButton label={primaryLabel} busy={waiting || submitting || scoring.assessing} icon="voice" secondary={guidedSubmissionMode && !!tracking.recording && !listening}
       disabled={waiting || speech.speaking || settingUp || submitting || scoring.assessing || (complete && !tracking.settled)}
       onPress={() => { if (listening) tracking.stop(); else record(); }} />
@@ -201,7 +273,7 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
         <Text style={s.body}>Listen to the phrase, then read it aloud. A check means a word matched what was heard. A retry symbol means the word didn’t match or wasn’t heard.</Text>
         {!!tracking.transcript && <View style={s.notice}><Text style={s.eyebrow}>What was heard</Text><Text style={s.body}>{tracking.transcript}</Text></View>}
         <Text style={s.body}>Word matches are different from pronunciation scores. Scores appear only when the scoring service provides a result.</Text>
-        <Text style={s.body}>{guidedSubmissionMode ? "Your recording is sent to Fluentt only when you tap Submit recording. A score appears only if the service returns one." : scoring.simulationEnabled ? "Your voice is processed on this device. Recordings and scores are not saved. Practice scores in this mode are simulated." : scoring.capability?.available ? "Optional scoring sends your full recording after it ends, up to 30 seconds. This feature does not save the audio or score to your learning history. Your app operator’s processing terms apply." : "Pronunciation scoring isn’t currently available for this language. You can still practice words when your device supports speech recognition."}</Text>
+        <Text style={s.body}>{guidedSubmissionMode ? "Your recording is sent to the local backend only after you allow processing and submit it. English uses WavLM predictions; Tagalog uses MMS transcription without a pronunciation score." : scoring.simulationEnabled ? "Your voice is processed on this device. Recordings and scores are not saved. Practice scores in this mode are simulated." : scoring.capability?.available ? "Optional scoring sends your full recording after it ends, up to 30 seconds. This feature does not save the audio or score to your learning history. Your app operator’s processing terms apply." : "Pronunciation scoring isn’t currently available for this language. You can still practice words when your device supports speech recognition."}</Text>
         {!guidedSubmissionMode && !scoring.simulationEnabled && <Text style={s.body}>Without scoring permission, word practice uses your device’s offline speech service. Word matches are practice feedback, not grades.</Text>}
       </View>}
     </View>

@@ -31,8 +31,8 @@ export default function PronunciationScreen() {
     try {
       setLoading(true);
       setError(null);
-      const res = await pronunciation.activities(profile?.role === "personal_student" ? profile.language ?? undefined : languageFilter === "all" ? undefined : languageFilter);
-      if (active) setActivities(res.activities.filter(row => profile?.role !== "personal_student" || row.language === profile.language));
+      const res = await pronunciation.activities(languageFilter === "all" ? undefined : languageFilter);
+      if (active) setActivities(res.activities);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load pronunciation activities.";
       if (active) setError(msg);
@@ -48,7 +48,7 @@ export default function PronunciationScreen() {
 
   if (!profile) return null;
   const personal = profile.role === "personal_student";
-  const language = personal ? profile.language : languageFilter;
+  const language = languageFilter;
   const back = () => {
     if (selectedActivity) { setSelectedActivity(null); return; }
     if (router.canGoBack()) router.back();
@@ -64,8 +64,8 @@ export default function PronunciationScreen() {
       <PracticeHero selected={!!selectedActivity} />
       {selectedActivity ? <LivePronunciationPractice key={selectedActivity.id} activity={selectedActivity} api={pronunciation}
         history={personal ? activityHistory : undefined} owner={personal ? profile.id : undefined}
-        guidedSubmissionMode={!personal} onBusyChange={setPracticeBusy} onDone={() => setSelectedActivity(null)} /> : <>
-        {!personal && <View accessibilityRole="tablist" accessibilityLabel="Practice language" style={s.tabs}>
+        guidedSubmissionMode={true} onBusyChange={setPracticeBusy} onDone={() => setSelectedActivity(null)} /> : <>
+        {<View accessibilityRole="tablist" accessibilityLabel="Practice language" style={s.tabs}>
           {([ ["all", "All phrases"], ["english", "English"], ["tagalog", "Tagalog"] ] as const).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: languageFilter === value }} onPress={() => setLanguageFilter(value)} style={[s.tab, languageFilter === value && s.selectedTab]}><Text style={s.tabText}>{label}</Text></Pressable>)}
         </View>}
         <View style={s.row}><Text accessibilityRole="header" style={s.heading}>Your phrases</Text>{language && language !== "all" && <View style={s.badge}><Text style={s.badgeText}>{language === "english" ? "English" : "Tagalog"}</Text></View>}</View>

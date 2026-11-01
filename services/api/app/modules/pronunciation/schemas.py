@@ -42,9 +42,10 @@ class PronunciationAttemptSubmissionDTO(Model):
     message: str
     transcription: str | None = None
     transcription_metadata: dict[str, Any] | None = None
-    score: float | None = None
+    pronunciation_scoring: Literal["unavailable"] = "unavailable"
+    score: None = None
     feedback: str | None = None
-    assessment: dict[str, Any] | None = None
+    assessment: None = None
 
 
 class PronunciationAttemptHistoryDTO(Model):
@@ -57,6 +58,6 @@ class PronunciationAttemptHistoryDTO(Model):
     file_size_bytes: int
     duration_ms: int
     transcription: str | None = None
-    score: float | None = None
+    pronunciation_scoring: Literal["unavailable"] = "unavailable"
+    score: None = None
     feedback: str | None = None
-
