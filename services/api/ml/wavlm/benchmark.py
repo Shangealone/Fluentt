@@ -19,14 +19,14 @@ def main():
     import psutil
 
     available = psutil.virtual_memory().available
-    if available < 4 * 1024**3:
+    if available < 5 * 1024**3:
         print(
             json.dumps(
                 {
                     "status": "BLOCKED",
                     "reason": "insufficient_free_memory",
                     "free_memory_bytes": available,
-                    "minimum_free_memory_bytes": 4 * 1024**3,
+                    "minimum_free_memory_bytes": 5 * 1024**3,
                     "model_loaded": False,
                     "inference_latency_ms": None,
                     "model_rss_bytes": None,

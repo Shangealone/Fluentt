@@ -48,9 +48,15 @@ def access(repo, token, settings, class_id=None):
 
 
 def capabilities(settings, language):
+    selected = True
+    if language == "english" and settings.pronunciation_wavlm_enabled:
+        selected = runtime.select()
     reason = "language_unsupported" if language != "english" else prepared(settings)
+    if not selected:
+        reason = "busy"
     if (
         language == "english"
+        and selected
         and settings.pronunciation_wavlm_enabled
         and runtime.loaded
         and runtime.process
@@ -280,9 +286,9 @@ def protect_result(db, user, attempt_id):
         .join(LearningContext)
         .where(PronunciationAttempt.id == attempt_id, LearningContext.student_id == user.id)
     )
-    if row and "wavlm" in row.result:
+    if row and ("wavlm" in row.result or "mms" in row.result):
         raise fail(
-            409, "result_retained", "WavLM results are retained unchanged. Use a new recording or WavLM history."
+            409, "result_retained", "Local speech results are retained unchanged. Use a new recording or model history."
         )
 
 

@@ -7,6 +7,7 @@ import {
   PronunciationActivityView,
   PronunciationAttemptHistoryItem,
   PronunciationAccess,
+  withoutLegacyRating,
 } from "../../services/api/pronunciation";
 import { useAudioRecorder } from "./useAudioRecorder";
 const theme = { colors: { ...baseTheme.colors, primary: pc.navy, ink: pc.ink, muted: pc.muted, border: pc.line, background: pc.background } };
@@ -38,7 +39,7 @@ export function PronunciationPractice({ activity, api, onDone }: PronunciationPr
     try {
       setLoadingHistory(true);
       const items = await api.attempts(activity.id);
-      setHistory(items);
+      setHistory(items.map(withoutLegacyRating));
     } catch {
       // ignore history load error in practice flow
     } finally {
@@ -58,7 +59,7 @@ export function PronunciationPractice({ activity, api, onDone }: PronunciationPr
     setLastResult(null);
 
     try {
-      const res = await api.submitAttempt(activity.id, recorder.audioPayload, recorder.durationMs);
+      const res = withoutLegacyRating(await api.submitAttempt(activity.id, recorder.audioPayload, recorder.durationMs));
       setSubmitSuccess(res.message || "Recording submitted and transcribed successfully!");
       setLastResult(res);
       await recorder.discardRecording();
@@ -275,7 +276,7 @@ export function PronunciationPractice({ activity, api, onDone }: PronunciationPr
           {/* Scientific Disclaimer */}
           <View style={styles.asrDisclaimerBox}>
             <Text style={styles.asrDisclaimerText}>
-              ℹ️ Speech-to-text recognition verified. Multi-dimensional pronunciation assessment is shown below.
+              ℹ️ Recognized text may contain errors. Text agreement is not pronunciation quality.
             </Text>
           </View>
         </View>

@@ -7,7 +7,7 @@ import { useAudioRecorder } from "./useAudioRecorder";
 import { useLessonSpeech } from "../learning/useLessonSpeech";
 
 /** Recording/playback only. No recognition, completion, history write, or score. */
-export function LocalRecordingPractice({ activity }: { activity: PronunciationActivityView }) {
+export function LocalRecordingPractice({ activity, explanation }: { activity: PronunciationActivityView; explanation?: string }) {
   const recorder = useAudioRecorder({ privateTemporary: true, maximumDurationMs: 29000 });
   const speech = useLessonSpeech(activity.language, activity.id);
   const [waiting, setWaiting] = useState(false);
@@ -25,7 +25,7 @@ export function LocalRecordingPractice({ activity }: { activity: PronunciationAc
   return <View style={p.card}>
     <Text style={p.heading}>Listen, record and compare</Text>
     <Text style={p.body}>{activity.target_text}</Text>
-    <Text style={p.caption}>Your browser cannot recognize this language offline. You can still listen to the phrase, record yourself and play it back. This mode does not highlight words, mark the phrase complete or generate a score. FLUENTT does not upload this recording.</Text>
+    <Text style={p.caption}>{explanation ?? 'Your browser cannot recognize this language offline.'} You can still listen to the phrase, record yourself and play it back. This mode does not highlight words, mark the phrase complete or generate a score. FLUENTT does not upload this recording.</Text>
     <Button secondary label="Listen to example" disabled={recording || waiting || recorder.status === "playing"} onPress={() => { void speech.play(activity.target_text); }} />
     <Text style={p.caption}>{(recorder.durationMs / 1000).toFixed(1)} seconds · maximum 29 seconds</Text>
     <Button label={recording ? "Stop recording" : waiting ? "Preparing microphone…" : "Record my voice"} disabled={waiting || speech.speaking || (reviewing && !recording)} onPress={() => { if (recording) void recorder.stopRecording(); else void start(); }} />

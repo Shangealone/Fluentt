@@ -8,7 +8,7 @@ import { pc, p } from "../theme/personal";
 import { PersonalScreen } from "../components/PersonalScreen";
 import { useSession } from "../session/provider";
 import { PronunciationActivityView } from "../services/api/pronunciation";
-import { PronunciationPractice } from "../features/pronunciation/PronunciationPractice";
+import { VoicePracticeFallback } from "../features/pronunciation/VoicePracticeFallback";
 import { LivePronunciationPractice } from "../features/pronunciation/LivePronunciationPractice";
 import {WavLMPracticeOption} from '../features/pronunciation/WavLMPractice';
 const theme = { colors: { ...baseTheme.colors, primary: pc.navy, ink: pc.ink, muted: pc.muted, border: pc.line } };
@@ -31,8 +31,8 @@ export default function PronunciationScreen() {
     try {
       setLoading(true);
       setError(null);
-      const res = await pronunciation.activities(profile?.role === "personal_student" ? profile.language ?? undefined : languageFilter === "all" ? undefined : languageFilter);
-      if (active) setActivities(res.activities.filter(row => profile?.role !== "personal_student" || row.language === profile.language));
+      const res = await pronunciation.activities(languageFilter === "all" ? undefined : languageFilter);
+      if (active) setActivities(res.activities);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load pronunciation activities.";
       if (active) setError(msg);
@@ -57,10 +57,10 @@ export default function PronunciationScreen() {
         title="Learn pronunciation"
         subtitle="Choose a phrase, speak, and listen"
       />}
-      <View style={[p.note, { backgroundColor: pc.aqua }]}><Text style={[p.caption, { color: pc.teal }]}>{personal ? "Read aloud · Watch each word turn green as you speak. Finish the whole phrase to complete the practice." : "Guided recording · Read the phrase, record, and listen back. Automated feedback is currently simulated."}</Text></View>
+      <View style={[p.note, { backgroundColor: pc.aqua }]}><Text style={[p.caption, { color: pc.teal }]}>English: optional WavLM pronunciation predictions. Tagalog: optional MMS transcription and word comparison, with no pronunciation score. Both require an available local backend. Green word highlights are recognition aids.</Text></View>
 
       {/* Language Filter Tabs */}
-      {!personal && <View style={styles.tabRow}>
+      {<View style={styles.tabRow}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Filter all languages"
@@ -115,10 +115,9 @@ export default function PronunciationScreen() {
       ) : selectedActivity ? (
         <View style={{ gap: 16 }}>
           <WavLMPracticeOption key={selectedActivity.id} activity={selectedActivity} api={pronunciation} enrollment={profile.role==='school_student'?enrollment:undefined}>
-          {personal ? <LivePronunciationPractice key={selectedActivity.id} activity={selectedActivity} api={pronunciation} history={activityHistory} owner={profile.id} onDone={() => setSelectedActivity(null)} /> : <PronunciationPractice key={selectedActivity.id}
+          {personal ? <LivePronunciationPractice key={selectedActivity.id} activity={selectedActivity} api={pronunciation} history={activityHistory} owner={profile.id} onDone={() => setSelectedActivity(null)} /> : <VoicePracticeFallback key={selectedActivity.id}
             activity={selectedActivity}
             api={pronunciation}
-            onDone={() => setSelectedActivity(null)}
           />}
           </WavLMPracticeOption>
         </View>

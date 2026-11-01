@@ -1,6 +1,7 @@
 import { request, ApiError } from "./client.ts";
 import { wholePhraseApi, type WholePhraseCapability, type WholePhraseScore } from "./wholePhrase.ts";
-import {wavlmAccess,type WavLMAccess} from './wavlm';
+import {wavlmAccess,type WavLMAccess} from './wavlm.ts';
+import {mmsAccess,type SpeechAccess} from './mms.ts';
 
 export type PronunciationLanguage = "tagalog" | "english";
 
@@ -33,6 +34,7 @@ export type PronunciationAttemptSubmission = {
   message: string;
   transcription?: string | null;
   transcription_metadata?: Record<string, unknown> | null;
+  pronunciation_scoring?: "unavailable";
   score?: number | null;
   feedback?: string | null;
   assessment?: PronunciationAssessment | null;
@@ -48,6 +50,7 @@ export type PronunciationAttemptHistoryItem = {
   file_size_bytes: number;
   duration_ms: number;
   transcription?: string | null;
+  pronunciation_scoring?: "unavailable";
   score?: number | null;
   feedback?: string | null;
 };
@@ -126,6 +129,7 @@ export type PronunciationAssessmentResponse = {
   attempt_id: string;
   activity_id: string;
   scoring_status: string;
+  pronunciation_scoring?: "unavailable";
   score: number | null;
   feedback: string | null;
   assessment: PronunciationAssessment | null;
@@ -145,6 +149,7 @@ export type AudioUploadPayload =
 
 export type PronunciationAccess = {
   wavlm?:WavLMAccess;
+  mms?:SpeechAccess;
   // Absent in synthetic demo adapters: never fabricate provider readiness or scores.
   scoringCapabilities?: (language: PronunciationLanguage) => Promise<WholePhraseCapability>;
   assessWholePhrase?: (activity: PronunciationActivityView, audio: AudioUploadPayload) => Promise<WholePhraseScore>;
@@ -176,6 +181,22 @@ export function validateActivities(data: PronunciationActivitiesResponse): Pronu
     }
   }
   return data;
+}
+
+// Compatibility adapters never trust legacy numerical feedback, including older servers.
+// Actual WavLM/MMS results use their own strict, versioned clients.
+export function withoutLegacyRating<T extends { score?: number | null; feedback?: string | null }>(data: T): T {
+  if(!data || typeof data!=="object" || Array.isArray(data)) invalid("Malformed legacy speech response.");
+  const result = {...data, score:null, assessment:null, evaluator_configuration_id:null,
+    pronunciation_scoring:"unavailable", scoring_status:"unsupported",
+    message:"Legacy pronunciation feedback is unavailable. Use English WavLM or Tagalog MMS.",
+    feedback:"Legacy pronunciation feedback is unavailable. Use English WavLM or Tagalog MMS."};
+  // Some older consumers used flat score aliases instead of the assessment object.
+  for(const key of ["overall_score","accuracy_score","fluency_score","prosody_score","completeness_score",
+    "pronunciation_score","phonemes","words","confidence","has_assessment"]){
+    delete (result as Record<string,unknown>)[key];
+  }
+  return result;
 }
 
 export const pronunciationApi = {
@@ -213,19 +234,19 @@ export const pronunciationApi = {
       formData.append("audio_file", audio as unknown as Blob);
     }
 
-    return request<PronunciationAttemptSubmission>(
+    return withoutLegacyRating(await request<PronunciationAttemptSubmission>(
       "/me/pronunciation/attempts",
       "POST",
       formData,
       secret
-    );
+    ));
   },
 
   getAttempts: async (secret: string, activityId?: string): Promise<PronunciationAttemptHistoryItem[]> => {
     const params = new URLSearchParams();
     if (activityId) params.set("activity_id", activityId);
     const query = params.toString() ? `?${params.toString()}` : "";
-    return request<PronunciationAttemptHistoryItem[]>(`/me/pronunciation/attempts${query}`, "GET", undefined, secret);
+    return (await request<PronunciationAttemptHistoryItem[]>(`/me/pronunciation/attempts${query}`, "GET", undefined, secret)).map(withoutLegacyRating);
   },
 
   transcribeAttempt: async (secret: string, attemptId: string, force?: boolean): Promise<TranscriptionResponse> => {
@@ -240,11 +261,11 @@ export const pronunciationApi = {
   },
 
   evaluateAttempt: async (secret: string, attemptId: string): Promise<PronunciationAssessmentResponse> => {
-    return request<PronunciationAssessmentResponse>(`/me/pronunciation/attempts/${attemptId}/evaluate`, "POST", undefined, secret);
+    return withoutLegacyRating(await request<PronunciationAssessmentResponse>(`/me/pronunciation/attempts/${attemptId}/evaluate`, "POST", undefined, secret));
   },
 
   getAssessment: async (secret: string, attemptId: string): Promise<PronunciationAssessmentResponse> => {
-    return request<PronunciationAssessmentResponse>(`/me/pronunciation/attempts/${attemptId}/assessment`, "GET", undefined, secret);
+    return withoutLegacyRating(await request<PronunciationAssessmentResponse>(`/me/pronunciation/attempts/${attemptId}/assessment`, "GET", undefined, secret));
   },
 };
 
@@ -253,6 +274,7 @@ export function pronunciationAccess(
 ): PronunciationAccess {
   return {
     wavlm: wavlmAccess(run),
+    mms: mmsAccess(run),
     scoringCapabilities: language => run(secret => wholePhraseApi.capabilities(secret, language)),
     assessWholePhrase: (activity, audio) => run(secret => wholePhraseApi.assess(secret, activity, audio)),
     activities: (language?: string) => run(secret => pronunciationApi.getActivities(secret, language)),

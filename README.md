@@ -42,7 +42,7 @@ Development foundation through Section 07 for NE Learning Inc.: Expo mobile iden
 
 ## Prerequisites
 
-Windows PowerShell, Node.js 24 LTS (tested 24.11.0), npm 11 and Python 3.11 (tested 3.11.8). Android testing needs a running emulator or a compatible Expo Go/development build on a physical phone. PostgreSQL 17 setup is documented in docs/MIGRATIONS.md; it is required for online migrations and database integration tests.
+Windows PowerShell, Node.js 24 LTS (tested 24.11.0), npm 11 and Python 3.12 or later (this version-3 checkout uses Python 3.12 type-parameter syntax). Earlier section reports tested Python 3.11; that baseline no longer parses every current module. Android testing needs a running emulator or a compatible Expo Go/development build on a physical phone. PostgreSQL 17 setup is documented in docs/MIGRATIONS.md; it is required for online migrations and database integration tests.
 
 ## First-time setup (from this folder)
 
@@ -176,3 +176,10 @@ Section 07's prompt is available, but implementation waits for user acceptance o
 Personal learners see saved preferences and can edit them through the existing API. School students select among their real memberships; instructors use their owned-class dashboard and existing creation/details/editing. My account provides a confirmed, server-revoked sign-out with secure cleanup and explicit recovery limitations. Loading/errors/refresh and late-response handling are shared; future learning features are labeled upcoming.
 
 Run `node --test scripts/navigation.test.mjs scripts/dashboard-components.test.cjs scripts/enrollment.test.mjs scripts/classes.test.mjs scripts/onboarding.test.mjs scripts/api-clients.test.mjs` from the repository root. Section 07 results, native/database limits and the file inventory are in docs/SECTION_07_REPORT.md. No package, migration or backend endpoint was added. Stop for approval before Section 08.
+
+
+## Local WavLM runtime on Windows
+
+**2026-10-30 update:** English WavLM scoring and Tagalog MMS transcription/text comparison are enabled locally after real public-audio tests. Cold starts require 5 GiB free for English and 8 GiB for MMS; language switching releases idle alternate weights. Tagalog phoneme scoring is unavailable. See [MMS local verification](docs/MMS_LOCAL_VERIFICATION.md), [bilingual implementation](docs/BILINGUAL_VOICE.md) and [earlier checks](docs/BILINGUAL_VOICE_VALIDATION.md); the older setup notes below are historical. Browser demos do not provide authenticated live assessment.
+
+The pinned scorer and alignment artifacts are installed locally and actual weight loading has been verified. The local development database is now configured. Scoring remains disabled pending the genuine-audio benchmark that the user deferred; the voice flow records the sentence and requests evaluation automatically after Stop and evaluate, with model-derived practice feedback. See [WAVLM_LOCAL_SETUP.md](docs/WAVLM_LOCAL_SETUP.md) for measured resources, exact launch/setup commands and verification limits. No weights or recordings are included in Git.

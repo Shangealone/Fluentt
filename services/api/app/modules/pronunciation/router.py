@@ -21,6 +21,8 @@ from app.modules.pronunciation.service import (
 )
 from .wavlm_contract import Score, MAX_BYTES
 from . import wavlm_service
+from . import mms_service
+from .mms_contract import Transcription
 from .upload_limit import AudioUploadRoute
 
 router = APIRouter(
@@ -55,14 +57,16 @@ def get_activity(
 
 @router.get("/capabilities")
 def acoustic_capabilities(
-    request: Request, credential: Credential, repo: Repo, language: Literal["english", "tagalog"]
+    request: Request, credential: Credential, repo: Repo, language: Literal["english", "tagalog"],
+    assessment_engine: Literal["wavlm", "mms"] = "wavlm",
 ):
     with authenticated_session(repo, credential, request.app.state.settings) as (_, user):
         wavlm_service.require_student(user)
-        return wavlm_service.capabilities(request.app.state.settings, language)
+        service = mms_service if assessment_engine == "mms" else wavlm_service
+        return service.capabilities(request.app.state.settings, language)
 
 
-@router.post("/attempts", response_model=PronunciationAttemptSubmissionDTO | Score)
+@router.post("/attempts", response_model=PronunciationAttemptSubmissionDTO | Score | Transcription)
 def submit_attempt(
     request: Request,
     credential: Credential,
@@ -72,14 +76,14 @@ def submit_attempt(
     duration_ms: Annotated[int, Form(ge=0, le=300000)],
     context_type: Annotated[str, Form()] = "self_study",
     class_id: Annotated[UUID | None, Form()] = None,
-    assessment_engine: Annotated[Literal["legacy", "wavlm"], Form()] = "legacy",
+    assessment_engine: Annotated[Literal["legacy", "wavlm", "mms"], Form()] = "legacy",
     activity_version: Annotated[int | None, Form(ge=1)] = None,
     request_id: Annotated[UUID | None, Form()] = None,
     consent_version: Annotated[str | None, Form(max_length=80)] = None,
 ):
     try:
         audio_bytes = audio_file.file.read(MAX_BYTES + 1)
-        if assessment_engine == "wavlm":
+        if assessment_engine in {"wavlm", "mms"}:
             if activity_version is None or request_id is None:
                 from app.modules.identity.errors import IdentityError
 
@@ -94,7 +98,8 @@ def submit_attempt(
                 raise IdentityError(
                     422, "wavlm_context_invalid", "Use independent practice or an authorized ordinary classroom."
                 )
-            return wavlm_service.assess(
+            service = mms_service if assessment_engine == "mms" else wavlm_service
+            return service.assess(
                 repo,
                 credential,
                 request.app.state.settings,
@@ -120,7 +125,7 @@ def submit_attempt(
         audio_file.file.close()
 
 
-@router.get("/attempts", response_model=list[PronunciationAttemptHistoryDTO | Score])
+@router.get("/attempts", response_model=list[PronunciationAttemptHistoryDTO | Score | Transcription])
 def list_attempts(
     request: Request,
     credential: Credential,
@@ -130,16 +135,17 @@ def list_attempts(
     class_id: UUID | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0, le=10000)] = 0,
-    assessment_engine: Literal["legacy", "wavlm"] = "legacy",
+    assessment_engine: Literal["legacy", "wavlm", "mms"] = "legacy",
 ):
-    if assessment_engine == "wavlm":
+    if assessment_engine in {"wavlm", "mms"}:
         if context_type not in {"self_study", "personal", "classroom"} or (
             context_type == "classroom" and class_id is None
         ):
             from app.modules.identity.errors import IdentityError
 
             raise IdentityError(422, "wavlm_context_invalid", "Research records are unavailable here.")
-        return wavlm_service.history(
+        service = mms_service if assessment_engine == "mms" else wavlm_service
+        return service.history(
             repo,
             credential,
             request.app.state.settings,

@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     pronunciation_wavlm_cache: str | None = None
     pronunciation_wavlm_device: Literal["cpu", "cuda:0"] = "cpu"
     pronunciation_wavlm_timeout_seconds: int = Field(default=120, ge=5, le=180)
+    pronunciation_mms_enabled: bool = False
+    pronunciation_mms_noncommercial_acknowledged: bool = False
+    pronunciation_mms_python: str | None = None
+    pronunciation_mms_cache: str | None = None
+    pronunciation_mms_device: Literal["cpu", "cuda:0"] = "cpu"
+    pronunciation_mms_timeout_seconds: int = Field(default=180, ge=5, le=300)
     tutor_demo_enabled: bool = False
     tutor_groq_key: SecretStr | None = None
     tutor_groq_model: str = "openai/gpt-oss-120b"

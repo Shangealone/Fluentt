@@ -1,0 +1,11 @@
+--- upstream/decoder.py
++++ corrected/decoder.py
+@@ -52,7 +52,7 @@
+             # this is an emitting frame
+             if arg_max != cur_max_arg and arg_max != 0:
+                 emit_frame_idx.append(i)
+-                cur_max_arg = arg_max
++            cur_max_arg = arg_max
+ 
+         # decode all emitting frames
+         decoded_seq = []

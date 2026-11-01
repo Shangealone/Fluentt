@@ -142,79 +142,16 @@ def test_get_pronunciation_activity_not_found():
 # ---------------------------------------------------------------------------
 
 
-def test_record_pronunciation_attempt_duration_bounds():
-    user = MagicMock()
+@pytest.mark.parametrize("audio,duration", [(b"", 0), (b"invalid", 2500), (b"\0" * 1024, 65000)])
+def test_legacy_recording_refuses_before_storage_or_database(audio, duration, tmp_path, monkeypatch):
+    import app.modules.pronunciation.service as service
+    monkeypatch.setattr(service, "PRIVATE_STORAGE_BASE", tmp_path)
     db = MagicMock()
-    act_id = uuid4()
-
-    valid_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 200
-
-    # Duration too short (< 500ms)
-    with pytest.raises(IdentityError) as exc_short:
-        record_pronunciation_attempt(db, user, act_id, valid_audio, "audio/webm", client_duration_ms=200)
-    assert exc_short.value.code == "duration_too_short"
-
-    # Duration too long (> 60000ms)
-    with pytest.raises(IdentityError) as exc_long:
-        record_pronunciation_attempt(db, user, act_id, valid_audio, "audio/webm", client_duration_ms=65000)
-    assert exc_long.value.code == "duration_too_long"
-
-
-def test_record_pronunciation_attempt_success_mocked(tmp_path, monkeypatch):
-    import app.modules.pronunciation.service as pron_service
-
-    monkeypatch.setattr(pron_service, "PRIVATE_STORAGE_BASE", tmp_path)
-
-    user = MagicMock()
-    user.id = uuid4()
-    user.role = "school_student"
-
-    act_id = uuid4()
-    activity = MagicMock(spec=PronunciationActivity)
-    activity.id = act_id
-    activity.target_text = "Salamat sa iyong tulong."
-    activity.language = "tagalog"
-    activity.status = "published"
-
-    context = MagicMock(spec=LearningContext)
-    context.id = uuid4()
-
-    db = MagicMock()
-    db.scalar.side_effect = [
-        activity,  # Activity existence check
-        context,   # Context retrieval
-    ]
-
-    valid_audio = b"\x1a\x45\xdf\xa3" + b"\x00" * 300
-
-    res = record_pronunciation_attempt(
-        db,
-        user=user,
-        activity_id=act_id,
-        audio_bytes=valid_audio,
-        reported_content_type="audio/webm",
-        client_duration_ms=2500,
-    )
-
-    assert res.activity_id == act_id
-    assert res.target_text == "Salamat sa iyong tulong."
-    assert res.language == "tagalog"
-    assert res.scoring_status == "pending"
-    assert res.duration_ms == 2500
-    assert res.file_size_bytes == len(valid_audio)
-    assert res.mime_type == "audio/webm"
-    assert isinstance(res.simulated, bool)
-
-    # Verify attempt saved to db
-    assert db.add.called
-    added_attempt = db.add.call_args[0][0]
-    assert added_attempt.score is None
-    assert added_attempt.scoring_status == "pending"
-
-    # Verify private file created on disk
-    expected_file = tmp_path / str(context.id) / f"{added_attempt.id}.webm"
-    assert expected_file.exists()
-    assert expected_file.read_bytes() == valid_audio
+    with pytest.raises(IdentityError) as error:
+        record_pronunciation_attempt(db, MagicMock(), uuid4(), audio, "audio/webm", duration)
+    assert error.value.code == "legacy_speech_unavailable" and error.value.status == 409
+    assert db.mock_calls == []
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_get_user_pronunciation_attempts_mocked():
@@ -242,6 +179,8 @@ def test_get_user_pronunciation_attempts_mocked():
     results = get_user_pronunciation_attempts(db, user)
     assert len(results) == 1
     assert results[0].target_text == "Ang wika ay salamin ng kultura."
-    assert results[0].scoring_status == "pending"
+    assert results[0].scoring_status == "unsupported"
+    assert results[0].score is None
+    assert results[0].pronunciation_scoring == "unavailable"
     assert results[0].duration_ms == 3200
     assert results[0].file_size_bytes == 1024

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="500" viewBox="0 0 920 500" role="img">
+<title>Leave-one-speaker-out sensitivity</title><desc>Each point: 27 recordings from 9 speakers | Dotted lines: unchanged 30-recording baseline</desc>
+<rect width="100%" height="100%" fill="white"/>
+<style>text{font-family:Segoe UI,Arial,sans-serif;fill:#253348} .tick{font-size:13px} .note{font-size:13px;fill:#526174}</style>
+<text x="64" y="35" font-size="23" font-weight="600">Leave-one-speaker-out sensitivity</text>
+<text x="64" y="61" class="note">Each point: 27 recordings from 9 speakers | Dotted lines: unchanged 30-recording baseline</text>
+<text x="300.0" y="92" text-anchor="middle" font-size="17">Pearson</text>
+<line x1="150.0" y1="105" x2="150.0" y2="384" stroke="#E2E7ED"/>
+<text x="150.0" y="407" class="tick" text-anchor="middle">-1</text>
+<line x1="225.0" y1="105" x2="225.0" y2="384" stroke="#E2E7ED"/>
+<text x="225.0" y="407" class="tick" text-anchor="middle">-0.5</text>
+<line x1="300.0" y1="105" x2="300.0" y2="384" stroke="#E2E7ED"/>
+<text x="300.0" y="407" class="tick" text-anchor="middle">0</text>
+<line x1="375.0" y1="105" x2="375.0" y2="384" stroke="#E2E7ED"/>
+<text x="375.0" y="407" class="tick" text-anchor="middle">0.5</text>
+<line x1="450.0" y1="105" x2="450.0" y2="384" stroke="#E2E7ED"/>
+<text x="450.0" y="407" class="tick" text-anchor="middle">1</text>
+<line x1="363.24408525843404" y1="105" x2="363.24408525843404" y2="384" stroke="#677489" stroke-dasharray="4 4"/>
+<text x="138" y="125" text-anchor="end" class="tick">0093</text>
+<circle cx="363.712" cy="120" r="5" fill="#0072B2"><title>Excluded speaker 0093: 0.424745</title></circle>
+<text x="138" y="152" text-anchor="end" class="tick">0112</text>
+<circle cx="383.129" cy="147" r="5" fill="#0072B2"><title>Excluded speaker 0112: 0.554193</title></circle>
+<text x="138" y="179" text-anchor="end" class="tick">1030</text>
+<circle cx="352.270" cy="174" r="5" fill="#0072B2"><title>Excluded speaker 1030: 0.348465</title></circle>
+<text x="138" y="206" text-anchor="end" class="tick">1050</text>
+<circle cx="360.454" cy="201" r="5" fill="#0072B2"><title>Excluded speaker 1050: 0.403026</title></circle>
+<text x="138" y="233" text-anchor="end" class="tick">1061</text>
+<circle cx="362.742" cy="228" r="5" fill="#0072B2"><title>Excluded speaker 1061: 0.418280</title></circle>
+<text x="138" y="260" text-anchor="end" class="tick">1186</text>
+<circle cx="376.884" cy="255" r="5" fill="#0072B2"><title>Excluded speaker 1186: 0.512561</title></circle>
+<text x="138" y="287" text-anchor="end" class="tick">1465</text>
+<circle cx="363.535" cy="282" r="5" fill="#0072B2"><title>Excluded speaker 1465: 0.423569</title></circle>
+<text x="138" y="314" text-anchor="end" class="tick">2438</text>
+<circle cx="358.970" cy="309" r="5" fill="#0072B2"><title>Excluded speaker 2438: 0.393131</title></circle>
+<text x="138" y="341" text-anchor="end" class="tick">5432</text>
+<circle cx="359.083" cy="336" r="5" fill="#0072B2"><title>Excluded speaker 5432: 0.393884</title></circle>
+<text x="138" y="368" text-anchor="end" class="tick">6902</text>
+<circle cx="354.048" cy="363" r="5" fill="#0072B2"><title>Excluded speaker 6902: 0.360317</title></circle>
+<text x="715.0" y="92" text-anchor="middle" font-size="17">Spearman</text>
+<line x1="565.0" y1="105" x2="565.0" y2="384" stroke="#E2E7ED"/>
+<text x="565.0" y="407" class="tick" text-anchor="middle">-1</text>
+<line x1="640.0" y1="105" x2="640.0" y2="384" stroke="#E2E7ED"/>
+<text x="640.0" y="407" class="tick" text-anchor="middle">-0.5</text>
+<line x1="715.0" y1="105" x2="715.0" y2="384" stroke="#E2E7ED"/>
+<text x="715.0" y="407" class="tick" text-anchor="middle">0</text>
+<line x1="790.0" y1="105" x2="790.0" y2="384" stroke="#E2E7ED"/>
+<text x="790.0" y="407" class="tick" text-anchor="middle">0.5</text>
+<line x1="865.0" y1="105" x2="865.0" y2="384" stroke="#E2E7ED"/>
+<text x="865.0" y="407" class="tick" text-anchor="middle">1</text>
+<line x1="791.6989633502712" y1="105" x2="791.6989633502712" y2="384" stroke="#677489" stroke-dasharray="4 4"/>
+<text x="553" y="125" text-anchor="end" class="tick">0093</text>
+<circle cx="795.865" cy="120" r="5" fill="#0072B2"><title>Excluded speaker 0093: 0.539098</title></circle>
+<text x="553" y="152" text-anchor="end" class="tick">0112</text>
+<circle cx="800.025" cy="147" r="5" fill="#0072B2"><title>Excluded speaker 0112: 0.566834</title></circle>
+<text x="553" y="179" text-anchor="end" class="tick">1030</text>
+<circle cx="777.593" cy="174" r="5" fill="#0072B2"><title>Excluded speaker 1030: 0.417286</title></circle>
+<text x="553" y="206" text-anchor="end" class="tick">1050</text>
+<circle cx="789.331" cy="201" r="5" fill="#0072B2"><title>Excluded speaker 1050: 0.495543</title></circle>
+<text x="553" y="233" text-anchor="end" class="tick">1061</text>
+<circle cx="794.288" cy="228" r="5" fill="#0072B2"><title>Excluded speaker 1061: 0.528585</title></circle>
+<text x="553" y="260" text-anchor="end" class="tick">1186</text>
+<circle cx="804.617" cy="255" r="5" fill="#0072B2"><title>Excluded speaker 1186: 0.597446</title></circle>
+<text x="553" y="287" text-anchor="end" class="tick">1465</text>
+<circle cx="793.744" cy="282" r="5" fill="#0072B2"><title>Excluded speaker 1465: 0.524957</title></circle>
+<text x="553" y="314" text-anchor="end" class="tick">2438</text>
+<circle cx="788.280" cy="309" r="5" fill="#0072B2"><title>Excluded speaker 2438: 0.488533</title></circle>
+<text x="553" y="341" text-anchor="end" class="tick">5432</text>
+<circle cx="785.884" cy="336" r="5" fill="#0072B2"><title>Excluded speaker 5432: 0.472557</title></circle>
+<text x="553" y="368" text-anchor="end" class="tick">6902</text>
+<circle cx="783.451" cy="363" r="5" fill="#0072B2"><title>Excluded speaker 6902: 0.456337</title></circle>
+<text x="64" y="449" class="note">Row labels identify the excluded speaker. All three of that speaker’s recordings are removed together.</text>
+<text x="64" y="476" class="note">Sensitivity analysis is exploratory; these dots are not independent replications or confidence intervals.</text></svg>

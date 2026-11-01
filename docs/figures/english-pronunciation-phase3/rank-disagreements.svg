@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="505" viewBox="0 0 940 505" role="img">
+<title>Largest relative-ranking disagreements</title><desc>Post hoc descriptive examples: 6 recordings, 6 speakers | Average ranks for ties, 1 = lowest</desc>
+<rect width="100%" height="100%" fill="white"/>
+<style>text{font-family:Segoe UI,Arial,sans-serif;fill:#253348} .tick{font-size:13px} .note{font-size:13px;fill:#526174}</style>
+<text x="64" y="35" font-size="23" font-weight="600">Largest relative-ranking disagreements</text>
+<text x="64" y="61" class="note">Post hoc descriptive examples: 6 recordings, 6 speakers | Average ranks for ties, 1 = lowest</text>
+<line x1="330.0" y1="100" x2="330.0" y2="378" stroke="#CAD3DE"/>
+<text x="330.0" y="403" text-anchor="middle" class="tick">-25</text>
+<line x1="438.0" y1="100" x2="438.0" y2="378" stroke="#CAD3DE"/>
+<text x="438.0" y="403" text-anchor="middle" class="tick">-15</text>
+<line x1="600.0" y1="100" x2="600.0" y2="378" stroke="#CAD3DE"/>
+<text x="600.0" y="403" text-anchor="middle" class="tick">+0</text>
+<line x1="762.0" y1="100" x2="762.0" y2="378" stroke="#CAD3DE"/>
+<text x="762.0" y="403" text-anchor="middle" class="tick">+15</text>
+<line x1="870.0" y1="100" x2="870.0" y2="378" stroke="#CAD3DE"/>
+<text x="870.0" y="403" text-anchor="middle" class="tick">+25</text>
+<text x="310" y="124" text-anchor="end" class="tick">011860377 · speaker 1186</text>
+<text x="310" y="141" text-anchor="end" class="note">Human 6/10 · model 91.9/100</text>
+<rect x="600.000" y="114" width="253.800" height="23" fill="#0072B2"/>
+<text x="310" y="167" text-anchor="end" class="tick">001120031 · speaker 0112</text>
+<text x="310" y="184" text-anchor="end" class="note">Human 9/10 · model 75.5/100</text>
+<rect x="362.400" y="157" width="237.600" height="23" fill="#D55E00"/>
+<text x="310" y="210" text-anchor="end" class="tick">069020175 · speaker 6902</text>
+<text x="310" y="227" text-anchor="end" class="note">Human 8/10 · model 73.8/100</text>
+<rect x="465.000" y="200" width="135.000" height="23" fill="#D55E00"/>
+<text x="310" y="253" text-anchor="end" class="tick">000930050 · speaker 0093</text>
+<text x="310" y="270" text-anchor="end" class="note">Human 9/10 · model 85.9/100</text>
+<rect x="470.400" y="243" width="129.600" height="23" fill="#D55E00"/>
+<text x="310" y="296" text-anchor="end" class="tick">010610094 · speaker 1061</text>
+<text x="310" y="313" text-anchor="end" class="note">Human 7/10 · model 87.5/100</text>
+<rect x="600.000" y="286" width="129.600" height="23" fill="#0072B2"/>
+<text x="310" y="339" text-anchor="end" class="tick">024380317 · speaker 2438</text>
+<text x="310" y="356" text-anchor="end" class="note">Human 8/10 · model 91.5/100</text>
+<rect x="600.000" y="329" width="102.600" height="23" fill="#0072B2"/>
+<text x="600" y="437" text-anchor="middle" font-size="15">Model rank minus human rank (positions)</text>
+<text x="64" y="478" class="note">Rank gaps are not calibrated score errors. No score conversions, thresholds or improved formulas were fitted.</text></svg>

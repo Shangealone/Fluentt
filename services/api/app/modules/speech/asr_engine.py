@@ -1,22 +1,8 @@
-"""Multilingual Speech Recognition (ASR) Engine for Section 33.
+"""Historical deterministic ASR fixtures, not a real speech recognizer.
 
-Scientific & Architectural Foundation:
-1. Model Specification: Multilingual Whisper (openai/whisper-base / openai/whisper-tiny).
-   - License: MIT License
-   - Supported Languages: English ('en') and Tagalog / Filipino ('tl').
-   - Handles Code-Switching ('Taglish') via prompt language hints and vocabulary tokenization.
-2. Deployment Requirement: Private backend deployment only.
-   - Absolutely no transmission of student audio recordings to third-party cloud APIs.
-3. Audio Preprocessing:
-   - Validates audio containers (WebM, WAV, OGG, MP4/M4A, AAC).
-   - Enforces duration limits (500 ms to 60,000 ms).
-   - Deterministic energy/silence detection: detects zero-variance or low-amplitude silent recordings.
-4. Scientific Integrity & Simulation Policy:
-   - When local weights/torch are not loaded in the lightweight execution environment,
-     operates via the deterministic reference adapter (`whisper-simulated-v1` with `simulated: True`).
-   - Clearly documents raw transcript vs normalized transcript.
-   - Never fabricates confidence or phoneme alignments; explicitly marks simulated metrics.
-   - A transcript alone is NOT a pronunciation score (pronunciation evaluation is Section 34).
+SimulatedWhisperASR copies prompt text and generates synthetic timing/confidence.
+It is retained for isolated legacy tests only. Runtime callers must use the
+versioned MMS transcription service; the default legacy factory fails closed.
 """
 
 import math
@@ -275,10 +261,11 @@ _DEFAULT_RECOGNIZER: SpeechRecognizerInterface | None = None
 
 
 def get_speech_recognizer() -> SpeechRecognizerInterface:
-    """Returns the configured speech recognizer singleton."""
+    """Explicit test injection only; no default simulated runtime recognizer."""
     global _DEFAULT_RECOGNIZER
     if _DEFAULT_RECOGNIZER is None:
-        _DEFAULT_RECOGNIZER = SimulatedWhisperASR()
+        from app.modules.identity.errors import IdentityError
+        raise IdentityError(409, "legacy_speech_unavailable", "Use the versioned MMS transcription service.")
     return _DEFAULT_RECOGNIZER
 
 

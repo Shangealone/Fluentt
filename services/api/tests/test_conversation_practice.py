@@ -279,6 +279,7 @@ def test_send_conversation_message_with_spoken_audio():
     att_mock = MagicMock(spec=PronunciationAttempt)
     att_mock.id = attempt_id
     att_mock.transcription = "Magandang araw po ako si Maria"
+    att_mock.simulated = False
     att_mock.score = 92.5
     att_mock.scoring_status = "scored"
 
@@ -303,7 +304,7 @@ def test_send_conversation_message_with_spoken_audio():
 
     assert resp.user_message.audio_attempt_id == attempt_id
     assert resp.user_message.content == "Magandang araw po ako si Maria"
-    assert resp.user_message.pronunciation_score == 92.5
+    assert resp.user_message.pronunciation_score is None
     assert resp.assistant_message.role == "assistant"
 
 
@@ -356,3 +357,34 @@ def test_end_conversation_session_summary():
     assert summary.turns_completed == 6
     assert len(summary.strengths) >= 1
     assert db.commit.called
+
+
+@pytest.mark.parametrize("simulated,transcript", [(True,"copied reference"),(False,None),(False,"")])
+def test_conversation_audio_never_retranscribes_or_rates_unsupported_recordings(simulated, transcript):
+    from types import SimpleNamespace
+    db = MagicMock()
+    user = SimpleNamespace(id=uuid4())
+    context = SimpleNamespace(id=uuid4(), student_id=user.id)
+    session = SimpleNamespace(id=uuid4(), context_id=context.id, status="active", topic_id=uuid4())
+    attempt = SimpleNamespace(simulated=simulated, transcription=transcript, score=99)
+    db.scalar.side_effect = [session, context, None, attempt]
+    with pytest.raises(IdentityError) as error:
+        send_conversation_message(db, user, session.id, audio_attempt_id=uuid4())
+    assert error.value.code == "audio_transcription_unavailable"
+    db.add.assert_not_called()
+    db.commit.assert_not_called()
+
+
+def test_conversation_audio_lookup_is_bound_to_the_owned_session_context():
+    from types import SimpleNamespace
+    db = MagicMock()
+    user = SimpleNamespace(id=uuid4())
+    context = SimpleNamespace(id=uuid4(), student_id=user.id)
+    session = SimpleNamespace(id=uuid4(), context_id=context.id, status="active", topic_id=uuid4())
+    db.scalar.side_effect = [session, context, None, None]
+    with pytest.raises(IdentityError) as error:
+        send_conversation_message(db, user, session.id, audio_attempt_id=uuid4())
+    assert error.value.code == "audio_attempt_not_found"
+    query = db.scalar.call_args.args[0]
+    assert context.id in query.compile().params.values()
+    db.add.assert_not_called()

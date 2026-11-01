@@ -1,4 +1,4 @@
-import {ApiError,request} from './client';
+import {ApiError,request} from './client.ts';
 import type {AudioUploadPayload,PronunciationActivityView} from './pronunciation';
 export const WAVLM_CONSENT='local-wavlm-audio-and-results-v1';
 export const WAVLM_MODEL='Jianshu001/wavlm-phoneme-scorer';

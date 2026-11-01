@@ -16,7 +16,6 @@ from app.models.research import ModelVersion, ModelConfiguration
 from app.models.users import User
 from app.modules.identity.errors import IdentityError
 from app.modules.spaced_repetition.service import get_or_create_learning_context
-from app.modules.speech.service import transcribe_pronunciation_attempt, evaluate_pronunciation_attempt
 from app.modules.conversation.schemas import (
     ConversationTopicDTO,
     ConversationTopicsResponse,
@@ -379,24 +378,21 @@ def send_conversation_message(
     transcription: str | None = None
 
     if audio_attempt_id:
-        att = db.scalar(select(PronunciationAttempt).where(PronunciationAttempt.id == audio_attempt_id))
+        # Retained audio may supply owned recognized text, never a transcript-derived rating.
+        att = db.scalar(select(PronunciationAttempt).where(
+            PronunciationAttempt.id == audio_attempt_id,
+            PronunciationAttempt.context_id == session.context_id,
+        ))
         if not att:
             raise IdentityError(404, "audio_attempt_not_found", "Linked audio recording not found.")
-        # Ensure transcribed
-        if not att.transcription:
-            transcribe_pronunciation_attempt(db, att.id)
-            db.refresh(att)
-        # Ensure evaluated
-        if att.score is None and att.scoring_status != "unsupported":
-            try:
-                evaluate_pronunciation_attempt(db, att.id)
-                db.refresh(att)
-            except Exception:
-                pass
-
-        user_text = att.transcription or "[Inaudible or Silent Audio]"
+        if att.simulated or not att.transcription:
+            raise IdentityError(409, "audio_transcription_unavailable",
+                                "Use a real transcribed recording or enter your message as text.")
+        user_text = att.transcription
         transcription = att.transcription
-        pron_score = float(att.score) if att.score is not None else None
+        # English WavLM has its own assessment UI; conversation does not assess audio.
+        pron_score = None
+
     else:
         if not content or not content.strip():
             raise IdentityError(422, "empty_message", "Message content cannot be empty.")

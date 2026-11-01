@@ -240,13 +240,16 @@ test('pronunciationAccess wraps runner correctly', async () => {
       2500
     );
     assert.equal(submission.attempt_id, 'attempt-101');
-    assert.equal(submission.scoring_status, 'pending');
+    assert.equal(submission.scoring_status, 'unsupported');
+    assert.equal(submission.score, null);
+    assert.equal(submission.assessment, null);
     assert.equal(submission.transcription, 'Magandang umaga sa inyong lahat.');
 
     // List attempts
     const history = await access.attempts('act-1');
     assert.equal(history.length, 1);
-    assert.equal(history[0].scoring_status, 'pending');
+    assert.equal(history[0].scoring_status, 'unsupported');
+    assert.equal(history[0].score, null);
     assert.equal(history[0].transcription, 'Magandang umaga sa inyong lahat.');
 
     // Transcribe attempt
@@ -261,14 +264,18 @@ test('pronunciationAccess wraps runner correctly', async () => {
 
     // Section 34: Evaluate pronunciation attempt
     const evaluated = await access.evaluate('attempt-101');
-    assert.equal(evaluated.scoring_status, 'scored');
-    assert.equal(evaluated.overall_score, 95.5);
+    assert.equal(evaluated.scoring_status, 'unsupported');
+    assert.equal(evaluated.score, null);
+    assert.equal(evaluated.assessment, null);
+    assert.equal(evaluated.overall_score, undefined);
     assert.equal(evaluated.evaluation_method, 'goodness_of_pronunciation_gop');
 
     // Section 34: Get assessment status
     const assessmentStatus = await access.getAssessment('attempt-101');
-    assert.equal(assessmentStatus.has_assessment, true);
-    assert.equal(assessmentStatus.overall_score, 95.5);
+    assert.equal(assessmentStatus.has_assessment, undefined);
+    assert.equal(assessmentStatus.assessment, null);
+    assert.equal(assessmentStatus.score, null);
+    assert.equal(assessmentStatus.overall_score, undefined);
 
     assert.equal(calls.length, 9);
   } finally {

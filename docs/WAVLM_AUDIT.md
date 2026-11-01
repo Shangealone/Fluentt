@@ -28,3 +28,26 @@ Planned files: new isolated local Python model runtime/worker, reviewed adapter,
 The WavLM worker/API/UI integration exists in source, but this laptop has **7.21 GiB total / 0.79 GiB free RAM**. The server's model preflight requires at least 4 GiB free. Its separate Python runtime and pinned artifact cache are absent; local configuration is disabled. Therefore no actual WavLM inference or live pronunciation score was verified or enabled here. The opt-in live flow remains gated, and the browser demo generates no acoustic score. Tagalog remains unsupported.
 
 Focused deterministic contract/runtime tests: `18 passed, 1 deselected` using a workspace temporary directory. The deselected upload-limit ASGI test stalled in this sandbox and is not reported as passed. These synthetic tests do not establish model loading, latency, or accuracy. Do not lower the memory gate or substitute a simulated score. A capable backend machine must install the isolated runtime from `services/api/ml/wavlm/requirements.lock.txt`, prepare pinned artifacts with `prepare.py`, run a real-audio `benchmark.py` check, then set the documented environment variables in an ignored `.env` or deployment configuration before enabling the feature.
+
+
+## New PC preparation — 2026-10-29
+
+The Windows desktop has 15.864 GiB RAM and passed the unchanged 4 GiB gate after unused apps were closed. The exact pinned CPU dependencies and all 16 hashed artifacts are prepared in ignored local environments/cache. Actual scorer and alignment weights loaded offline in 28.261 seconds; sampled peak RSS about 2.739 GiB, final RSS 2.745 GiB. This is real weight-loading evidence, not a recorded-audio assessment. The feature remains disabled pending a consented genuine-audio benchmark and configured local PostgreSQL/student connection. Tagalog is still unsupported.
+
+Fresh API startup exposed a missing python-multipart dependency; both backend requirements files now pin 0.0.32. The branch also requires Python >=3.12 (existing generic-class syntax), so an isolated Python 3.12 API runtime was prepared without replacing the old environment. The upload-limit test now passes without deselection. Targeted pronunciation tests: 42 passed / 6 database skips; WavLM client tests: 4 passed. Full non-PostgreSQL suite: 826 passed / 2 failures in untouched research/schema expectations; no research/scheduler behavior was altered. See WAVLM_LOCAL_SETUP.md for exact commands, revisions/hashes, memory readings, known failures, changed files and remaining demo checks. No inference latency or genuine score is claimed, and nothing was committed/pushed.
+
+
+### Voice-flow/database follow-up
+
+Current bilingual follow-up (2026-10-30): actual public annotated English audio inference and the repaired real worker succeeded. An initial API+Metro memory check stopped at 688 MiB free; the startup requirement was raised to 5 GiB. After temporary processes released memory, the final monitored recheck passed with 1.529 GiB minimum available and English was enabled locally. MMS `tgl` transcription/comparison integration remains disabled, unprepared and not inference-verified under its 8 GiB gate. Tagalog phoneme scoring is unavailable. The formerly stalled upload-limit test passed with Windows local socket access; its prior hang was traced to asyncio socketpair creation before request handling. See BILINGUAL_VOICE.md and BILINGUAL_VOICE_VALIDATION.md; prior disabled/no-audio statements describe the earlier stage.
+
+The user requested automatic assessment after finishing a recording and practice feedback, choosing to test their voice later. WavLMPractice now submits one consented completed recording after Stop and evaluate and shows model-derived sound tips; error retries remain explicit. A new isolated PostgreSQL 17.11 development cluster on 127.0.0.1:55432 is configured and migrated to 0018. Targeted pronunciation checks now pass with real disposable PostgreSQL: 48 passed, no skips; model/API/UI doubles remain synthetic. Client tests: 6 passed; mobile typecheck and changed-file lint pass. The original real-audio benchmark gate is unchanged, so scoring remains disabled pending the deferred voice test. No genuine score, audio inference latency or microphone/history/cleanup demonstration is claimed. See WAVLM_LOCAL_SETUP.md for the updated state and file inventory.
+### Subsequent MMS activation after user freed RAM
+
+The user made 8.19 GiB available. The unchanged 8 GiB gate passed; seven pinned
+MMS files now verify and real Tagalog transcription succeeded on three public
+FLEURS test clips. The actual API worker also succeeded twice with warm reuse.
+English remains enabled; MMS transcription/comparison is now enabled locally.
+A shared model lock releases idle alternate-language weights and refuses competing
+inference, preserving both memory gates. Tagalog phoneme scoring remains unavailable.
+See MMS_LOCAL_VERIFICATION.md; earlier MMS-unavailable statements are historical.

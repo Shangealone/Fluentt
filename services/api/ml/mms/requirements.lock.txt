@@ -1,0 +1,2 @@
+# Reuse the already reviewed CPU speech stack without changing English model pins.
+-r ../wavlm/requirements.lock.txt

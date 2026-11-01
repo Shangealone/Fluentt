@@ -66,6 +66,7 @@ export function useAudioRecorder({privateTemporary = false, maximumDurationMs = 
   const streamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const webAudioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const privatePreviewUri = useRef<string | null>(null);
 
   // Native Refs
   const nativeRecorder = useExpoAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -117,9 +118,11 @@ export function useAudioRecorder({privateTemporary = false, maximumDurationMs = 
         streamRef.current.getTracks().forEach(t => t.stop());
         streamRef.current = null;
       }
-      if (audioPreviewUri && audioPreviewUri.startsWith("blob:")) {
-        URL.revokeObjectURL(audioPreviewUri);
+      const preview = privateTemporary ? privatePreviewUri.current : audioPreviewUri;
+      if (preview && preview.startsWith("blob:")) {
+        URL.revokeObjectURL(preview);
       }
+      privatePreviewUri.current = null;
       mediaRecorderRef.current = null;
       audioChunksRef.current = [];
     } else {
@@ -194,6 +197,7 @@ export function useAudioRecorder({privateTemporary = false, maximumDurationMs = 
 
   // Stop Recording
   const stopRecording = useCallback(async () => {
+    const run = generation.current;
     cleanupTimer();
     const recordedDuration = Date.now() - startTimeRef.current;
 
@@ -208,11 +212,13 @@ export function useAudioRecorder({privateTemporary = false, maximumDurationMs = 
 
     if (Platform.OS === "web") {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        const recording = mediaRecorderRef.current;
         mediaRecorderRef.current.onstop = () => {
-            if(privateTemporary && !mounted.current)return;
-          const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
+          if(privateTemporary && (!mounted.current || run !== generation.current))return;
+          const mimeType = recording.mimeType || "audio/webm";
           const blob = new Blob(audioChunksRef.current, { type: mimeType });
           const url = URL.createObjectURL(blob);
+          if(privateTemporary)privatePreviewUri.current = url;
           setAudioPayload(blob);
           setAudioPreviewUri(url);
           setStatus("recorded");
@@ -285,6 +291,7 @@ export function useAudioRecorder({privateTemporary = false, maximumDurationMs = 
         mediaRecorderRef.current = mediaRecorder;
 
         mediaRecorder.ondataavailable = e => {
+          if(privateTemporary && (!mounted.current || run !== generation.current))return;
           if (e.data && e.data.size > 0) {
             audioChunksRef.current.push(e.data);
           }
@@ -430,6 +437,11 @@ export function useAudioRecorder({privateTemporary = false, maximumDurationMs = 
         nativeSoundRef.current.release();
       }
       if(privateTemporary){
+        if(privatePreviewUri.current){
+          URL.revokeObjectURL(privatePreviewUri.current);
+          privatePreviewUri.current = null;
+        }
+        audioChunksRef.current = [];
         try{const uri=nativeRecordingRef.current?.uri;if(uri)temporaryUris.add(uri);}catch{/* Native recorder may already be released. */}
         void releaseTemporary().catch(()=>{});
       }

@@ -1,0 +1,22 @@
+# Tagalog dataset permission tracker
+
+Last reviewed: 2026-10-30. Section 4A.2. **All requests: NOT SENT.** No reply or permission grant is recorded. Draft preparation and a public license declaration are not evidence that a request was delivered or approved.
+
+Scope: FLUENTT, an undergraduate Computer Science thesis project in the Philippines. Initial request is for a minimal existing matched audio/phone-label sample, annotation documentation, and clarified academic research/publication permissions. No collection, training, redistribution or student rating is requested.
+
+| Dataset | Verified contact route | Request status | Audio access status | Phone annotation status | Research-use permission status | Redistribution restrictions | Next action |
+|---|---|---|---|---|---|---|---|
+| Tiny Tagalog singing dataset, UtaUtaUtau v1.0.0 | [Official repository/contact route](https://github.com/UtaUtaUtau/tiny-tagalog-dataset); [issues](https://github.com/UtaUtaUtau/tiny-tagalog-dataset/issues). No email verified; address unspecified | **NOT SENT** | 19 WAV/LAB filename pairs verified in archive metadata; no actual audio sample inspected. Request one existing short pair separately | 9,515 label rows inspected previously; human correction reported, independence/identity-review scope and complete mapping unresolved | Dataset CC BY-NC 4.0 declared; full performance/composition/label scope and aggregate thesis-publication clarification pending | No redistribution planned or cleared for all rights. Dataset CC terms do not automatically clear third-party compositions or checkpoints | User reviews draft A; obtains a legitimate email or chooses official contact route; sends manually if desired; retain actual reply |
+| UP-DSP/Aquino Tagalog audio/gold-phone candidate | [Crisron Rudolf Lucas, official UP page](https://eee.upd.edu.ph/about/faculty/crisron-rudolf-lucas/): `crisron.lucas@eee.upd.edu.ph`. Steward referral: [UP DSP laboratory](https://eee.upd.edu.ph/research/research-laboratories/digital-signal-processing-laboratory/) | **NOT SENT** | Matching audio not supplied/verified; public repository has no audio. Registry access to a bulk corpus is not access to a specific gold subset | Gold `testref` CSV/LOG and linguist-correction publication verified; matching observed-phone protocol, inventory and subset unresolved | Repository data grant unverified; registry declares CC BY-NC plus research-only/no-sharing constraints. Written subset/evaluation/aggregate-publication terms pending | No recording/label sharing planned; obtain exact written restrictions and institutional agreement | User reviews draft B and sends manually if desired; request one or two existing short matched pairs and access instructions, not the whole corpus |
+
+Drafts and unanswered questions: [Section 4A.2 report](TAGALOG_ALLOSAURUS_STAGE4A2.md). Existing [Section 4A.1 drafts](TAGALOG_ALLOSAURUS_STAGE4A1.md) remain unchanged. Other previously verified referrals are preserved there: Rhandley Cajote (`rhandley.cajote@eee.upd.edu.ph`) and Angelina Aquino (`angelina.aquino@cdu.edu.au`). They are not automatically copied or contacted.
+
+## Evidence required before updating status
+
+- **SENT:** actual sent-message/form record or explicit verifiable user confirmation, date, destination and exact message version. Never infer sending from a ready draft.
+- **REPLY RECEIVED:** retain original reply, sender identity/date and attachments or source links. A reply is not necessarily permission.
+- **CLARIFICATION REQUIRED:** identify missing scope or contradictions; do not convert silence or an acknowledgement into consent.
+- **PERMISSION ESTABLISHED:** identify the applicable public grant or authorized written response, rights holder, approved data/version, permitted operations, aggregate publication terms, retention/consent limits and redistribution restrictions. A dataset-access approval does not certify annotation independence.
+- **ELIGIBLE FOR A SPECIFIED EVALUATION:** all gates in the report pass for that scope. Even then, Section 4B execution requires separate authorization. Singing-domain eligibility does not imply ordinary learner-speech eligibility.
+
+No response dates, approval identifiers or granted scope are populated because no such evidence exists in this task. Unsent drafts remain **NOT SENT**. Checkpoint permission has its own unresolved track; neither dataset contact is presumed to license Allosaurus weights.

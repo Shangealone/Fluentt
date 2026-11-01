@@ -1,23 +1,8 @@
-"""NLP-Driven Pronunciation Assessment Engine for Section 34.
+"""Historical synthetic pronunciation-evaluator fixtures, never model evidence.
 
-Scientific & Educational Measurement Methodology:
-1. Multi-Dimensional Scoring:
-   - Phonemic Accuracy (40% weight): Goodness of Pronunciation (GOP) phoneme-level acoustic fidelity.
-   - Fluency (30% weight): Speaking rate (WPM) and syllabic pause dynamics relative to native pacing.
-   - Completeness (20% weight): Lexical coverage ratio across target prompt words.
-   - Prosody (10% weight): Syllabic stress distribution (contrastive stress in Tagalog; stress timing in English).
-   - Aggregated Score = round(0.40 * accuracy + 0.30 * fluency + 0.20 * completeness + 0.10 * prosody, 2)
-   - Bounded in [0.00, 100.00] (Decimal(6, 2) compatible with database).
-2. Language-Specific Phonetic Alignment & G2P:
-   - Tagalog / Filipino ('tl'): 28 letters, 5 vowels (/a/, /e/, /i/, /o/, /u/), 16 consonants.
-     Transparent shallow orthography with penultimate/ultimate contrastive stress.
-   - English ('en'): Standard CMU / ARPAbet inventory with stress-timed vowel reduction.
-   - Bilingual Code-Switching ('Taglish'): English loanwords in Tagalog prompts are identified and aligned using English phoneme maps.
-3. Interpretable Pedagogical Feedback:
-   - Word-level and phoneme-level diagnostic localization without fabricating errors.
-   - Actionable tips (e.g. vowel elongation, rolling the Tagalog /r/, consonant clusters).
-   - Truthful scientific uncertainty: marked as simulated reference assessment when neural weights are uncalibrated.
-   - A transcript alone is NOT a score; transcription correctness is decoupled from acoustic pronunciation quality.
+The heuristic implementation below derives fixed scores from text, not acoustic
+phone quality. Retain only for isolated legacy tests. It must never supply student
+ratings; real English assessment uses WavLM and Tagalog scoring is unavailable.
 """
 
 import math
@@ -442,10 +427,11 @@ _DEFAULT_EVALUATOR: PronunciationEvaluatorInterface | None = None
 
 
 def get_pronunciation_evaluator() -> PronunciationEvaluatorInterface:
-    """Singleton factory for the pronunciation assessment engine."""
+    """Explicit test injection only; no default heuristic runtime evaluator."""
     global _DEFAULT_EVALUATOR
     if _DEFAULT_EVALUATOR is None:
-        _DEFAULT_EVALUATOR = MultilingualPronunciationEvaluator()
+        from app.modules.identity.errors import IdentityError
+        raise IdentityError(409, "legacy_speech_unavailable", "Use English WavLM; Tagalog scoring is unavailable.")
     return _DEFAULT_EVALUATOR
 
 

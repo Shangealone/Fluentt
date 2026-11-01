@@ -16,7 +16,6 @@ import type {
   PronunciationAttemptSubmission,
   PronunciationAttemptHistoryItem,
   PronunciationAccess,
-  AudioUploadPayload,
 } from "../services/api/pronunciation";
 import type {
   ResearchAccess,
@@ -85,7 +84,7 @@ export const DEMO_CLASSES: ClassDetails[] = [
     class_name: "Baitang 7 - Mabini",
     grade_level: 7,
     language: "tagalog",
-    description: "Seksyon Mabini para sa Filipino 7 — Panitikan ng Pilipinas at Gramatika",
+    description: "Seksyon Mabini para sa Filipino 7 â€” Panitikan ng Pilipinas at Gramatika",
     join_code: "782041",
     status: "active",
     created_at: new Date(Date.now() - 14 * 86400000).toISOString(),
@@ -729,14 +728,14 @@ export function createDemoQuestion(classId: string, lessonId: string, input: Dem
   const classroom = demoStore.classes.find(row => row.id === classId && row.status === "active");
   if (!classroom || demoLesson(classroom).lesson_id !== lessonId) throw new Error("Choose a lesson in an active demo class first.");
   let prompt = input.prompt.trim();
-  if (!prompt || prompt.length > 2000) throw new Error("Enter a question of 1–2,000 characters.");
+  if (!prompt || prompt.length > 2000) throw new Error("Enter a question of 1â€“2,000 characters.");
   const id = `demo-authored-${demoStore.nextQuestion + 1}`;
   let content: Record<string, unknown> = {};
   let privateKey: unknown;
   function clean(values: string[] | undefined, minimum: number, label: string) {
     const rows = values?.map(value => value.trim()) ?? [];
     if (rows.length < minimum || rows.length > 8 || rows.some(value => !value || value.length > 500))
-      throw new Error(`Enter ${minimum}–8 ${label} of 1–500 characters each.`);
+      throw new Error(`Enter ${minimum}â€“8 ${label} of 1â€“500 characters each.`);
     return rows;
   }
   function indices(values: number[] | undefined, length: number, label: string) {
@@ -759,16 +758,16 @@ export function createDemoQuestion(classId: string, lessonId: string, input: Dem
     privateKey = { value: input.correct_boolean };
   } else if (input.method === "identification") {
     const expected = input.expected_text?.trim() ?? "";
-    if (!expected || expected.length > 500) throw new Error("Enter an expected answer of 1–500 characters.");
+    if (!expected || expected.length > 500) throw new Error("Enter an expected answer of 1â€“500 characters.");
     content = { input_max_length: 500 };
     privateKey = { accepted_answers: [expected] };
   } else if (input.method === "fill_in_the_blank") {
     const count = (prompt.match(/___/g) ?? []).length;
-    if (count < 1 || count > 6) throw new Error("Use 1–6 ___ gaps in the sentence.");
+    if (count < 1 || count > 6) throw new Error("Use 1â€“6 ___ gaps in the sentence.");
     if (/[{}]/.test(prompt)) throw new Error("Use ___ for gaps; braces are not supported in this form.");
     const answers = input.blank_answers?.map(value => value.trim()) ?? [];
     if (answers.length !== count || answers.some(value => !value || value.length > 500))
-      throw new Error("Enter one answer of 1–500 characters for every gap.");
+      throw new Error("Enter one answer of 1â€“500 characters for every gap.");
     const blankIds = answers.map((_, index) => `blank_${index + 1}`);
     let position = 0;
     prompt = prompt.replace(/___/g, () => `{{${blankIds[position++]}}}`);
@@ -787,7 +786,7 @@ export function createDemoQuestion(classId: string, lessonId: string, input: Dem
   } else if (input.method === "matching_type") {
     const pairs = input.pairs ?? [];
     if (pairs.length < 2 || pairs.length > 8 || pairs.some(pair => !pair.left.trim() || !pair.right.trim() || pair.left.length > 500 || pair.right.length > 500))
-      throw new Error("Enter 2–8 complete matching pairs of 1–500 characters each.");
+      throw new Error("Enter 2â€“8 complete matching pairs of 1â€“500 characters each.");
     content = {
       left: pairs.map((pair, index) => ({ id: `${id}-left-${index + 1}`, text: pair.left.trim() })),
       right: pairs.map((pair, index) => ({ id: `${id}-right-${index + 1}`, text: pair.right.trim() })).reverse(),
@@ -1525,48 +1524,8 @@ export function createDemoPronunciationApi(): PronunciationAccess {
       if (!found) throw new Error("Pronunciation activity not found.");
       return found;
     },
-    async submitAttempt(
-      activityId: string,
-      audio: AudioUploadPayload,
-      durationMs: number
-    ): Promise<PronunciationAttemptSubmission> {
-      const act = activities.find((a) => a.id === activityId) || activities[0];
-      const attemptId = `demo-attempt-${Date.now()}`;
-      const size = typeof Blob !== "undefined" && audio instanceof Blob ? audio.size : 12400;
-      const rawTranscription = act.target_text;
-      attempts.unshift({
-        attempt_id: attemptId,
-        activity_id: act.id,
-        target_text: act.target_text,
-        language: act.language,
-        attempted_at: new Date().toISOString(),
-        scoring_status: "pending",
-        file_size_bytes: size,
-        duration_ms: durationMs,
-        transcription: rawTranscription,
-      });
-      return {
-        attempt_id: attemptId,
-        activity_id: act.id,
-        target_text: act.target_text,
-        language: act.language,
-        attempted_at: new Date().toISOString(),
-        scoring_status: "pending",
-        file_size_bytes: size,
-        duration_ms: durationMs,
-        mime_type: "audio/webm",
-        simulated: true,
-        message: "Audio recorded and transcribed successfully. Pronunciation scoring pending Section 34.",
-        transcription: rawTranscription,
-        transcription_metadata: {
-          model_id: "whisper-multilingual-v1",
-          model_version: "openai/whisper-base",
-          detected_language: act.language === "tagalog" ? "tl" : "en",
-          prompt_language: act.language === "tagalog" ? "tl" : "en",
-          confidence: 0.95,
-          silence_detected: false,
-        },
-      };
+    async submitAttempt(): Promise<PronunciationAttemptSubmission> {
+      throw new Error("Demo mode cannot transcribe or assess recordings. Use local recording practice or an authenticated model connection.");
     },
     async attempts(activityId?: string): Promise<PronunciationAttemptHistoryItem[]> {
       if (activityId) {
@@ -1574,27 +1533,8 @@ export function createDemoPronunciationApi(): PronunciationAccess {
       }
       return attempts;
     },
-    async transcribe(attemptId: string): Promise<any> {
-      const att = attempts.find(a => a.attempt_id === attemptId) || attempts[0];
-      return {
-        attempt_id: attemptId,
-        activity_id: att?.activity_id || "demo-act",
-        transcription: att?.transcription || "Magandang umaga sa inyong lahat.",
-        raw_transcript: att?.transcription || "Magandang umaga sa inyong lahat.",
-        normalized_transcript: (att?.transcription || "magandang umaga sa inyong lahat").toLowerCase(),
-        detected_language: att?.language === "tagalog" ? "tl" : "en",
-        prompt_language: att?.language === "tagalog" ? "tl" : "en",
-        confidence: 0.95,
-        duration_ms: att?.duration_ms || 3000,
-        processing_time_ms: 120,
-        model_id: "whisper-multilingual-v1",
-        model_version: "openai/whisper-base",
-        simulated: true,
-        silence_detected: false,
-        words: [],
-        scoring_status: "pending",
-        message: "Demo speech transcribed successfully.",
-      };
+    async transcribe(): Promise<never> {
+      throw new Error("Demo mode has no speech recognition model. No transcript was generated.");
     },
     async getTranscription(attemptId: string): Promise<any> {
       const att = attempts.find(a => a.attempt_id === attemptId);
@@ -1609,59 +1549,13 @@ export function createDemoPronunciationApi(): PronunciationAccess {
         simulated: true,
       };
     },
-    async evaluate(attemptId: string): Promise<any> {
-      const att = attempts.find(a => a.attempt_id === attemptId) || attempts[0];
-      const act = activities.find(a => a.id === att?.activity_id) || activities[0];
-      const isTl = act.language === "tagalog";
+    async evaluate(attemptId: string) {
       return {
-        attempt_id: attemptId,
-        activity_id: act.id,
-        scoring_status: "scored",
-        score: 88.5,
-        feedback: isTl ? "Mahusay! Malinaw ang iyong pagbigkas." : "Great job! Your pronunciation is clear.",
-        assessment: {
-          overall_score: 88.5,
-          accuracy_score: 90.0,
-          fluency_score: 86.0,
-          completeness_score: 100.0,
-          prosody_score: 85.0,
-          words: [
-            {
-              word: isTl ? "Magandang" : "Good",
-              target_phonemes: isTl ? ["M", "AA", "G", "AA", "N", "D", "AA", "NG"] : ["G", "UH", "D"],
-              accuracy_score: 92.0,
-              error_type: "none",
-              phonemes: [
-                { phoneme: isTl ? "M" : "G", accuracy_score: 95.0, status: "correct" },
-                { phoneme: isTl ? "AA" : "UH", accuracy_score: 90.0, status: "correct" },
-              ],
-            },
-            {
-              word: isTl ? "umaga" : "morning",
-              target_phonemes: isTl ? ["UW", "M", "AA", "G", "AA"] : ["M", "AO", "R", "N", "IH", "NG"],
-              accuracy_score: 87.0,
-              error_type: "none",
-              phonemes: [
-                { phoneme: isTl ? "UW" : "M", accuracy_score: 88.0, status: "correct" },
-                { phoneme: isTl ? "M" : "AO", accuracy_score: 86.0, status: "correct" },
-              ],
-            },
-          ],
-          target_language: act.language,
-          summary_feedback: isTl ? "Mahusay! Malinaw ang iyong pagbigkas." : "Great job! Your pronunciation is clear.",
-          actionable_tips: isTl
-            ? ["Bigkasin ang bawat patinig nang bukas at matatag.", "Tandaan ang diin sa mga salita."]
-            : ["Enunciate ending consonants clearly.", "Maintain a steady speech rhythm."],
-          model_id: "fluentt-multilingual-gop-evaluator",
-          model_version: "1.0.0",
-          simulated: true,
-          speech_rate_wpm: 120.0,
-          confidence: 0.95,
-        },
-        transcription: att?.transcription || act.target_text,
-        evaluator_configuration_id: "demo-eval-config-1",
-        simulated: true,
-        message: "Demo pronunciation assessment completed successfully.",
+        attempt_id: attemptId, activity_id: "demo-unavailable", scoring_status: "unsupported",
+        pronunciation_scoring: "unavailable" as const, score: null, assessment: null,
+        transcription: null, evaluator_configuration_id: null, simulated: true,
+        feedback: "No pronunciation assessment is available in demo mode.",
+        message: "Use an authenticated English WavLM or Tagalog MMS connection. No demo rating is generated.",
       };
     },
     async getAssessment(attemptId: string): Promise<any> {
@@ -1797,7 +1691,7 @@ export function createDemoConversationApi() {
         role: "user",
         content: userText,
         sent_at: now,
-        pronunciation_score: audioAttemptId ? 92.5 : null,
+        pronunciation_score: null, // Demo audio has no acoustic assessment.
         transcription: audioAttemptId ? userText : null,
         audio_attempt_id: audioAttemptId ?? null,
       };

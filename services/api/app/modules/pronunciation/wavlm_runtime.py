@@ -10,12 +10,17 @@ from queue import Queue, Empty
 import subprocess
 import tempfile
 from threading import Lock, Thread
+from weakref import WeakSet
 
 from app.modules.identity.errors import IdentityError
 from .wavlm_contract import REVISION, BASE_REVISION, ALIGNMENT_REVISION
 
-MIN_FREE_BYTES = 4 * 1024**3
+# Actual inference with API/Metro running exhausted the old 4 GiB budget.
+# Keep ~1 GiB of host headroom above the measured ~4 GiB standalone peak.
+MIN_FREE_BYTES = 5 * 1024**3
 WORKER = Path(__file__).resolve().parents[3] / "ml/wavlm/worker.py"
+MODEL_LOCK = Lock()
+RUNTIMES = WeakSet()
 
 
 def free_memory():
@@ -83,11 +88,41 @@ def verify_artifacts(cache):
 
 
 class Runtime:
+    worker = WORKER
+    error_prefix = "wavlm"
+
+    def readiness(self, settings):
+        return prepared(settings)
+
+    def verify(self, cache):
+        verify_artifacts(cache)
+
     def __init__(self):
         self.lock = Lock()
         self.process = None
         self.configuration = None
         self.loaded = False
+        RUNTIMES.add(self)
+
+    def _release_other_models(self):
+        # Called only under MODEL_LOCK. Never interrupt an in-flight assessment.
+        for other in list(RUNTIMES):
+            if other is not self and other.process is not None:
+                other.close()
+
+    def select(self):
+        """Release idle alternate language weights before the actual RAM preflight.
+
+        Selection never loads a model or overrides either engine's memory gate.
+        A busy model stays intact and callers report temporary unavailability.
+        """
+        if not MODEL_LOCK.acquire(blocking=False):
+            return False
+        try:
+            self._release_other_models()
+            return True
+        finally:
+            MODEL_LOCK.release()
 
     def close(self):
         if self.process:
@@ -103,8 +138,19 @@ class Runtime:
         self.loaded = False
 
     def assess(self, settings, audio, expected):
+        if not getattr(settings, "pronunciation_wavlm_enabled", True):
+            raise IdentityError(503, self.error_prefix + "_disabled", "Local speech processing is disabled.")
+        if not MODEL_LOCK.acquire(blocking=False):
+            raise IdentityError(429, self.error_prefix + "_busy", "Another recording is being processed. Try again shortly.")
+        try:
+            self._release_other_models()
+            return self._assess(settings, audio, expected)
+        finally:
+            MODEL_LOCK.release()
+
+    def _assess(self, settings, audio, expected):
         if not self.lock.acquire(blocking=False):
-            raise IdentityError(429, "wavlm_busy", "Another recording is being assessed. Please try again shortly.")
+            raise IdentityError(429, self.error_prefix + "_busy", "Another recording is being assessed. Please try again shortly.")
         try:
             configuration = (
                 settings.pronunciation_wavlm_python,
@@ -115,20 +161,22 @@ class Runtime:
                 self.close()
                 self.configuration = configuration
             if not self.process or self.process.poll() is not None:
-                reason = prepared(settings)
+                reason = self.readiness(settings)
                 if reason != "ready":
                     raise IdentityError(
-                        503, "wavlm_" + reason, "English acoustic scoring is unavailable. No score was generated."
+                        503, self.error_prefix + "_" + reason, "The local speech model is unavailable. No result was generated."
                     )
                 try:
-                    verify_artifacts(settings.pronunciation_wavlm_cache)
+                    self.verify(settings.pronunciation_wavlm_cache)
                 except (OSError, ValueError, KeyError, TypeError):
                     raise IdentityError(
-                        503, "wavlm_artifacts_invalid", "Model files failed verification. No score was generated."
+                        503, self.error_prefix + "_artifacts_invalid", "Model files failed verification. No result was generated."
                     ) from None
                 env = {
                     name: os.environ[name]
-                    for name in ("PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "USERPROFILE")
+                    # PyTorch calls getpass.getuser(); Windows has no pwd fallback.
+                    # Keep the OS username, never application credentials/configuration.
+                    for name in ("PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "USERPROFILE", "USERNAME", "USER")
                     if name in os.environ
                 }
                 env.update(
@@ -139,7 +187,7 @@ class Runtime:
                     OMP_NUM_THREADS="2",
                 )
                 self.process = subprocess.Popen(
-                    [configuration[0], str(WORKER), configuration[1], configuration[2]],
+                    [configuration[0], str(self.worker), configuration[1], configuration[2]],
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.DEVNULL,
@@ -167,23 +215,23 @@ class Runtime:
                 except Empty:
                     self.close()
                     raise IdentityError(
-                        504, "wavlm_timeout", "Scoring exceeded the server deadline. No score was saved."
+                        504, self.error_prefix + "_timeout", "Speech processing exceeded the server deadline. No result was saved."
                     ) from None
                 if len(line) > 262144:
                     raise ValueError("Oversized model reply")
                 result = json.loads(line)
                 if not result.get("ok"):
                     code = result.get("error")
-                    if code in {"silent_audio", "invalid_audio", "alignment_failed"}:
+                    if code in {"silent_audio", "invalid_audio", "alignment_failed", "no_speech", "too_short"}:
                         raise IdentityError(
                             422,
-                            "wavlm_" + code,
-                            "This recording could not be aligned. Record the full English sentence again.",
+                            self.error_prefix + "_" + code,
+                            "No usable speech result. Record the full sentence audibly for 0.5–30 seconds and try again.",
                         )
                     self.close()
                     raise IdentityError(
                         503,
-                        "wavlm_model_unavailable",
+                        self.error_prefix + "_model_unavailable",
                         "The model could not load or assess the recording. No score was saved.",
                     )
                 self.loaded = True
@@ -193,7 +241,7 @@ class Runtime:
         except (OSError, ValueError, KeyError, TypeError):
             self.close()
             raise IdentityError(
-                503, "wavlm_model_unavailable", "English acoustic scoring did not finish. No score was saved."
+                503, self.error_prefix + "_model_unavailable", "Speech processing did not finish. No result was saved."
             ) from None
         finally:
             self.lock.release()

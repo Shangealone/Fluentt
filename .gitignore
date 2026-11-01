@@ -21,3 +21,7 @@ models-cache/
 *.p12
 *.jks
 *.apk
+
+# Retained legacy recordings are private data, never source artifacts.
+/services/storage/audio/
+/services/api/storage/audio/

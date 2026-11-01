@@ -472,3 +472,224 @@ The existing production classroom creation and student enrollment contracts alre
 ## Immediate classroom score receipt — 2026-10-28
 
 The user explicitly requests immediate scores for both the browser demo and real classroom accounts after a complete lesson is submitted. For **new** ordinary classroom submissions only, mark the retained capture state with `immediate-objective-v1` during finalization and derive an owned, key-free score receipt from pinned revisions, immutable submitted answers, and the existing `objective-exact-v1` backend engine. Return exact earned/possible decimal points only when every question is structurally complete and every objective item can be evaluated. Flashcards have no objective points; all-Flashcard, incomplete, or review-required submissions show an honest status without points. The receipt remains available on authorized reopen and idempotent retry. Older submissions retain Section 22 instructor-release behavior, and the detailed result-review route still requires release. The receipt does not write legacy attempt/response score fields, create a grading run, auto-release an instructor result, or collect research data. Browser demo scoring uses in-memory authored keys only and is not a live academic grade.
+
+
+## English voice evaluation flow — 2026-10-29
+
+The user requests full-sentence voice evaluation and feedback and explicitly defers testing their voice. Reuse the existing authenticated English-only WavLM endpoint/worker and prepared pinned artifacts. After explicit processing consent and deliberate Stop and evaluate (or the existing duration limit), submit the completed recording once; recognition highlights/silence guesses never determine pronunciation scores. Retries stay explicit and retain original request identity. Project existing model-flagged phonemes into a short practice summary and at most three distinct sound tips, retaining uncertainty and unvalidated/accent/academic limitations.
+
+Configure a separate new loopback-only development PostgreSQL cluster and existing head migrations; do not touch production or research data. Keep WavLM disabled until the deferred genuine-audio benchmark succeeds; actual weight loading and synthetic/database checks do not replace it. Do not modify Tagalog scoring, FSRS/FIFAKT, personal scheduling, research treatment or model scoring formulas. The current setup/verification record is docs/WAVLM_LOCAL_SETUP.md.
+
+## Bilingual local Voice — 2026-10-30
+
+The explicit bilingual request authorizes local MMS `tgl` transcription and reference-text comparison alongside English WavLM. MMS is ASR, not a Tagalog phoneme scorer: preserve original strings, version normalization, save NULL pronunciation scores and expose uncertainty. Reuse existing session/context/research boundaries, temporary recording/worker transport and immutable engine-specific history without scheduling, allocation, treatment or schema changes. No group-dependent behavior; research-classroom collection remains refused. The school Voice fallback now records/plays locally and reads retained history without issuing legacy simulated evaluations.
+
+Pin MMS to `3d33597edbdaaba14a8e858e2c8caa76e3cec0cd`, require explicit noncommercial license review, complete hashed offline artifacts and at least 8 GiB available RAM. That budget is conservative, not a measured MMS peak; this PC fails it, so MMS stays disabled/unverified. No verified Tagalog G2P/phone-alignment/human-rating prerequisites justify pronunciation scoring. No fabricated percentages/confidence, training or external inference.
+
+Three public human-annotated SpeechOcean762 test clips produced genuine complete English predictions; unknown checkpoint training overlap prevents calling this independent held-out validation. An actual API-worker check then fixed a Windows getpass/PyTorch import failure caused by stripping USERNAME; required OS username fields are now retained, never application credentials. The corrected worker returned complete output. However, a subsequent API+Metro+model test reached only 688 MiB available RAM and was emergency-stopped without a score. The interim local English activation was reverted. Raise its old 4 GiB gate to 5 GiB in API/benchmark/corpus evaluation based on measured inference memory; do not weaken the safety check. After temporary test processes exited, the final monitored recheck started with 5.530 GiB free and succeeded with API/Metro active: 4.095 GiB sampled worker-tree peak, 1.529 GiB minimum available, no emergency stop. English was then enabled locally and the loopback API restarted. MMS remains disabled pending its own resource/artifact/audio verification. No academic validity or authenticated device-level success is implied. See BILINGUAL_VOICE.md and BILINGUAL_VOICE_VALIDATION.md.
+## MMS activation after memory became available — 2026-10-30
+
+The user reports freed RAM; direct Windows measurement confirms 8.19 GiB available.
+Continue the previously authorized local noncommercial MMS setup without lowering
+its 8 GiB gate. Standard large-file download stalled, so bounded HTTP ranges with
+strict byte counts and official upstream SHA-256 verification completed the same
+pinned safetensors artifacts. No remote Python, alternative model or inference
+service was substituted. Seven manifest files verify. Three real public FLEURS
+Tagalog test clips and two calls through the actual backend worker succeeded;
+the second call reused the model. WER/CER are small-sample ASR error measures,
+not pronunciation quality. Enable MMS only in ignored local settings and restart
+the loopback API; retain English and all auth/consent/history/research boundaries.
+
+To keep this 16 GiB PC from retaining both heavy pipelines, serialize speech
+assessment through one per-process nonblocking model lock. Language selection
+releases an idle alternate worker before measuring actual available RAM; busy
+inference is never interrupted. Repeated same-language requests retain their
+loaded model. Keep the existing 5/8 GiB startup minimums; do not infer recovered
+RAM or weaken the gates. No scheduling, experimental-group behavior, academic
+scoring, schema, external deployment or production data changed. Current results
+and remaining device/full-corpus limitations: MMS_LOCAL_VERIFICATION.md.
+
+## Allosaurus Stage 2 isolated decoder audit — 2026-10-30
+
+The explicit Stage 2 request authorizes an offline diagnostic tool only. Preserve
+the installed upstream decoder and raw acoustic outputs; the isolated GPL-attributed
+copy corrects one assignment indentation so CTC blank frames reset repeat state.
+Keep raw and corrected predictions separate, with no hidden phone replacement,
+stress prediction, learner error attribution or pronunciation rating. Unit-cost
+NFC phone-token PER is a recognizer evaluation measure, not pronunciation quality;
+real evaluation stays blocked until independent matching human annotations and
+reuse permissions are verified. No checkpoint download or redistribution is
+authorized with unresolved rights. Existing local artifacts may be tested offline.
+Preserve English/MMS, Voice, settings and all learning/research behavior. Stage 2
+MMS preflight remains blocked by actual free RAM; retain its 8 GiB threshold.
+See TAGALOG_ALLOSAURUS_STAGE2.md for frozen criteria, actual recorded-audio and
+synthetic results, regression checks, licensing findings and remaining blockers.
+
+## Allosaurus Stage 3 independent-validation feasibility — 2026-10-30
+
+The explicit Stage 3 request authorizes an independent resource/rights audit and
+annotation-study design, not participant collection or scoring activation. Preserve
+the Stage 2 decoder and raw logits; re-decoding confirms their saved outputs.
+Aquino/UP linguist-corrected Tagalog references are a credible lead, but matching
+audio and reuse rights remain unresolved. A single-voice singing corpus does not
+establish learner spoken-Tagalog validity. No eligible frozen independent cohort
+was verified; PER, S/D/I accuracy, speaker uncertainty and pronunciation validity
+remain unavailable rather than filled with G2P/synthetic gold. Stress prediction
+is unsupported. No checkpoint download/redistribution or production change is
+authorized. Current MMS preflight safely refuses insufficient RAM at the unchanged
+8 GiB gate. See TAGALOG_ALLOSAURUS_STAGE3.md for actual checks, source evidence,
+future consent/annotation protocol and prerequisites before any scoring rollout.
+
+## Allosaurus Section 4A dataset discovery — 2026-10-30
+
+The explicit 4A prompt authorizes publisher metadata/license discovery and static
+interface review only. Tiny Tagalog's release explicitly describes matched WAV/HTK
+labels with reported hand correction, but remains conditional and out-of-domain
+for spoken learner validation. PLD/Aquino matching gold/audio rights need
+clarification. Silencio's published human word transcripts and automatic MMS word
+timings are ineligible as phone gold. No eligible in-domain cohort was verified;
+independent PER evaluation remains blocked. No archive/checkpoint download,
+inference, training, collection, product change or Section 4B execution occurred.
+See TAGALOG_ALLOSAURUS_STAGE4A.md for conditional verification steps; Section 4B
+requires separate authorization and Tagalog ratings remain disabled.
+
+## Allosaurus Section 4A.1 label/access clearance — 2026-10-30
+
+The explicit 4A.1 request permits bounded metadata/small-label inspection and
+unsent permission drafts only. Range requests fetched 56,196 archive bytes,
+verifying 19 WAV/LAB filename pairs and a separate small label block. Its 9,515
+rows and 74 adjacent repeats establish structure, not acoustic correctness or
+human-label independence. USAP's original IPA table clarifies base symbols;
+release-specific events, repeats, glottal/coda conventions and unsupported
+affricates still need an approved mapping. No audio was fetched or model run.
+Performance/composition rights and UP/Aquino matched audio/reference permissions
+remain unresolved. Preserve NO-GO for independent evaluation, with clarification
+requests prepared but not sent. See TAGALOG_ALLOSAURUS_STAGE4A1.md. Section 4B
+requires separate authorization; no student ratings or production changes.
+
+## Allosaurus Section 4A.2 permission package — 2026-10-30
+
+The attached 4A.2 prompt authorizes documentation and unsent permission drafts
+only. Preserve prior reports/drafts and verified contacts. Prepare minimal
+existing-sample requests covering observed-phone provenance, local evaluation,
+IPA conversion/retention and aggregate undergraduate-thesis publication rights.
+Tiny has no verified email; leave its address unspecified and retain the official
+repository route. Use the verified UP contact without automatic CC or delivery.
+Tracker status remains NOT SENT; no reply or grant is inferred. Dataset access,
+annotation independence, complete mapping and Allosaurus checkpoint rights stay
+separate gates. See TAGALOG_ALLOSAURUS_STAGE4A2.md and
+TAGALOG_DATASET_PERMISSION_TRACKER.md. Preserve NO-GO for Section 4B evaluation;
+no contact, inference, data download, application change or rating activation.
+
+
+## Bilingual Voice Section 6 safety boundary — 2026-10-30
+
+Explicit Section 6 authorization closes ordinary-runtime simulated speech ratings.
+Legacy uploads/transcription fail closed; retained assessment/history projections
+return unavailable/null ratings without rewriting evidence. Default legacy factories
+no longer select synthetic engines. Demo speech fabrications and conversation
+score propagation are removed, while owned nonsimulated text remains usable.
+English WavLM and Tagalog MMS keep their versioned services/contracts; Tagalog
+continues transcription/text comparison only. Old requests are not silently
+upgraded because consent/version/retry identity must be explicit. Preserve model
+memory gates (MMS 8 GiB available), settings, Allosaurus Stage 1–4A.2 findings,
+all scheduling/allocation and research boundaries. Historical audio/output retention,
+crash cleanup, model rights and device/independent-English validation remain
+unresolved, not implicitly approved. See VOICE_BILINGUAL_SECTION6.md for actual
+checks, file inventory and remaining acceptance; no next section is authorized.
+
+
+## Bilingual Voice Section 7 acceptance/readiness — 2026-10-30
+
+Section 7 authorizes lightweight re-verification, an Android acceptance plan,
+privacy/license/deployment inventory and demonstrated low-risk cleanup fixes.
+Three synthetic browser regressions establish private preview/callback retention;
+fix only owned preview revocation and stale private capture data. Preserve all
+model/scoring contracts, Section 6 masking, settings, MMS 8 GiB available gate,
+learning/scheduling/allocation and previous Allosaurus findings. Real-device and
+new model inference are not claimed; MMS requires separate run authorization and
+safe measured memory. The user explicitly deferred retention policy choice:
+document institution-managed and learner-controlled options, implement neither
+without separate approval. No retention period, deletion policy, license grant,
+commercial deployment or subsequent section is approved. See
+VOICE_BILINGUAL_SECTION7.md and VOICE_ANDROID_ACCEPTANCE.md for verified checks,
+NOT TESTED device cases and ranked release blockers.
+
+
+## Bilingual Voice Section 8 actual inference — 2026-10-30
+
+Section 8 explicitly authorizes resource-gated genuine inference on existing
+licensed public clips. Actual English benchmark and authenticated disposable-DB
+API/history/idempotence succeeded; actual MMS tgl inference succeeded after the
+unchanged 8 GiB available preflight passed. Model processes exited sequentially.
+A later MMS API attempt returned 503 as API/bootstrap headroom fell below the gate;
+retain that blocker, not a guessed success or lower threshold. Mobile validators
+and components accepted actual outputs; Android microphone/device acceptance
+remains NOT TESTED (ADB zero connected targets). No product-code fix was needed,
+model/settings changed, participant data processed or checkpoint downloaded.
+Preserve deferred retention/deployment licensing and independent-English validation
+requirements; no production readiness or Tagalog pronunciation rating is implied.
+See VOICE_BILINGUAL_SECTION8.md for actual measurements, outputs, distinct
+synthetic checks and smallest remaining demonstration steps. Stop after Section 8.
+
+### ESR Phase 1 — isolated feasibility boundary (2026-10-31)
+
+The candidate interval-only FSRS-6/KT disagreement heuristic is an unvalidated
+research comparator, implemented only in `services/api/ml/esr_phase1`. The
+existing registered simulated FIFAKT adapter and all live scheduling remain
+unchanged. Do not treat that adapter as a trained model or its stability fusion
+as equivalent to the candidate. Weekday projections are hypothetical because no
+executable classroom weekday review dispatcher was found. Overall PARTIAL;
+MODIFY before deployment. Freeze pre-response target/features and calendar
+semantics before training. No learning behavior, allocation, database, speech
+pipeline or configuration changes are approved by this feasibility work. See
+`ESR_PHASE1_FEASIBILITY.md`; stop after Phase 1.
+
+### English pronunciation validation Phase 1 (2026-10-31)
+
+Acquired a frozen 30-recording/10-speaker SpeechOcean762 test pilot from original
+revision 613968e3b0b789fc33936fb5eba1973176ba7d11 under OpenSLR CC BY 4.0,
+without adopting conflicting Hub Apache metadata. Scorer training independence
+remains UNVERIFIED. The current 5 GiB available-memory gate blocked new inference;
+no scores/correlations or external-validation PASS are claimed. Evaluation code
+is isolated; no production/model/settings/learning behavior changed. Sentence
+association is exploratory, and MAE/RMSE need justified score comparability.
+See ENGLISH_PRONUNCIATION_VALIDATION_PHASE1.md. Stop after this phase.
+
+### English pronunciation validation Phase 2 (2026-10-31)
+
+Executed the exact frozen 30-recording/10-speaker pilot with the unchanged pinned
+English WavLM scorer after the 5 GiB available-memory gate passed. All 30 scored;
+Pearson .421627 / Spearman .511326 are exploratory sentence association, not
+calibrated agreement. No fitted conversion or MAE/RMSE; training independence
+remains UNVERIFIED and Filipino-learner validation NOT PERFORMED. Technical PASS,
+preliminary validation PARTIAL. Local controlled human validation may be planned
+with approved consent/rubric/protocol, not automatic grading/deployment. No live
+scoring/learning/model/settings changes. See
+ENGLISH_PRONUNCIATION_VALIDATION_PHASE2.md. Stop after Phase 2.
+
+### English pronunciation validation Phase 3 (2026-10-31)
+
+Reproduced frozen Phase 2 baseline and performed saved-output/audio diagnostics,
+not new model inference or score optimization. No deterministic sentence-score
+defect was demonstrated. Human holistic-rubric versus phone-mean semantics,
+37 canonical word-sequence differences, restricted labels and speaker uncertainty
+justify further investigation; they do not establish a unique cause. Training
+independence stays UNVERIFIED. Keep original scoring untouched; freeze reference
+and target contracts and use newly sealed speaker-disjoint evaluation before any
+calibration or revised aggregation. See
+ENGLISH_PRONUNCIATION_VALIDATION_PHASE3.md. Stop after Phase 3.
+
+### English pronunciation validation Phase 4 (2026-10-31)
+
+The frozen 30-recording pilot has 37/179 word-reference phone differences,
+reproduced from original SpeechOcean762 annotation and saved WavLM outputs.
+Their mechanical patterns and dictionary coverage do not establish learner
+errors or accepted variants; every acceptance decision remains unresolved
+pending qualified phonetics review. A versioned English variant policy, draft
+independent human segmental rubric and identity-only speaker-disjoint Phase 5
+cohort plan were prepared without new audio acquisition, inference, calibration,
+production scoring change or participant collection. The original
+Pearson/Spearman baseline is unchanged; checkpoint training independence remains
+UNVERIFIED. Phase 5 is conditional on expert/adviser approval, provenance and
+resource checks. See ENGLISH_PRONUNCIATION_VALIDATION_PHASE4.md. Stop after Phase 4.
