@@ -1,10 +1,12 @@
 import logging
 from contextlib import asynccontextmanager
 from uuid import uuid4
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi import HTTPException as FastAPIHTTPException
 from starlette.exceptions import HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
@@ -19,7 +21,7 @@ from app.modules.identity.errors import IdentityError
 logger = logging.getLogger("fluentt.api")
 
 
-def create_app(settings: Settings | None = None) -> CORSMiddleware:
+def create_app(settings: Settings | None = None, *, web_dist: Path | None = None) -> CORSMiddleware:
     settings = settings or Settings()
     logging.basicConfig(level=settings.log_level, format="%(levelname)s %(name)s %(message)s")
 
@@ -140,6 +142,23 @@ def create_app(settings: Settings | None = None) -> CORSMiddleware:
         return error(request, 500, "internal_error", "An unexpected error occurred")
 
     app.include_router(router, prefix="/api/v1")
+    if settings.serve_web:
+        dist = (web_dist or Path(__file__).resolve().parents[3] / "apps" / "mobile" / "dist").resolve()
+        if not (dist / "index.html").is_file():
+            raise RuntimeError("Web bundle is missing; export the Expo web app before starting the API")
+
+        @app.get("/{web_path:path}", include_in_schema=False)
+        def serve_web(web_path: str):
+            target = (dist / web_path).resolve()
+            if target.is_file() and target.is_relative_to(dist):
+                response = FileResponse(target)
+                if target.name == "index.html":
+                    response.headers["Cache-Control"] = "no-store"
+                return response
+            if web_path.startswith("api/") or Path(web_path).suffix:
+                raise FastAPIHTTPException(status_code=404)
+            return FileResponse(dist / "index.html", headers={"Cache-Control": "no-store"})
+
     # Wrap the entire app so even unhandled error responses receive CORS headers.
     return CORSMiddleware(
         app,

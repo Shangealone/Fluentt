@@ -2,7 +2,8 @@ export type AuthContext = string | { kind: "browser"; csrfToken: string };
 let apiPlatform = "web";
 export function configureApiPlatform(platform: string) { apiPlatform = platform; }
 function apiBase() {
-  return apiPlatform === "android" ? process.env.EXPO_PUBLIC_ANDROID_API_URL : process.env.EXPO_PUBLIC_API_URL;
+  if (apiPlatform === "android") return process.env.EXPO_PUBLIC_ANDROID_API_URL;
+  return process.env.EXPO_PUBLIC_API_URL || (typeof window !== "undefined" ? window.location.origin : undefined);
 }
 export const browserTransport: AuthContext = { kind: "browser", csrfToken: "" };
 export type Health = { status: "ok"; service: "fluentt-api" };
@@ -102,6 +103,16 @@ export async function request<T>(
         account_inactive: "This account is inactive. Please ask your teacher or administrator for help.",
         csrf_failed: "Please refresh the page and try again.",
         browser_auth_unavailable: "Sign-in is unavailable right now. Please try again later.",
+        tutor_unavailable: "AI Chat is not enabled for this test account yet.",
+        tutor_not_configured: "AI Chat is not configured on this server yet.",
+        tutor_test_account_required: "AI Chat is currently limited to approved development test accounts.",
+        tutor_busy: "AI Chat is busy. Please try again shortly.",
+        tutor_rate_limited: "Please wait a minute before sending another Chat message.",
+        tutor_provider_limited: "AI Chat is temporarily rate limited. Please try again shortly.",
+        tutor_provider_auth: "AI Chat's provider connection needs to be checked.",
+        tutor_provider_unavailable: "AI Chat could not reach its provider. Please try again.",
+        tutor_invalid_reply: "AI Chat returned an unusable reply. Please try again.",
+        tutor_repeated_reply: "AI Chat repeated its last reply. Please try again.",
         password_already_set: "This account already has a password.",
         whole_phrase_scoring_unavailable: "Genuine pronunciation scoring is not configured for this language. No score was generated.",
         whole_phrase_permission_required: "Allow this recording to be sent to Microsoft Azure before requesting a score.",

@@ -23,6 +23,7 @@ from app.modules.conversation.service import (
     send_conversation_message,
     end_conversation_session,
 )
+from app.modules.conversation.groq_provider import ensure_available
 
 router = APIRouter(
     prefix="/me/conversation",
@@ -64,6 +65,7 @@ def create_session(
 ):
     """Starts a new bounded conversation session and delivers the opening AI greeting."""
     with authenticated_session(repo, credential, request.app.state.settings) as (_, user):
+        ensure_available(request.app.state.settings, user.id)
         return start_conversation_session(
             repo.session, user, topic_id=body.topic_id, class_id=body.class_id
         )
@@ -97,6 +99,7 @@ def send_message(
             session_id=session_id,
             content=body.content,
             audio_attempt_id=body.audio_attempt_id,
+            settings=request.app.state.settings,
         )
 
 

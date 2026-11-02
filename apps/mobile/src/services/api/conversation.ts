@@ -6,8 +6,8 @@ export interface FormativeFeedback {
   corrections: string[];
   suggestions: string[];
   politeness_marker_detected?: boolean | null;
-  topic_relevance_score: number;
-  confidence: number;
+  topic_relevance_score: number | null;
+  confidence: number | null;
   uncertainty_notice?: string;
 }
 
@@ -67,6 +67,8 @@ export interface SendMessageResponse {
   max_turns: number;
   is_session_complete: boolean;
   simulated: boolean;
+  provider?: string;
+  model_version?: string;
 }
 
 export interface ConversationSessionSummary {

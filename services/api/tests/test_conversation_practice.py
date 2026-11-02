@@ -1,27 +1,24 @@
 """Unit and integration tests for Section 35: AI Conversation Practice."""
 
 import pytest
-from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
 
 from app.models.ai import (
     ConversationTopic,
     ConversationSession,
-    ConversationMessage,
     PronunciationAttempt,
 )
 from app.models.learning import LearningContext
 from app.models.research import ModelVersion, ModelConfiguration
 from app.models.users import User
-from app.modules.conversation.provider import SafetyGuard, EducationalDialogueEngine, ConversationProviderRegistry
+from app.modules.conversation.provider import SafetyGuard, EducationalDialogueEngine, ProviderTurnResponse
+from app.modules.conversation.schemas import FormativeLanguageFeedbackDTO
+from app.core.config import Settings
 from app.modules.conversation.service import (
     get_or_create_conversation_model_configuration,
-    seed_conversation_topics_if_empty,
     get_eligible_conversation_topics,
-    get_conversation_topic,
     start_conversation_session,
-    get_conversation_session,
     send_conversation_message,
     end_conversation_session,
 )
@@ -207,7 +204,8 @@ def test_start_conversation_session_success():
         assert len(session_dto.messages) == 1
         assert session_dto.messages[0].role == "assistant"
         assert session_dto.messages[0].content == "Magandang araw! Ako si Juan."
-        assert db.commit.called
+        assert db.flush.called
+        db.commit.assert_not_called()
 
 
 def test_send_conversation_message_text_success():
@@ -239,12 +237,19 @@ def test_send_conversation_message_text_success():
 
     user = User(id=user_id, canonical_username="student1", role="school_student")
 
-    resp = send_conversation_message(
-        db,
-        user,
-        session_id=session_id,
-        content="Ako po si Maria. Kayo po?",
-    )
+    with patch("app.modules.conversation.service.ConversationProviderRegistry.reply") as mock_reply, patch(
+        "app.modules.conversation.service.get_or_create_groq_model_configuration"
+    ) as mock_config:
+        mock_reply.return_value = ProviderTurnResponse(
+            "Kumusta, Maria?", FormativeLanguageFeedbackDTO(summary="Practice suggestion."),
+            model_version="openai/gpt-oss-20b", simulated=False,
+        )
+        mock_config.return_value.id = uuid4()
+        resp = send_conversation_message(
+            db, user, session_id=session_id, content="Ako po si Maria. Kayo po?",
+            settings=Settings(_env_file=None, GROQ_TUTOR_ENABLED=True, GROQ_API_KEY="synthetic-test-key",
+                              GROQ_TUTOR_ALLOWED_USER_IDS=[user_id]),
+        )
 
     assert resp.session_id == session_id
     assert resp.user_message.sequence == 2
@@ -254,7 +259,10 @@ def test_send_conversation_message_text_success():
     assert resp.assistant_message.sequence == 3
     assert resp.assistant_message.role == "assistant"
     assert resp.assistant_message.feedback is not None
-    assert db.commit.called
+    assert resp.simulated is False
+    assert resp.provider == "groq"
+    assert db.flush.called
+    db.commit.assert_not_called()
 
 
 def test_send_conversation_message_with_spoken_audio():
@@ -281,6 +289,7 @@ def test_send_conversation_message_with_spoken_audio():
     att_mock.transcription = "Magandang araw po ako si Maria"
     att_mock.score = 92.5
     att_mock.scoring_status = "scored"
+    att_mock.simulated = False
 
     db.scalar.side_effect = [
         sess_mock,
@@ -293,17 +302,23 @@ def test_send_conversation_message_with_spoken_audio():
 
     user = User(id=user_id, canonical_username="student1", role="school_student")
 
-    resp = send_conversation_message(
-        db,
-        user,
-        session_id=session_id,
-        content=None,
-        audio_attempt_id=attempt_id,
-    )
+    with patch("app.modules.conversation.service.ConversationProviderRegistry.reply") as mock_reply, patch(
+        "app.modules.conversation.service.get_or_create_groq_model_configuration"
+    ) as mock_config:
+        mock_reply.return_value = ProviderTurnResponse(
+            "Kumusta?", FormativeLanguageFeedbackDTO(summary="Practice suggestion."),
+            model_version="openai/gpt-oss-20b", simulated=False,
+        )
+        mock_config.return_value.id = uuid4()
+        resp = send_conversation_message(
+            db, user, session_id=session_id, content=None, audio_attempt_id=attempt_id,
+            settings=Settings(_env_file=None, GROQ_TUTOR_ENABLED=True, GROQ_API_KEY="synthetic-test-key",
+                              GROQ_TUTOR_ALLOWED_USER_IDS=[user_id]),
+        )
 
     assert resp.user_message.audio_attempt_id == attempt_id
     assert resp.user_message.content == "Magandang araw po ako si Maria"
-    assert resp.user_message.pronunciation_score == 92.5
+    assert resp.user_message.pronunciation_score is None
     assert resp.assistant_message.role == "assistant"
 
 
