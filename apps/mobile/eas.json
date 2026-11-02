@@ -1,0 +1,17 @@
+{
+  "cli": {
+    "version": ">= 16.0.0"
+  },
+  "build": {
+    "render-demo": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_NO_DOTENV": "1",
+        "EXPO_PUBLIC_ANDROID_API_URL": "https://fluentt-synthetic-staging.onrender.com"
+      }
+    }
+  }
+}
