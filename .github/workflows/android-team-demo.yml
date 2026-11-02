@@ -1,0 +1,48 @@
+name: Android team demo APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - v4
+    paths:
+      - .github/workflows/android-team-demo.yml
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CI: "1"
+      EXPO_NO_DOTENV: "1"
+      EXPO_PUBLIC_ANDROID_API_URL: https://fluentt-team-demo.onrender.com
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install locked JavaScript dependencies
+        run: npm ci
+      - name: Give team APK its own Android package
+        run: |
+          node -e "const fs=require('fs');const p='app.json';const d=JSON.parse(fs.readFileSync(p));d.expo.name='FLUENTT Team';d.expo.android.package='com.shangealone.fluentt.teamdemo';fs.writeFileSync(p,JSON.stringify(d));"
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --no-install
+      - name: Build installable APK
+        run: ./gradlew :app:assembleRelease --no-daemon
+        working-directory: apps/mobile/android
+      - name: Upload team APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: fluentt-team-demo-apk
+          path: apps/mobile/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
