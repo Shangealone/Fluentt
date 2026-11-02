@@ -1,0 +1,11 @@
+# Online team demo
+
+Status: prepared, not yet verified online. This deployment is for the owner's and teammates' existing **test accounts only**. It is separate from `fluentt-synthetic-staging` and does not create, reset, migrate, or copy a database. It connects to the existing Supabase PostgreSQL project only after the owner authorizes storing its connection URL in the new Render service's private environment.
+
+The new Blueprint is `render-team-demo.yaml`. Its startup command uses `scripts/check_team_demo_db.py` to verify the exact expected Supabase project, TLS setting and Alembic head with a read-only transaction. A mismatch stops startup. The check does not prove that every application query is read-only: normal team practice can write to the existing test database. No research participants or real students are approved for this demo.
+
+The web export and API share the Render HTTPS origin. An Android APK must be built with `EXPO_PUBLIC_ANDROID_API_URL` set to the new service URL; the installed synthetic APK still targets the old service. The local ignored `.env` is never committed, and database or Groq credentials must be stored only as Render secrets. `FLUENTT_MOBILE_WEB_ORIGINS` must equal the new HTTPS origin exactly. Existing credentials are backend-only, never Expo public variables.
+
+English WavLM and Tagalog MMS remain disabled on Render Free because the model resources are unavailable there. Tagalog pronunciation ratings remain disabled. Groq remains disabled until a separate private key and explicit allowlist of team test account IDs are configured and a real hosted conversation check passes. The built-in test gate must not be relaxed for other users.
+
+Before calling the team demo ready: verify the startup log shows the expected revision without a credential, the health endpoint responds, an existing team account signs in on web and Android, session restoration and logout work, an allowlisted Groq conversation works if enabled, microphone start/stop works on the phone, and the synthetic staging service remains connected to its own database. Do not use a real student account or claim speech-model scoring from this free service.
