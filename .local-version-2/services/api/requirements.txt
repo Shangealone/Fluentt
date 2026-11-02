@@ -10,3 +10,5 @@ pydantic==2.14.1
 alembic==1.18.4
 Authlib==1.9.1
 joserfc==1.7.5
+groq==1.7.0
+python-multipart==0.0.33

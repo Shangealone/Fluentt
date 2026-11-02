@@ -1,8 +1,9 @@
 """AI conversation provider: Safety guards, dialogue state engine, and external LLM abstraction."""
 
-import os
 import re
 from typing import Any
+from uuid import UUID
+from app.core.config import Settings
 from app.modules.conversation.schemas import FormativeLanguageFeedbackDTO
 
 
@@ -239,7 +240,7 @@ class EducationalDialogueEngine:
                 )
             else:
                 assistant_text = (
-                    f"That's great! Keeping with our scenario, "
+                    "That's great! Keeping with our scenario, "
                     "what would you like to say or ask next?"
                 )
 
@@ -273,13 +274,15 @@ class ConversationProviderRegistry:
         language: str,
         turns_count: int,
         max_turns: int = 15,
+        settings: Settings | None = None,
+        user_id: UUID | None = None,
     ) -> ProviderTurnResponse:
-        # Default to EducationalDialogueEngine (deterministic, privacy-guaranteed, local)
-        return EducationalDialogueEngine.generate_turn(
-            user_input=user_input,
-            history=history,
-            topic_context=topic_context,
-            language=language,
-            turns_count=turns_count,
-            max_turns=max_turns,
+        from app.modules.conversation.groq_provider import generate_turn
+        from app.modules.identity.errors import IdentityError
+
+        if settings is None or user_id is None:
+            raise IdentityError(503, "tutor_not_configured", "Online tutor is not configured on this server.")
+        return generate_turn(
+            settings=settings, user_id=user_id, history=history,
+            topic_context=topic_context, language=language,
         )

@@ -1,9 +1,8 @@
 """Conversation service: Session management, topic seeding, dialogue turn orchestration, and audio linkage."""
 
 from datetime import datetime, timezone, timedelta
-from typing import Any
 from uuid import UUID, uuid4
-from sqlalchemy import select, func, and_, desc
+from sqlalchemy import select, func, text
 
 from app.models.ai import (
     ConversationTopic,
@@ -23,11 +22,41 @@ from app.modules.conversation.schemas import (
     ConversationMessageDTO,
     SendMessageResponseDTO,
     ConversationSessionSummaryDTO,
-    FormativeLanguageFeedbackDTO,
 )
 from app.modules.conversation.provider import ConversationProviderRegistry
+from app.core.config import Settings
 
 MAX_SESSION_TURNS = 20
+
+
+def get_or_create_groq_model_configuration(db, model: str) -> ModelConfiguration:
+    """Record the real model identity without persisting provider credentials."""
+    db.execute(text("SELECT pg_advisory_xact_lock(78090035)"))
+    mv = db.scalar(select(ModelVersion).where(
+        ModelVersion.task == "conversation_agent",
+        ModelVersion.provider == "groq",
+        ModelVersion.model_name == model,
+        ModelVersion.version == "groq-chat-v1",
+    ))
+    if mv is None:
+        mv = ModelVersion(
+            id=uuid4(), task="conversation_agent", provider="groq", model_name=model,
+            version="groq-chat-v1", capabilities={"role_play": True, "languages": ["en", "tl"]},
+            artifact_reference=None, simulated=False,
+        )
+        db.add(mv)
+        db.flush()
+    mc = db.scalar(select(ModelConfiguration).where(
+        ModelConfiguration.model_version_id == mv.id, ModelConfiguration.version == 1,
+    ))
+    if mc is None:
+        mc = ModelConfiguration(
+            id=uuid4(), model_version_id=mv.id, version=1,
+            parameters={"max_completion_tokens": 300, "history_messages": 8, "format": "json_object"},
+        )
+        db.add(mc)
+        db.flush()
+    return mc
 
 SEED_TOPICS = [
     {
@@ -272,7 +301,7 @@ def start_conversation_session(
         sent_at=now,
     )
     db.add(greeting)
-    db.commit()
+    db.flush()
 
     return ConversationSessionDTO(
         session_id=session.id,
@@ -333,6 +362,14 @@ def get_conversation_session(db, user: User, session_id: UUID) -> ConversationSe
         for m in messages
     ]
 
+    model_name = "fluentt-dialogue-v1.0"
+    if not session.simulated:
+        config = db.scalar(select(ModelConfiguration).where(ModelConfiguration.id == session.model_configuration_id))
+        if config is not None:
+            version = db.scalar(select(ModelVersion).where(ModelVersion.id == config.model_version_id))
+            if version is not None:
+                model_name = version.model_name
+
     return ConversationSessionDTO(
         session_id=session.id,
         topic_id=session.topic_id,
@@ -343,7 +380,7 @@ def get_conversation_session(db, user: User, session_id: UUID) -> ConversationSe
         ended_at=session.ended_at,
         status=session.status,
         simulated=session.simulated,
-        model_version="fluentt-dialogue-v1.0",
+        model_version=model_name,
         turns_count=len(messages),
         max_turns=MAX_SESSION_TURNS,
         messages=msg_dtos,
@@ -356,6 +393,7 @@ def send_conversation_message(
     session_id: UUID,
     content: str | None = None,
     audio_attempt_id: UUID | None = None,
+    settings: Settings | None = None,
 ) -> SendMessageResponseDTO:
     """Processes a learner message (text or spoken audio), executes AI response turn, and returns feedback."""
     session = db.scalar(select(ConversationSession).where(ConversationSession.id == session_id))
@@ -368,6 +406,11 @@ def send_conversation_message(
 
     if session.status != "active":
         raise IdentityError(400, "session_closed", f"Session is already {session.status}.")
+
+    if settings is None:
+        raise IdentityError(503, "tutor_not_configured", "Online tutor is not configured on this server.")
+    from app.modules.conversation.groq_provider import ensure_available
+    ensure_available(settings, user.id)
 
     topic = db.scalar(select(ConversationTopic).where(ConversationTopic.id == session.topic_id))
     ctx = topic.learning_context if topic else {}
@@ -398,6 +441,9 @@ def send_conversation_message(
             raise IdentityError(422, "empty_message", "Message content cannot be empty.")
         user_text = content.strip()
         pron_score = None  # Text has no pronunciation score!
+
+    if len(user_text) > 1000:
+        raise IdentityError(422, "message_too_long", "Conversation messages must be at most 1,000 characters.")
 
     # Current sequence
     last_seq = db.scalar(
@@ -441,7 +487,12 @@ def send_conversation_message(
         language=session.language,
         turns_count=turns_count,
         max_turns=MAX_SESSION_TURNS,
+        settings=settings,
+        user_id=user.id,
     )
+
+    session.model_configuration_id = get_or_create_groq_model_configuration(db, reply.model_version).id
+    session.simulated = reply.simulated
 
     asst_seq = user_seq + 1
     asst_msg = ConversationMessage(
@@ -460,7 +511,7 @@ def send_conversation_message(
         session.status = "ended"
         session.ended_at = datetime.now(timezone.utc)
 
-    db.commit()
+    db.flush()
 
     return SendMessageResponseDTO(
         session_id=session.id,
@@ -486,6 +537,8 @@ def send_conversation_message(
         max_turns=MAX_SESSION_TURNS,
         is_session_complete=is_complete,
         simulated=reply.simulated,
+        provider="groq",
+        model_version=reply.model_version,
     )
 
 
@@ -505,7 +558,7 @@ def end_conversation_session(
     if session.status == "active":
         session.status = "ended"
         session.ended_at = now
-        db.commit()
+        db.flush()
 
     # Calculate summary metrics
     messages_count = db.scalar(

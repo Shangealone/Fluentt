@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import UUID
 from urllib.parse import urlparse
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -9,11 +10,20 @@ from sqlalchemy.engine import make_url
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="FLUENTT_", extra="forbid", hide_input_in_errors=True)
     environment: Literal["development", "test", "production"] = "development"
+    serve_web: bool = False
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8081"]
     mobile_web_origins: list[str] = []
     mobile_web_csrf_secret: SecretStr | None = None
     database_url: SecretStr | None = None
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    groq_api_key: SecretStr | None = Field(default=None, validation_alias="GROQ_API_KEY")
+    groq_model: str = Field(default="openai/gpt-oss-20b", validation_alias="GROQ_MODEL")
+    groq_tutor_enabled: bool = Field(default=False, validation_alias="GROQ_TUTOR_ENABLED")
+    groq_tutor_synthetic_staging: bool = Field(default=False, validation_alias="GROQ_TUTOR_SYNTHETIC_STAGING")
+    groq_tutor_allowed_user_ids: list[UUID] = Field(default_factory=list, validation_alias="GROQ_TUTOR_ALLOWED_USER_IDS")
+    groq_tutor_per_user_limit: int = Field(default=5, ge=1, le=30, validation_alias="GROQ_TUTOR_PER_USER_LIMIT")
+    groq_tutor_max_concurrency: int = Field(default=2, ge=1, le=8, validation_alias="GROQ_TUTOR_MAX_CONCURRENCY")
+    groq_tutor_timeout_seconds: int = Field(default=20, ge=5, le=60, validation_alias="GROQ_TUTOR_TIMEOUT_SECONDS")
     pronunciation_wavlm_enabled: bool = False
     pronunciation_wavlm_python: str | None = None
     pronunciation_wavlm_cache: str | None = None
@@ -101,6 +111,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def admin_configuration(self):
+        if self.groq_tutor_synthetic_staging and (
+            self.environment != "production" or not self.groq_tutor_allowed_user_ids
+        ):
+            raise ValueError("Synthetic tutor staging requires production transport and an explicit account allowlist")
         if (
             self.environment == "production"
             and self.admin_oidc_enabled

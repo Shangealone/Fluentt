@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: fluentt-synthetic-staging
+    runtime: python
+    plan: free
+    region: singapore
+    autoDeployTrigger: off
+    healthCheckPath: /api/v1/health
+    buildCommand: bash scripts/build-render-staging.sh
+    startCommand: bash scripts/start-render-staging.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: FLUENTT_ENVIRONMENT
+        value: production
+      - key: FLUENTT_SERVE_WEB
+        value: "true"
+      - key: FLUENTT_CORS_ORIGINS
+        value: "[]"
+      - key: FLUENTT_MOBILE_WEB_ORIGINS
+        sync: false
+      - key: FLUENTT_MOBILE_WEB_CSRF_SECRET
+        generateValue: true
+      - key: FLUENTT_DATABASE_URL
+        sync: false
+      - key: FLUENTT_DATABASE_POOL_SIZE
+        value: "2"
+      - key: FLUENTT_DATABASE_MAX_OVERFLOW
+        value: "0"
+      - key: FLUENTT_PRONUNCIATION_WAVLM_ENABLED
+        value: "false"
+      - key: FLUENTT_PRONUNCIATION_MMS_ENABLED
+        value: "false"
+      - key: GROQ_TUTOR_ENABLED
+        value: "false"
+      - key: GROQ_TUTOR_SYNTHETIC_STAGING
+        value: "false"

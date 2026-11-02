@@ -10,8 +10,8 @@ class FormativeLanguageFeedbackDTO(BaseModel):
     corrections: list[str] = Field(default_factory=list)
     suggestions: list[str] = Field(default_factory=list)
     politeness_marker_detected: bool | None = None
-    topic_relevance_score: float = Field(default=1.0, ge=0.0, le=1.0)
-    confidence: float = Field(default=0.90, ge=0.0, le=1.0)
+    topic_relevance_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     uncertainty_notice: str = (
         "Formative feedback provides practice guidance based on educational language heuristics. "
         "It does not constitute certified human-level evaluation or official DepEd grading."
@@ -84,6 +84,8 @@ class SendMessageResponseDTO(BaseModel):
     max_turns: int
     is_session_complete: bool
     simulated: bool
+    provider: str = "fluentt_local"
+    model_version: str = "fluentt-dialogue-v1.0"
 
 
 class ConversationSessionSummaryDTO(BaseModel):
