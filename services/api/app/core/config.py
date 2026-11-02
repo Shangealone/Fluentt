@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     mobile_web_origins: list[str] = []
     mobile_web_csrf_secret: SecretStr | None = None
     database_url: SecretStr | None = None
+    team_demo_supabase_project: str | None = None
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     groq_api_key: SecretStr | None = Field(default=None, validation_alias="GROQ_API_KEY")
     groq_model: str = Field(default="openai/gpt-oss-20b", validation_alias="GROQ_MODEL")
