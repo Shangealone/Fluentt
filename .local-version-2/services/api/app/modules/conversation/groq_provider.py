@@ -20,7 +20,9 @@ _active = 0
 
 def ensure_available(settings: Settings, user_id: UUID | None = None) -> str:
     allowed_environment = settings.environment == "development" or (
-        settings.environment == "production" and settings.groq_tutor_synthetic_staging
+        settings.environment == "production" and (
+            settings.groq_tutor_synthetic_staging or settings.groq_tutor_team_demo
+        )
     )
     if not allowed_environment or not settings.groq_tutor_enabled:
         raise IdentityError(503, "tutor_unavailable", "Online tutor is unavailable on this server.")

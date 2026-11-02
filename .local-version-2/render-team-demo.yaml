@@ -34,6 +34,12 @@ services:
       - key: FLUENTT_PRONUNCIATION_MMS_ENABLED
         value: "false"
       - key: GROQ_TUTOR_ENABLED
-        value: "false"
+        value: "true"
       - key: GROQ_TUTOR_SYNTHETIC_STAGING
         value: "false"
+      - key: GROQ_TUTOR_TEAM_DEMO
+        value: "true"
+      - key: GROQ_TUTOR_ALLOWED_USER_IDS
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false

@@ -120,6 +120,21 @@ def test_hosted_synthetic_access_requires_explicit_production_gate():
     assert exc.value.code == "tutor_test_account_required"
 
 
+def test_hosted_team_demo_requires_project_and_account_allowlist():
+    user_id = uuid4()
+    with pytest.raises(ValidationError):
+        configured(user_id, environment="production", GROQ_TUTOR_TEAM_DEMO=True)
+    with pytest.raises(ValidationError):
+        configured(user_id, environment="production", GROQ_TUTOR_TEAM_DEMO=True,
+                   team_demo_supabase_project="sample", GROQ_TUTOR_ALLOWED_USER_IDS=[])
+    settings = configured(user_id, environment="production", GROQ_TUTOR_TEAM_DEMO=True,
+                          team_demo_supabase_project="sample")
+    assert groq_provider.ensure_available(settings, user_id) == "synthetic-test-key"
+    with pytest.raises(IdentityError) as exc:
+        groq_provider.ensure_available(settings, uuid4())
+    assert exc.value.code == "tutor_test_account_required"
+
+
 def test_invalid_input_and_malformed_output_do_not_become_scripted_reply(monkeypatch):
     user_id = uuid4()
     client, _ = fake_client(monkeypatch, {"dialogue": "", "summary": "Practice"})
