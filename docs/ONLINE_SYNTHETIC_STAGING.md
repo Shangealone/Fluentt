@@ -13,14 +13,14 @@ This configuration is for a temporary, internet-reachable **synthetic-account te
 ## Deployment sequence
 
 1. Use the dedicated staging branch containing `render.yaml`; keep existing version branches unchanged. Connect that branch to a Render web service with the Free plan. Automatic deployments are off.
-2. Create a **new** synthetic-only PostgreSQL database, not a schema inside the current student database. The Supabase session pooler is an IPv4 option for Render. Use its session-mode URL with TLS (`sslmode=require`), converted to the `postgresql+psycopg://` driver prefix. Store the URL as the Render `FLUENTT_DATABASE_URL` secret. Do not print or commit it. If using another provider, verify an equivalent private, fresh database first.
+2. The Blueprint creates a **new** free Render PostgreSQL database named `fluentt_synthetic_staging` and connects it with Render's private connection reference. It is not a schema inside the current student database. Render supplies the connection secret; do not print or commit it. A separate Supabase project is a later alternative if a durable staging database is approved.
 3. Set `FLUENTT_MOBILE_WEB_ORIGINS` to a JSON array containing the exact resulting HTTPS Render origin, for example `["https://YOUR-SERVICE.onrender.com"]`. The service URL must be known before this can be finalized. Keep `FLUENTT_CORS_ORIGINS=[]`. Render generates a random browser CSRF secret.
-4. Inspect the database and confirm it is truly empty. Only then, and with a connection to that **new** database, run `cd services/api && alembic -x repair_initial_names=true upgrade head`. This special adapter is for a fresh empty database only. Never stamp, reset, or downgrade an existing database.
+4. At first startup, `scripts/init_render_staging_db.py` accepts only the exact `fluentt_synthetic_staging` database name, reuses the repository's empty-database guard, and applies the existing bootstrap migration adapter. On restart it accepts only the exact current Alembic head; any other version or unexpected object blocks startup for manual review. It never upgrades a pre-existing database.
 5. Build and start the service using `scripts/build-render-staging.sh` and `scripts/start-render-staging.sh`. The build installs pinned Python dependencies, uses `npm ci`, and exports Expo web with dotenv loading disabled. No local `localhost` API address is embedded. The web client uses the current HTTPS origin by default; existing explicit local/native API URLs still take precedence.
 6. Verify `/api/v1/health`, `/login`, browser registration/login/session renewal, one synthetic conversation, errors, and logout on the actual HTTPS URL. Check Render logs for secret or transcript exposure. Health is liveness only and does **not** prove database connectivity.
 7. If Groq is needed for the synthetic test, set `GROQ_TUTOR_ENABLED=true`, `GROQ_TUTOR_SYNTHETIC_STAGING=true`, `GROQ_TUTOR_ALLOWED_USER_IDS` to only synthetic account UUIDs, and `GROQ_API_KEY` as a Render secret. The application refuses hosted synthetic mode without an allowlist. Do not enable it for real accounts. The limiter is process-local and conversation deletion/consent policy is unresolved.
 
-Do not share the staging link as a student release. Render Free web services spin down after inactivity; a first request may take about a minute. A free Render Postgres database, if substituted, expires after 30 days and has no backups, so it is unsuitable for durable accounts. The separate Supabase staging project avoids that particular expiry but needs its own access and retention decisions.
+Do not share the staging link as a student release. Render Free web services spin down after inactivity; a first request may take about a minute. The free Render Postgres database expires after 30 days and has no backups, so it is unsuitable for durable accounts. A separate Supabase staging project would avoid that particular expiry but needs its own access and retention decisions.
 
 ## Local verification (2026-11-02)
 
@@ -32,6 +32,7 @@ Do not share the staging link as a student release. Render Free web services spi
 | `pytest tests/test_web_host.py tests/test_groq_tutor.py tests/test_conversation_practice.py -q` | PASS: 24 mocked/isolated checks, two dependency deprecation warnings; no Groq or database inference |
 | `ruff check` on changed backend modules and tests | PASS |
 | Focused ESLint on `apps/mobile/src/services/api/client.ts` | PASS |
+| Render database initialization guard | Code review and isolated tests pending; no cloud database has been created yet |
 | Live Render, real phone, separate database, online Groq | NOT TESTED / NOT CREATED |
 
 Render build uses the pinned `services/api/requirements.lock.txt` and Python 3.12.10. The service starts one Uvicorn process with proxy headers for Render's HTTPS termination, access logs off, and the existing application-level non-content request logs. TLS, account privacy and browser behavior need live verification before calling the test ready.
@@ -43,6 +44,6 @@ Render build uses the pinned `services/api/requirements.lock.txt` and Python 3.1
 - `services/api/app/main.py`: serve the exported SPA and assets after API routes.
 - `services/api/app/modules/conversation/groq_provider.py`: keep allowlisted Groq access closed unless development or explicit production-transport synthetic staging.
 - `services/api/tests/test_web_host.py`, `services/api/tests/test_groq_tutor.py`: route and gate regressions.
-- `scripts/build-render-staging.sh`, `scripts/start-render-staging.sh`, `render.yaml`: deployment commands and disabled-by-default flags.
+- `scripts/build-render-staging.sh`, `scripts/start-render-staging.sh`, `services/api/scripts/init_render_staging_db.py`, `render.yaml`: deployment commands, isolated database guard, and disabled-by-default flags.
 
 The existing uncommitted Section 10A Groq implementation files are separate prerequisite changes. No migration, model, scheduler, research, production database or saved student record was changed by this staging preparation.
