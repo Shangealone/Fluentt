@@ -455,3 +455,7 @@ The user approved implementing three original grammar lessons and clarified that
 ## Instructor monitoring student filter scope — 2026-10-30
 
 Keep the full current eligible roster visible when an instructor selects a lesson or edition. Scope each student's assignment counts and history to that selection, and preserve the selected ID and display label in the monitoring route through student and assignment detail navigation. Clearing filters removes that route scope. The route label is presentation only; existing authenticated monitoring APIs remain authoritative. No backend, permission, persistence, or metric changes are included.
+
+## Online synthetic staging decision — 2026-11-02
+
+The redesigned Expo web build and FastAPI will use one HTTPS origin for a temporary Render staging service because the existing host-only browser cookie and CSRF contract require same-origin access. Its database must be a new synthetic-only PostgreSQL instance; the current Supabase project with existing accounts is excluded. WavLM and MMS remain off on the free host. Groq remains off until an explicit synthetic-account allowlist, separate database, hosted-test gate, and secret are configured. This does not approve real-student use, research collection, pronunciation scoring on the host, or production data retention. See `ONLINE_SYNTHETIC_STAGING.md`.
