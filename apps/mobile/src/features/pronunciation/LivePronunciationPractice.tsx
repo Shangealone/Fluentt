@@ -12,7 +12,7 @@ import { practiceStyles as s } from "./practiceStyles";
 import { useLessonSpeech } from "../learning/useLessonSpeech";
 import { useLiveWordTracking } from "./useLiveWordTracking";
 import { alignSpokenWords } from "./liveWordTracking";
-import { checkOfflineSpeechInstalled, prepareOfflineSpeech } from "./liveSpeech";
+import { checkOfflineSpeechInstalled, prepareOfflineSpeech, requestLiveSpeechPermission } from "./liveSpeech";
 import { useWholePhraseAssessment } from "./useWholePhraseAssessment";
 import { randomUUID } from "expo-crypto";
 import type { SpeechResult } from "../../services/api/mms";
@@ -63,6 +63,7 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
   const capabilityGeneration = useRef(0);
   const invalidateCapability = useCallback(() => { capabilityGeneration.current++; }, []);
   const [submitting, setSubmitting] = useState(false);
+  const [requestingMicrophone, setRequestingMicrophone] = useState(false), [startError, setStartError] = useState("");
   const [offlineSetupPending, setOfflineSetupPending] = useState(false);
   const speech = useLessonSpeech(activity.language, activity.id);
   const checkModel = useCallback(async (): Promise<boolean> => {
@@ -114,10 +115,26 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
   const assessWholeRecording = scoring.assess;
   const simulationEnabled = !guidedSubmissionMode && scoring.simulationEnabled;
   const simulateScore = scoring.simulate;
-  const record = () => {
-    if (submitting) return;
-    setSubmissionResult(null); setSubmissionError(""); requestId.current = null; setModelConsent(false); scoring.reset();
-    void speech.stop().then(stopped => { if (stopped) { setRun(value => value + 1); return tracking.start(); } });
+  const record = async () => {
+    if (submitting || requestingMicrophone) return;
+    const generation = viewGeneration.current;
+    setRequestingMicrophone(true); setStartError("");
+    try {
+      await requestLiveSpeechPermission();
+      if (!focused.current || generation !== viewGeneration.current) return;
+      if (AppState.currentState === "background") {
+        setStartError("Return to FLUENTT and tap Start recording again.");
+        return;
+      }
+      setSubmissionResult(null); setSubmissionError(""); requestId.current = null; setModelConsent(false); scoring.reset();
+      const stopped = await speech.stop();
+      if (!focused.current || generation !== viewGeneration.current) return;
+      if (stopped) { setRun(value => value + 1); await tracking.start(); }
+    } catch (cause) {
+      if (focused.current && generation === viewGeneration.current) setStartError(cause instanceof Error ? cause.message : "Microphone access could not be checked. Please retry.");
+    } finally {
+      if (focused.current && generation === viewGeneration.current) setRequestingMicrophone(false);
+    }
   };
   const submitRecording = async () => {
     const recording = tracking.recording;
@@ -184,7 +201,7 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
     });
     return () => subscription.remove();
   }, [activity.language, offlineSetupPending]);
-  const busy = live || submitting || scoring.assessing || settingUp || speech.speaking || (complete && !tracking.settled);
+  const busy = live || submitting || requestingMicrophone || scoring.assessing || settingUp || speech.speaking || (complete && !tracking.settled);
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => () => { onBusyChange?.(false); }, [onBusyChange]);
   const personalScore = validScore(scoring.result?.overall_score);
@@ -192,7 +209,7 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
   const consentDisabled = busy || !scoringAvailable;
   const finished = tracking.settled && (complete || tracking.status === "paused");
   const resultVisible = guidedSubmissionMode ? !!submissionResult : !!scoring.result;
-  const primaryLabel = submitting ? "Submitting recording…" : scoring.assessing ? "Checking your recording…" : listening ? "Finish recording" : waiting || (complete && !tracking.settled) ? "Please wait…" : finished ? "Try again" : tracking.status === "idle" ? "Start recording" : "Record again";
+  const primaryLabel = submitting ? "Submitting recording…" : requestingMicrophone ? "Checking microphone…" : scoring.assessing ? "Checking your recording…" : listening ? "Finish recording" : waiting || (complete && !tracking.settled) ? "Please wait…" : finished ? "Try again" : tracking.status === "idle" ? "Start recording" : "Record again";
   const notice = (message: string) => message.replace(/Microsoft Azure|Azure Speech|Azure|WavLM|wav2vec2/gi, "the speech service");
   return <View style={{ gap: 16 }}>
     <View style={s.card}>
@@ -215,10 +232,11 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
       {!!speech.error && <PracticeNotice error message={notice(speech.error)} />}
     </View>
     <View style={s.status} accessibilityLiveRegion="polite">
-      <Text accessibilityRole="header" style={[s.heading, s.centered]}>{submitting ? "Submitting recording…" : scoring.assessing ? "Checking your recording…" : submissionResult ? "Recording submitted" : resultVisible || finished ? "Recording finished" : listening ? "Listening…" : waiting ? "Preparing your recording…" : "Ready when you are"}</Text>
+      <Text accessibilityRole="header" style={[s.heading, s.centered]}>{submitting ? "Submitting recording…" : requestingMicrophone ? "Checking microphone…" : scoring.assessing ? "Checking your recording…" : submissionResult ? "Recording submitted" : resultVisible || finished ? "Recording finished" : listening ? "Listening…" : waiting ? "Preparing your recording…" : "Ready when you are"}</Text>
       <Text style={[s.body, s.centered]}>{live ? "Read the phrase aloud at your own pace." : submitting || scoring.assessing ? "This may take a moment." : finished ? guidedSubmissionMode && !submissionResult ? "Your recording is ready to submit." : "A little practice goes a long way." : "Find a quiet spot and speak clearly."}</Text>
     </View>
     {!!tracking.error && <PracticeNotice error message={notice(tracking.error)} />}
+    {!!startError && <PracticeNotice error message={notice(startError)} />}
     {((Platform.OS === "web" && !!tracking.error) || (Platform.OS === "android" && (needsOfflineSpeechSetup || offlineSetupPending))) && <PracticeButton secondary label={settingUp ? "Setting up speech…" : offlineSetupPending ? "Check speech setup" : "Set up speech"} disabled={settingUp || live || submitting || scoring.assessing} busy={settingUp} onPress={() => { void setup(); }} />}
     {!!setupMessage && <PracticeNotice message={notice(setupMessage)} />}
     {!finished && !live && !resultVisible && <PracticeNotice message="Your microphone is needed to record your voice." />}
@@ -262,8 +280,8 @@ export function LivePronunciationPractice({ activity, api, onDone, history, owne
       {!!modelReason && <PracticeNotice message={modelReason} />}
       <PracticeButton label={submitting ? "Checking local model…" : activity.language === "english" ? "Get English model assessment" : "Transcribe Tagalog speech"} busy={submitting} disabled={submitting || !api || !modelConsent || live || settingUp} onPress={() => { void submitRecording(); }} />
     </>}
-    <PracticeButton label={primaryLabel} busy={waiting || submitting || scoring.assessing} icon="voice" secondary={guidedSubmissionMode && !!tracking.recording && !listening}
-      disabled={waiting || speech.speaking || settingUp || submitting || scoring.assessing || (complete && !tracking.settled)}
+    <PracticeButton label={primaryLabel} busy={waiting || requestingMicrophone || submitting || scoring.assessing} icon="voice" secondary={guidedSubmissionMode && !!tracking.recording && !listening}
+      disabled={waiting || requestingMicrophone || speech.speaking || settingUp || submitting || scoring.assessing || (complete && !tracking.settled)}
       onPress={() => { if (listening) tracking.stop(); else record(); }} />
     {!guidedSubmissionMode && tracking.status === "paused" && tracking.settled && tracking.recording && scoring.permitted && !scoring.result && !scoring.error && <PracticeButton label="Check pronunciation" disabled={scoring.assessing} onPress={() => { if (tracking.recording) void scoring.assess(tracking.recording); }} />}
     <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy }} disabled={busy} onPress={onDone} style={[s.quiet, busy && s.disabled]}><Text style={s.quietText}>{finished || resultVisible ? "Choose another phrase" : "Change phrase"}</Text></Pressable>

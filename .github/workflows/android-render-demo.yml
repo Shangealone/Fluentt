@@ -9,6 +9,7 @@ on:
       - .github/workflows/android-render-demo.yml
       - apps/mobile/app.json
       - apps/mobile/eas.json
+      - apps/mobile/src/features/pronunciation/**
 
 jobs:
   android-apk:

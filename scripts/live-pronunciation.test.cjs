@@ -6,14 +6,17 @@ const Module = require('node:module');
 const mobile = path.resolve(__dirname,'../apps/mobile');
 const local = Module.createRequire(path.join(mobile,'package.json'));
 const React = local('react'), babel = local('@babel/core'), original = Module._load;
-const sessions=[];let background, native;
+const sessions=[];let background, native, permissionRequest=async()=>{};
 Module._load=function(name,parent,main){
   if(name==='react-native')return {...local('react-native-web'),AppState:{addEventListener(_,callback){background=callback;return {remove(){background=null;}};}}};
+  if(name==='expo-secure-store')return {getItemAsync:async()=>null,setItemAsync:async()=>{},deleteItemAsync:async()=>{}};
+  if(name==='expo-crypto')return {randomUUID:()=> '00000000-0000-4000-8000-000000000001'};
   if(name==='react-native-safe-area-context')return {SafeAreaView:local('react-native-web').View};
   if(name==='expo-router')return {useFocusEffect:effect=>React.useEffect(effect,[effect])};
   if(name==='./liveSpeech'&&parent.filename.endsWith('useLiveWordTracking.ts'))return {createLiveSpeech(language,callbacks,options){
     const session={language,callbacks,options,stops:0,disposed:false,async start(){callbacks.onStart();},stop(){this.stops++;},dispose(){this.disposed=true;}};sessions.push(session);return session;
   }};
+  if(name==='./liveSpeech'&&parent.filename.endsWith('LivePronunciationPractice.tsx'))return {...original.call(this,name,parent,main),requestLiveSpeechPermission:()=>permissionRequest()};
   if(name==='expo'&&parent.filename.endsWith('liveSpeech.ts'))return {requireOptionalNativeModule(){return native;}};
   if(name==='../learning/useLessonSpeech')return {useLessonSpeech(){return {speaking:false,error:'',async play(){return true;},async stop(){return true;}};}};
   return original.call(this,name,parent,main);
@@ -21,11 +24,12 @@ Module._load=function(name,parent,main){
 for(const ext of ['.ts','.tsx'])Module._extensions[ext]=function(module,filename){module._compile(babel.transformSync(fs.readFileSync(filename,'utf8'),{filename,babelrc:false,configFile:false,plugins:[
   [local.resolve('@babel/plugin-transform-typescript'),{isTSX:ext==='.tsx',allExtensions:true}],
   [local.resolve('@babel/plugin-transform-react-jsx'),{runtime:'automatic'}],local.resolve('@babel/plugin-transform-modules-commonjs')]}).code,filename);};
+Module._extensions['.png']=module=>{module.exports=0;};
 const {speechWords,spokenWordCount}=local(path.join(mobile,'src/features/pronunciation/liveWordTracking.ts'));
 const {useLiveWordTracking}=local(path.join(mobile,'src/features/pronunciation/useLiveWordTracking.ts'));
 const {LivePronunciationPractice}=local(path.join(mobile,'src/features/pronunciation/LivePronunciationPractice.tsx'));
 const {createLiveSpeech:createWeb,prepareOfflineSpeech}=local(path.join(mobile,'src/features/pronunciation/liveSpeech.web.ts'));
-const {createLiveSpeech:createNative}=local(path.join(mobile,'src/features/pronunciation/liveSpeech.ts'));
+const {createLiveSpeech:createNative,requestLiveSpeechPermission:requestNativePermission}=local(path.join(mobile,'src/features/pronunciation/liveSpeech.ts'));
 function harness(Component){
   const slots=[],effects=[];let cursor;
   return {render(){cursor=0;const queue=[],saved={useState:React.useState,useRef:React.useRef,useEffect:React.useEffect,useCallback:React.useCallback};
@@ -89,14 +93,30 @@ test('web driver uses local recognition, combines interim results and releases l
   class RemoteOnly{start(){throw new Error('must never start');}}global.window={SpeechRecognition:RemoteOnly};
   await assert.rejects(createWeb('english',{}).start(),/does not support on-device/);delete global.window;
 });
-test('native driver requires offline language, never persists audio and cancels pending permission starts',async()=>{
+test('native permission preflight, offline language and pending-start cancellation',async()=>{
   const listeners={};let options,resolvePermission;
-  native={isRecognitionAvailable:()=>true,supportsOnDeviceRecognition:()=>true,async getStateAsync(){return 'inactive';},async getSupportedLocales(){return {installedLocales:['en_US']};},async requestPermissionsAsync(){return {granted:true};},addListener(name,fn){listeners[name]=fn;return {remove(){delete listeners[name];}};},start(value){options=value;},stop(){},abort(){}};
+  native={isRecognitionAvailable:()=>true,supportsOnDeviceRecognition:()=>true,async getStateAsync(){return 'inactive';},async getSupportedLocales(){return {installedLocales:['en_US']};},async requestPermissionsAsync(){return {granted:true};},async getPermissionsAsync(){return {granted:true};},addListener(name,fn){listeners[name]=fn;return {remove(){delete listeners[name];}};},start(value){options=value;},stop(){},abort(){}};
   const callbacks={onStart(){},onResult(){},onError(){},onEnd(){}};
+  await requestNativePermission();
   const session=createNative('english',callbacks);await session.start();assert.equal(options.lang,'en-US');assert.equal(options.requiresOnDeviceRecognition,true);assert.deepEqual(options.recordingOptions,{persist:false});session.dispose();assert.deepEqual(listeners,{});
   await assert.rejects(createNative('tagalog',callbacks).start(),/Install an offline Tagalog/);
-  options=null;native.requestPermissionsAsync=()=>new Promise(resolve=>{resolvePermission=resolve;});
+  native.requestPermissionsAsync=async()=>({granted:false});await assert.rejects(requestNativePermission(),/Microphone and speech recognition access/);
+  options=null;native.getPermissionsAsync=()=>new Promise(resolve=>{resolvePermission=resolve;});
   const pending=createNative('english',callbacks),start=pending.start();await tick();pending.dispose();resolvePermission({granted:true});await start;assert.equal(options,null);
+});
+test('Android permission pause happens before the tracked recording begins',async()=>{
+  let allow;permissionRequest=()=>new Promise(resolve=>{allow=resolve;});
+  const h=harness(()=>LivePronunciationPractice({activity,onDone(){}}));
+  try{
+    h.render();const count=sessions.length;
+    nodes(h.render(),node=>node.props?.label==='Start recording')[0].props.onPress();
+    assert.equal(nodes(h.render(),node=>node.props?.label==='Checking microphone…').length,1);
+    assert.equal(sessions.length,count);
+    background('background');
+    allow();await tick();await tick();h.render();
+    assert.equal(sessions.length,count+1);
+    assert.equal(sessions.at(-1).disposed,false);
+  }finally{permissionRequest=async()=>{};h.blur();}
 });
 test('browser offline setup downloads only a supported language and never starts the microphone',async()=>{
   const requests=[];class Recognition{

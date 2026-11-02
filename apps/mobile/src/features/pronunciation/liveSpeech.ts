@@ -10,6 +10,14 @@ async function removeTemporaryRecording(uri: string) {
   if (file.exists) file.delete();
 }
 
+/** Request OS permission before a tracked recording starts. The Android dialog pauses the app. */
+export async function requestLiveSpeechPermission(): Promise<void> {
+  const module = requireOptionalNativeModule<ExpoSpeechRecognitionModuleType>("ExpoSpeechRecognition");
+  if (!module) throw new Error("Live speech needs an updated build of this app. It is not available in Expo Go.");
+  const permission = await module.requestPermissionsAsync();
+  if (!permission.granted) throw new Error("Microphone and speech recognition access are needed. Allow them in your device settings, then retry.");
+}
+
 export async function prepareOfflineSpeech(language: PronunciationLanguage): Promise<void> {
   const module = requireOptionalNativeModule<ExpoSpeechRecognitionModuleType>("ExpoSpeechRecognition");
   const label = language === "english" ? "English" : "Tagalog";
@@ -68,7 +76,9 @@ export function createLiveSpeech(language: PronunciationLanguage, callbacks: Liv
       if (disposed) return;
       const locale = installedLocales.map(value => value.replaceAll("_", "-")).find(value => language === "english" ? /^en(-|$)/i.test(value) : /^(fil|tl)(-|$)/i.test(value));
       if (!locale) throw new Error(`Install an offline ${language === "english" ? "English" : "Tagalog"} speech recognition language in your device settings, or tap Set up offline speech, then retry.`);
-      const permission = await module.requestPermissionsAsync();
+      // Permission dialogs must happen before the tracked session begins: Android briefly
+      // backgrounds the app while showing them, and backgrounding cancels live recording.
+      const permission = await module.getPermissionsAsync();
       if (disposed) return;
       if (!permission.granted) throw new Error("Microphone and speech recognition access are needed. Allow them in your device settings, then retry.");
       if (options.captureAudio) {

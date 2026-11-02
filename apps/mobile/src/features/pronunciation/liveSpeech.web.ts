@@ -16,6 +16,9 @@ type RecognitionConstructor = {
   install?: (options: { langs: string[]; processLocally: boolean }) => Promise<boolean>;
 };
 
+// Browser permission remains with SpeechRecognition.start()/MediaRecorder; no OS preflight.
+export async function requestLiveSpeechPermission(): Promise<void> {}
+
 export async function checkOfflineSpeechInstalled(language: PronunciationLanguage): Promise<boolean> {
   const browser = typeof window === "undefined" ? undefined : window as unknown as { SpeechRecognition?: RecognitionConstructor; webkitSpeechRecognition?: RecognitionConstructor };
   const Constructor = browser?.SpeechRecognition ?? browser?.webkitSpeechRecognition;
