@@ -22,7 +22,9 @@ services:
       - key: FLUENTT_MOBILE_WEB_CSRF_SECRET
         generateValue: true
       - key: FLUENTT_DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: fluentt-synthetic-staging-db
+          property: connectionString
       - key: FLUENTT_DATABASE_POOL_SIZE
         value: "2"
       - key: FLUENTT_DATABASE_MAX_OVERFLOW
@@ -35,3 +37,10 @@ services:
         value: "false"
       - key: GROQ_TUTOR_SYNTHETIC_STAGING
         value: "false"
+
+databases:
+  - name: fluentt-synthetic-staging-db
+    databaseName: fluentt_synthetic_staging
+    user: fluentt_synthetic_staging
+    plan: free
+    region: singapore
