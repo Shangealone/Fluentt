@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, Entity, choice, json_object, label, publication, reference
@@ -75,7 +75,8 @@ class CurriculumTopic(Entity, Base):
 
 class Lesson(Entity, Base):
     __tablename__ = "lessons"
-    topic_id: Mapped[UUID] = reference("curriculum_topics.id")
+    topic_id: Mapped[UUID | None] = reference("curriculum_topics.id", nullable=True)
+    teacher_owned: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     name: Mapped[str] = label()
     description: Mapped[str | None] = mapped_column(Text)
     position: Mapped[int] = mapped_column(Integer)
@@ -85,6 +86,7 @@ class Lesson(Entity, Base):
     __table_args__ = (
         UniqueConstraint("topic_id", "position"),
         CheckConstraint("position > 0", name="positive_position"),
+        CheckConstraint("(teacher_owned AND topic_id IS NULL) OR (NOT teacher_owned AND topic_id IS NOT NULL)", name="lesson_source"),
     )
 
 

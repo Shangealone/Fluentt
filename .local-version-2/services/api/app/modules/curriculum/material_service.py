@@ -14,6 +14,7 @@ def get_lesson_materials(db, lesson_id: UUID) -> MaterialPage:
     lesson = db.scalar(
         select(Lesson).where(
             Lesson.id == lesson_id,
+            Lesson.teacher_owned.is_(False),
             *visible(5),
         )
     )

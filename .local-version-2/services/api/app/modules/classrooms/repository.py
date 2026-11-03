@@ -59,6 +59,9 @@ class ClassroomRepository(IdentityRepository):
     def has_context(self, classroom: Classroom) -> bool:
         if classroom.subject_id is not None:
             return True
+        from app.models.teacher_lessons import TeacherLessonShare
+        if self.session.scalar(select(TeacherLessonShare.id).where(TeacherLessonShare.class_id == classroom.id).limit(1)) is not None:
+            return True
         for model in (ClassMembership, Assignment, LearningContext, Message):
             if (
                 self.session.scalar(

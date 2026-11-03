@@ -27,9 +27,9 @@ export function Picker<T>({ fetch, render, renderHeader, emptyTitle = "No eligib
   </>}</View>;
 }
 
-export function AssignmentEditor({ initial, classId, classroom, api, active = true }: { initial: AssignmentDraft | null; classId: string; classroom: ClassDetails; api: AssignmentAccess; active?: boolean }) {
+export function AssignmentEditor({ initial, initialLesson, classId, classroom, api, active = true }: { initial: AssignmentDraft | null; initialLesson?: LessonContext | null; classId: string; classroom: ClassDetails; api: AssignmentAccess; active?: boolean }) {
   const [row, setRow] = useState(initial), [title, setTitle] = useState(initial?.title ?? ""), [instructions, setInstructions] = useState(initial?.instructions ?? "");
-  const [lesson, setLesson] = useState<LessonContext | null>(initial?.context ?? null), [items, setItems] = useState<AssignmentItem[]>(initial?.questions ?? []);
+  const [lesson, setLesson] = useState<LessonContext | null>(initial?.context ?? initialLesson ?? null), [items, setItems] = useState<AssignmentItem[]>(initial?.questions ?? []);
   const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [query, setQuery] = useState(""), [filters, setFilters] = useState({ q: "", method: "" }), [method, setMethod] = useState("");
   const [preview, setPreview] = useState<AssignmentItem | null>(null), [confirm, setConfirm] = useState<BuilderConfirmation | null>(null);

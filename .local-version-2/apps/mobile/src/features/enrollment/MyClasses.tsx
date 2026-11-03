@@ -18,5 +18,6 @@ export function MyClasses() {
   return <MyClassesView state={state} onRefresh={reload} onMore={more}
     onJoin={() => router.push("/class-code")} onBack={() => router.replace("/student")} onAccount={() => router.push("/account")}
     onAssignments={row => router.push({ pathname: "/published-assignments", params: { classId: row.class_id } })}
+    onLessons={row => router.push({ pathname: "/class-lessons", params: { classId: row.class_id } })}
     onMessages={row => router.push({ pathname: "/communication", params: { classId: row.class_id } })} />;
 }

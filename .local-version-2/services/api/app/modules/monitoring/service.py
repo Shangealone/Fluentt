@@ -259,6 +259,7 @@ def execute(repo, token, settings, *, action, class_id=None, student_id=None, as
                 rows = (
                     db.execute(
                         select(options)
+                        .where(options.c.id.is_not(None), options.c.label.is_not(None))
                         .order_by(options.c.label, options.c.id)
                         .limit(query.limit + 1)
                         .offset(query.offset)

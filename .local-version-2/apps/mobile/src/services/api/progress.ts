@@ -31,7 +31,7 @@ export function validateHistory(page: LearningHistory): LearningHistory {
   for (const row of page.items) {
     if (!row || typeof row.id !== "string" || ids.has(row.id) || typeof row.version_id !== "string" || typeof row.class_id !== "string"
       || typeof row.title !== "string" || typeof row.class_name !== "string" || !["english", "tagalog"].includes(row.language)
-      || !row.context || typeof row.context.lesson_id !== "string" || typeof row.context.lesson_name !== "string" || typeof row.context.curriculum_version_id !== "string"
+      || !row.context || typeof row.context.lesson_id !== "string" || typeof row.context.lesson_name !== "string" || (row.context.source !== "teacher" && typeof row.context.curriculum_version_id !== "string")
       || !["not_started", "in_progress", "submitted"].includes(row.submission_status)
       || !["not_submitted", "submitted", "awaiting_manual_review", "withheld", "released", "not_applicable"].includes(row.result_state)
       || !date(row.sort_at) || !date(row.published_at) || [row.started_at, row.last_activity_at, row.submitted_at].some(value => value !== null && !date(value))

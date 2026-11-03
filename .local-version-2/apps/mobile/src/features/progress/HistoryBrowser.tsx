@@ -15,7 +15,7 @@ export function HistoryCard({ row, onOpen }: { row: HistoryItem; onOpen?: (() =>
   return <View style={s.card}>
     <Text accessibilityRole="header" style={s.heading}>{row.title}</Text>
     <Text style={s.body}>{row.class_name} · Grade {row.context.grade} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text>
-    <Text style={s.body}>Subject: {row.context.subject_name} · Lesson: {row.context.lesson_name} · Edition: {row.context.curriculum_name}</Text>
+    <Text style={s.body}>Subject: {row.context.subject_name} · Lesson: {row.context.lesson_name} · Edition: {row.context.curriculum_name ?? "Teacher lesson"}</Text>
     <Text style={s.body}>Submission: {row.submission_status === "not_started" ? "Not started" : row.submission_status === "in_progress" ? "In progress" : "Submitted"}</Text>
     <Text style={s.body}>Published: {new Date(row.published_at).toLocaleString()}</Text>
     {!!row.started_at && <Text style={s.body}>Started: {new Date(row.started_at).toLocaleString()}</Text>}

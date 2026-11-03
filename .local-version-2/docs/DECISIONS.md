@@ -1,5 +1,9 @@
 # Decisions
 
+## ESR foundation and training preparation — 2026-11-02
+
+The user approved the concurrent counterbalanced FSRS-6/FIFAKT design and implementation. Added private vocabulary snapshots, isolated review transactions, interval-only fusion, administrator preparation and learner review presentation. Preserve legacy SM-2 records, ordinary assignments and personal practice. No simulated provider is accepted by this pipeline. Study activation remains blocked by missing genuine inference and incomplete consent/enrollment, withdrawal and study-assessment integration. Design approval is not ethics, guardian or site approval. The user confirmed no checkpoint exists and selected training preparation next; the preparation document, untrained manifest and integrity checker are included without downloading data or starting training. See ESR_IMPLEMENTATION.md and ESR_TRAINING_PREPARATION.md for exact scope, 22 focused checks and remaining work.
+
 ## Unified accounts and browser sessions — 2026-10-29
 
 The user approved a shared username/password sign-in and registration flow for the three mobile roles, with authenticated legacy password setup. Browser credentials use server-issued HttpOnly cookies and session-bound request proofs; native credentials remain in SecureStore. New public registrations require passwords; administrator authentication stays separate. The old incompatible development databases are untouched; this workspace uses a separate isolated F: PostgreSQL cluster and an independently migrated empty version-2 database. Local mobile builds use an explicit reachable development API address. Demo access and runtime sample-data fallbacks are removed, including runtime simulated pronunciation scoring; separate speech services retain their own honest availability and permission behavior. No password recovery or production deployment is included. Details and verification are in UNIFIED_ACCOUNTS.md.

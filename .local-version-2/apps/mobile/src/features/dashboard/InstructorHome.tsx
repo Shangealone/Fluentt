@@ -60,6 +60,7 @@ export function InstructorHome({ username, state, onRefresh, onMore }: HomeProps
       <Pressable accessibilityRole="button" onPress={() => router.push("/first-class")} style={({ pressed }) => [styles.create, pressed && styles.pressed]}>
         <PersonalIcon name="plus" size={18} color="#FFFFFF" /><Text style={styles.createText}>Create a class</Text>
       </Pressable>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/instructor-lessons")} style={({ pressed }) => [styles.loadMore, pressed && styles.pressed]}><Text style={styles.retryText}>My lessons</Text></Pressable>
       <View style={styles.sectionHeader}>
         <Text accessibilityRole="header" style={styles.heading}>Your classes</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Refresh classes" accessibilityState={{ disabled: loading }} disabled={loading} onPress={onRefresh}

@@ -1,0 +1,16 @@
+{
+  "schema_version": "fluentt-esr-artifact-v1",
+  "training_status": "not_trained",
+  "model_version": null,
+  "upstream_commit": "a03e248141fc32a96dc6fda3bb6ae52be621bb9a",
+  "prediction_contract": "future-recall-probability-v1",
+  "history_contract": "own-pool-before-presentation-v1",
+  "formats": ["multiple_choice", "typed_recall"],
+  "dataset_provenance": null,
+  "dataset_license": null,
+  "split_evidence": null,
+  "calibration_evidence": null,
+  "evaluation_evidence": null,
+  "reproduction_command": null,
+  "files": []
+}

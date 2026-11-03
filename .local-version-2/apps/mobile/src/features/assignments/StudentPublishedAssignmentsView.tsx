@@ -125,7 +125,7 @@ export function StudentPublishedAssignmentsView({ detail, canLoad, fetch, onRefr
           <StudentAssignmentButton label="View results" icon="stats" onPress={() => onResults(row)} />
         </View>
         <StudentAssignmentDisclosure>
-          <Text style={a.body}>Curriculum: {row.context.curriculum_name}</Text><Text style={a.body}>Grade: {row.context.grade}</Text><Text style={a.body}>Subject: {row.context.subject_name}</Text>
+          <Text style={a.body}>Curriculum: {row.context.curriculum_name ?? "Teacher lesson"}</Text><Text style={a.body}>Grade: {row.context.grade}</Text><Text style={a.body}>Subject: {row.context.subject_name}</Text>
           <Text style={a.small}>You have one attempt. You can return to your saved work. Your answers aren’t saved automatically, so save them as you go. There is no timer.</Text>
           <Text style={a.small}>Open assignment takes you to your available attempt or submission receipt. Available results are shown separately in View results.</Text>
           <StudentAssignmentButton label="Refresh assignment" icon="refresh" onPress={onRefresh} />

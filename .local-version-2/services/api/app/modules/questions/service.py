@@ -108,7 +108,7 @@ def summary(db, item):
 
 def validate_links(db, payload, *, publishing=False):
     lesson = db.get(Lesson, payload.lesson_id, populate_existing=True)
-    if lesson is None:
+    if lesson is None or lesson.teacher_owned:
         raise IdentityError(422, "invalid_question_relationship", "Choose an existing lesson.")
     found = set(
         db.scalars(
@@ -179,6 +179,7 @@ def execute(
             )
             statement = (
                 select(Question)
+                .where(Question.teacher_lesson_id.is_(None))
                 .outerjoin(latest, latest.c.question_id == Question.id)
                 .outerjoin(
                     QuestionRevision,
@@ -214,7 +215,7 @@ def execute(
         else:
             item = db.scalar(
                 select(Question)
-                .where(Question.id == question_id)
+                .where(Question.id == question_id, Question.teacher_lesson_id.is_(None))
                 .with_for_update(read=not write)
                 .execution_options(populate_existing=True)
             )

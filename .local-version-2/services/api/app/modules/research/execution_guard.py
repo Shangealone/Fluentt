@@ -17,7 +17,7 @@ def unavailable():
 
 
 def assert_no_managed_execution(study):
-    if study and (study.conditions or {}).get("research_contract") == CONTRACT:
+    if study and (study.conditions or {}).get("research_contract") in {CONTRACT, "esr-counterbalanced-v1"}:
         raise unavailable()
 
 
@@ -42,7 +42,7 @@ def guard_managed_review(db, user, context_type, *, study_id=None, class_id=None
         )
         .where(
             ResearchIdentityLink.user_id == user.id,
-            ResearchStudy.conditions["research_contract"].as_string() == CONTRACT,
+            ResearchStudy.conditions["research_contract"].as_string().in_([CONTRACT, "esr-counterbalanced-v1"]),
         )
         .limit(1)
     )

@@ -43,7 +43,7 @@ export function AssignmentSummary({ row, compact = false, onOpen }: { row: Monit
     {!compact && <Text style={m.subline}>Published {new Date(row.published_at).toLocaleString()}</Text>}
     <CountsRow counts={row.counts} /><AssignmentMean row={row} />
     {!compact && <AboutNumbers counts={row.counts} results={row.results} unit="assignment">
-      <Text style={m.note}>Lesson: {row.context.lesson_name}{"\n"}Subject: {row.context.subject_name}{"\n"}Edition: {row.context.curriculum_name}</Text>
+      <Text style={m.note}>Lesson: {row.context.lesson_name}{"\n"}Subject: {row.context.subject_name}{"\n"}Edition: {row.context.curriculum_name ?? "Teacher lesson"}</Text>
       <Text style={m.note}>This average uses released objective points from this assignment version only. Missing, pending, withheld, review-required and unscored outcomes are excluded.</Text>
       {row.mean.status === "available" && <Text style={m.note}>Engine: {row.mean.engine_version}{"\n"}Policy: {row.mean.policy_version}. Rounded once to two decimal places, half up.</Text>}
     </AboutNumbers>}
@@ -66,7 +66,7 @@ function StudentHistoryCard({ row }: { row: HistoryItem }) {
   return <View style={m.card}>
     <View style={m.rowTop}><View style={m.tile}><PersonalIcon name="assignments" size={21} color="#7863A4" /></View><View style={m.rowCopy}><Text accessibilityRole="header" style={m.cardTitle}>{row.title}</Text></View></View>
     <View style={m.lesson}><PersonalIcon name="learn" size={15} color={c.muted} /><Text style={m.lessonText}>{row.context.lesson_name}</Text></View>
-    <Text style={m.subline}>{row.context.subject_name} · {row.context.curriculum_name}</Text>
+    <Text style={m.subline}>{row.context.subject_name} · {row.context.curriculum_name ?? "Teacher lesson"}</Text>
     <ResultStatus state={row.result_state} submission={row.submission_status} />
     <Text style={m.subline}>Published {new Date(row.published_at).toLocaleString()}</Text>
     {!!row.started_at && <Text style={m.subline}>Started {new Date(row.started_at).toLocaleString()}</Text>}

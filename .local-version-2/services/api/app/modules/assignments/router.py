@@ -13,6 +13,11 @@ router = APIRouter(
 )
 
 
+@router.get("/classes/{class_id}/assignment-lessons/{lesson_id}", response_model=Context)
+def selected_lesson(class_id: UUID, lesson_id: UUID, repo: Repo, credential: Credential, settings: Config):
+    return execute(repo, credential, settings, action="lesson", class_id=class_id, lesson_id=lesson_id)
+
+
 @router.post("/assignments/{assignment_id}/publish", response_model=DraftView)
 def publish(
     assignment_id: UUID,

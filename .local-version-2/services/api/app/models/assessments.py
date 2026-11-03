@@ -25,6 +25,7 @@ ANSWER_METHODS = (
 class Question(Entity, Base):
     __tablename__ = "questions"
     author_id: Mapped[UUID | None] = reference("users.id", nullable=True)
+    teacher_lesson_id: Mapped[UUID | None] = reference("teacher_lessons.id", nullable=True)
     status: Mapped[str] = mapped_column(publication(), default="draft", server_default="draft")
     archived_at: Mapped[datetime | None]
 

@@ -40,6 +40,7 @@ export function SchoolHomeClasses() {
         </View>
       </View>
       <View style={styles.teacher}><PersonalIcon name="account" size={16} color={c.muted} /><Text style={[h.small, styles.teacherName]}>{row.instructor_display_name || "Instructor"}</Text></View>
+      <HomeAction label="Class lessons" icon="learn" variant="secondary" onPress={() => router.push({ pathname: "/class-lessons", params: { classId: row.class_id } })} />
       <View style={[styles.classActions, largeText && styles.stacked]}>
         <View style={!largeText && styles.primarySlot}><HomeAction label="View assignments" variant="primary" onPress={() => router.push({ pathname: "/published-assignments", params: { classId: row.class_id } })} /></View>
         <View style={!largeText && styles.secondarySlot}><HomeAction label="Class messages" icon="tutor" variant="secondary" onPress={() => router.push({ pathname: "/communication", params: { classId: row.class_id } })} /></View>

@@ -45,8 +45,10 @@ class Item(Model):
 class Context(Model):
     lesson_id: UUID
     lesson_name: str
-    curriculum_version_id: UUID
-    curriculum_name: str
+    curriculum_version_id: UUID | None
+    curriculum_name: str | None
+    source: Literal["curriculum", "teacher"] = "curriculum"
+    lesson_version: int | None = None
     grade: int
     subject_id: UUID
     subject_name: str

@@ -39,6 +39,8 @@ function Navigator() {
     <Stack.Protected guard={allowed("set-password")} redirectTo={target}><Stack.Screen name="set-password" /></Stack.Protected>
     <Stack.Protected guard={allowed("instructor")} redirectTo={target}>
       <Stack.Screen name="instructor" />
+      <Stack.Screen name="instructor-lessons" />
+      <Stack.Screen name="instructor-lesson" />
       <Stack.Screen name="instructor-monitoring" />
       <Stack.Screen name="first-class" options={{ gestureEnabled: false }} />
       <Stack.Screen name="class-details" />
@@ -55,6 +57,8 @@ function Navigator() {
     </Stack.Protected>
     <Stack.Protected guard={allowed("published-assignments")} redirectTo={target}>
       <Stack.Screen name="published-assignments" />
+      <Stack.Screen name="class-lessons" />
+      <Stack.Screen name="vocabulary-review" options={{ gestureEnabled: false }} />
       <Stack.Screen name="assignment-attempt" />
       <Stack.Screen name="assessment-results" />
     </Stack.Protected>
