@@ -79,7 +79,7 @@ class ClassroomRepository(IdentityRepository):
         return False
 
     def describe(self, classroom: Classroom) -> ClassDetails:
-        grade = self.session.get(GradeLevel, classroom.grade_level_id)
+        grade = self.session.get(GradeLevel, classroom.grade_level_id) if classroom.grade_level_id else None
         code = self.session.scalar(
             select(ClassJoinCode).where(
                 ClassJoinCode.class_id == classroom.id,
@@ -96,7 +96,8 @@ class ClassroomRepository(IdentityRepository):
         return ClassDetails(
             id=classroom.id,
             class_name=classroom.class_name,
-            grade_level=grade.number,
+            grade_level=grade.number if grade else None,
+            proficiency_level=classroom.proficiency_level,
             language=classroom.language,
             description=classroom.description,
             join_code=join_code,

@@ -110,7 +110,8 @@ class Classroom(Entity, Base):
     __tablename__ = "classes"
     instructor_id: Mapped[UUID] = reference("users.id")
     class_name: Mapped[str] = mapped_column(String(150))
-    grade_level_id: Mapped[UUID] = reference("grade_levels.id")
+    grade_level_id: Mapped[UUID | None] = reference("grade_levels.id", nullable=True)
+    proficiency_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
     subject_id: Mapped[UUID | None] = reference("subjects.id", nullable=True)
     creation_request_id: Mapped[UUID | None]
     language: Mapped[str] = mapped_column(language())
@@ -121,7 +122,10 @@ class Classroom(Entity, Base):
     archived_at: Mapped[datetime | None]
     memberships: Mapped[list["ClassMembership"]] = relationship(back_populates="classroom", passive_deletes="all")
 
-    __table_args__ = (UniqueConstraint("instructor_id", "creation_request_id", name="uq_classes_owner_request"),)
+    __table_args__ = (
+        UniqueConstraint("instructor_id", "creation_request_id", name="uq_classes_owner_request"),
+        CheckConstraint("proficiency_level IN ('beginner', 'intermediate', 'advanced')", name="proficiency_level"),
+    )
 
 
 class ClassJoinCode(Entity, Base):

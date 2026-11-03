@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { type ComponentRef, useEffect, useRef, type ReactNode } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, TextInput, useWindowDimensions } from "../../accessibility/Primitives";
@@ -11,7 +11,7 @@ export function LessonArt({ small = false }: { small?: boolean }) {
 }
 export function LessonFrame({ children, busy = false, scrollKey = "", onBack, onAccount }: { children: ReactNode; busy?: boolean; scrollKey?: string; onBack: () => void; onAccount: () => void }) {
   const { width } = useWindowDimensions();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [scrollKey]);
   return <SafeAreaView edges={["top", "left", "right", "bottom"]} style={l.screen}>
     <View style={[l.header, width < 360 && l.compact]}><Pressable accessibilityRole="button" accessibilityLabel="Go back" accessibilityState={{ disabled: busy }} disabled={busy} onPress={onBack} style={[l.circle, busy && l.dim]}><View style={l.backIcon}><PersonalIcon name="chevron" size={18} /></View></Pressable><FluenttLogo size={32} /><Pressable accessibilityRole="button" accessibilityLabel="My account" accessibilityState={{ disabled: busy }} disabled={busy} onPress={onAccount} style={[l.circle, busy && l.dim]}><PersonalIcon name="account" size={18} /></Pressable></View>

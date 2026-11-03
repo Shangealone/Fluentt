@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { classProficiencyLabel } from "../../services/api/classProficiency";
+import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { Text, TextInput } from "../../accessibility/Primitives";
 import { router } from "expo-router";
@@ -49,7 +50,7 @@ export function BuilderView(p: Props) {
   const [selectedOpen, setSelectedOpen] = useState(false), [filtersOpen, setFiltersOpen] = useState(false), [optionsOpen, setOptionsOpen] = useState(false), [aboutOpen, setAboutOpen] = useState(false), [validation, setValidation] = useState("");
   const readOnly = !p.editable;
   const shownStep = readOnly ? 2 : step;
-  const context = `Grade ${p.classroom.grade_level} · ${p.classroom.language === "english" ? "English" : "Tagalog"}`;
+  const context = `${classProficiencyLabel(p.classroom.proficiency_level)} · ${p.classroom.language === "english" ? "English" : "Tagalog"}`;
   const moveStep = (next: number) => {
     if (p.busy || p.frozen) return;
     if (next > 0 && (!p.title.trim() || Array.from(p.title.trim()).length > 200 || Array.from(p.instructions.trim()).length > 8000 || !p.lesson)) {
@@ -59,7 +60,7 @@ export function BuilderView(p: Props) {
   };
   const confirmTitle = p.confirm?.title ?? "Please confirm";
   const resetKey = `${shownStep}:${p.preview?.id ?? ""}:${p.confirm ? confirmTitle : ""}:${p.row?.status ?? "new"}`;
-  const catalog = useCallback((offset: number) => p.fetchQuestions(offset), [p.fetchQuestions]);
+  const catalog = p.fetchQuestions;
   const toggle = (label: string, value: boolean, setValue: (value: boolean) => void) => <Pressable accessibilityRole="button" accessibilityState={{ expanded: value, disabled: p.busy }} disabled={p.busy} onPress={() => setValue(!value)} style={[b.row, { minHeight: 44 }]}><Text style={[b.label, { flex: 1 }]}>{label}</Text><Text accessible={false} style={b.label}>{value ? "−" : "+"}</Text></Pressable>;
   const questionCards = (allowEdit: boolean) => p.items.map((item, index) => <View key={item.question_id} style={b.card}>
     <View style={b.questionTitle}><Text style={b.number}>{index + 1}</Text><View style={b.questionCopy}><Text style={b.tag}>{names[item.definition.method]}</Text><Text style={b.label}>{item.definition.prompt}</Text><Text style={b.muted}>Version {item.version}</Text></View></View>

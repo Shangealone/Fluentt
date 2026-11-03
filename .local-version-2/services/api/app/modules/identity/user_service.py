@@ -57,7 +57,9 @@ def check_username(repository: IdentityRepository, username: str) -> UsernameAva
 
 def create_user(repository: EnrollmentRepository, request: RegistrationRequest, settings: Settings) -> CreatedUser:
     if request.role not in MOBILE_ROLES:
-        raise IdentityError(422, "invalid_role", "Choose personal_student, school_student or instructor.")
+        raise IdentityError(422, "invalid_role", "Choose an available account type.")
+    if request.role == "personal_student" and not settings.personal_learner_registration_enabled:
+        raise IdentityError(403, "personal_registration_disabled", "New accounts are available for students and teachers. Existing account holders can still sign in.")
     if request.role == "school_student" and (request.class_code is None or request.class_version is None):
         raise IdentityError(422, "class_code_required", "Verify your instructor's class code before creating an account.")
     if request.role != "school_student" and (request.class_code is not None or request.class_version is not None):

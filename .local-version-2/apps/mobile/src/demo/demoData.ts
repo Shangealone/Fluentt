@@ -1,11 +1,11 @@
 import type { ClassDetails, ClassDraft, ClassUpdate, ClassAccess } from "../services/api/classes";
 import type { EnrollmentAccess, ClassPreview, Membership, Confirmation } from "../services/api/enrollment";
-import type { AssignmentDraft, AssignmentItem, AssignmentSummary, PublishedAssignment, LessonContext, AssignmentAccess, AssignmentPage } from "../services/api/assignments";
-import type { Attempt, CaptureAccess, CaptureItem, Progress, RevealedBack } from "../services/api/capture";
+import type { AssignmentDraft, AssignmentItem, AssignmentSummary, PublishedAssignment, LessonContext, AssignmentAccess } from "../services/api/assignments";
+import type { Attempt, CaptureAccess, CaptureItem, Progress } from "../services/api/capture";
 import type { AssessmentResult, ResultsAccess, Submission, Evaluation } from "../services/api/results";
-import type { ProgressSummary, ProgressClass, ProgressAccess, HistoryItem, LearningHistory } from "../services/api/progress";
-import type { MonitoringAccess, Overview, MonitoredStudent, MonitoredAssignment, StudentDetail, AssignmentDetail, ContextOption } from "../services/api/monitoring";
-import type { CommunicationAccess, CommunicationContext, Message, Person, CommunicationClass } from "../services/api/communications";
+import type { ProgressSummary, ProgressClass, ProgressAccess, HistoryItem } from "../services/api/progress";
+import type { MonitoringAccess, Overview, MonitoredStudent, MonitoredAssignment } from "../services/api/monitoring";
+import type { CommunicationAccess, CommunicationContext, Message } from "../services/api/communications";
 import type { LearningPathway, PathwayAccess } from "../services/api/pathways";
 import type { MaterialPage, MaterialsAccess, NotificationPage, NotificationsAccess, NotificationItem } from "../services/api/materials";
 import type {
@@ -81,6 +81,7 @@ export const DEMO_CLASSES: ClassDetails[] = [
     id: "demo-class-1",
     class_name: "Baitang 7 - Mabini",
     grade_level: 7,
+    proficiency_level: null,
     language: "tagalog",
     description: "Seksyon Mabini para sa Filipino 7 — Panitikan ng Pilipinas at Gramatika",
     join_code: "782041",
@@ -92,6 +93,7 @@ export const DEMO_CLASSES: ClassDetails[] = [
     id: "demo-class-2",
     class_name: "Grade 8 - Rizal",
     grade_level: 8,
+    proficiency_level: null,
     language: "english",
     description: "English Communication Arts and Afro-Asian Literature",
     join_code: "519302",
@@ -482,6 +484,7 @@ export const DEMO_PROGRESS_CLASSES: ProgressClass[] = [
     id: "demo-class-1",
     class_name: "Baitang 7 - Mabini",
     grade: 7,
+    proficiency_level: null,
     language: "tagalog",
   },
 ];
@@ -517,6 +520,7 @@ export const DEMO_MONITORING_OVERVIEW: Overview = {
     id: "demo-class-1",
     class_name: "Baitang 7 - Mabini",
     grade: 7,
+    proficiency_level: null,
     language: "tagalog",
   },
   as_of: new Date().toISOString(),
@@ -663,7 +667,8 @@ export function createDemoClassesApi(): ClassAccess {
       const newClass: ClassDetails = {
         id: `demo-class-${Date.now()}`,
         class_name: draft.class_name,
-        grade_level: draft.grade_level,
+        grade_level: null,
+        proficiency_level: draft.proficiency_level ?? null,
         language: draft.language,
         description: draft.description,
         join_code: String(Math.floor(100000 + Math.random() * 900000)),
@@ -702,6 +707,7 @@ export function createDemoEnrollmentApi(): EnrollmentAccess {
       return {
         class_name: "Baitang 7 - Mabini",
         grade_level: 7,
+        proficiency_level: null,
         language: "tagalog",
         instructor_display_name: "Guro Santos",
         class_version: DEMO_REVISION,
@@ -713,6 +719,7 @@ export function createDemoEnrollmentApi(): EnrollmentAccess {
         class_id: "22222222-2222-4222-8222-222222222222",
         class_name: "Baitang 7 - Mabini",
         grade_level: 7,
+        proficiency_level: null,
         language: "tagalog",
         instructor_display_name: "Guro Santos",
         status: "active",
@@ -726,6 +733,7 @@ export function createDemoEnrollmentApi(): EnrollmentAccess {
           class_id: "22222222-2222-4222-8222-222222222222",
           class_name: "Baitang 7 - Mabini",
           grade_level: 7,
+          proficiency_level: null,
           language: "tagalog",
           instructor_display_name: "Guro Santos",
           status: "active",
@@ -762,6 +770,9 @@ export function createDemoAssignmentApi(): AssignmentAccess {
     async get(id: string) {
       const found = demoStore.drafts.find(d => d.id === id);
       return found ?? demoStore.drafts[0];
+    },
+    async lesson() {
+      return DEMO_LESSON_CONTEXT;
     },
     async lessons() {
       return { items: [DEMO_LESSON_CONTEXT], has_more: false, offset: 0, limit: 20 };
@@ -890,6 +901,7 @@ export function createDemoMonitoringApi(): MonitoringAccess {
             id: "demo-class-1",
             class_name: "Baitang 7 - Mabini",
             grade: 7,
+            proficiency_level: null,
             language: "tagalog" as const,
           },
         ],

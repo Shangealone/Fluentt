@@ -8,7 +8,7 @@ from app.core.config import Settings
 from app.core.security import issue_credential
 from app.main import create_app
 from app.models.users import User, UserSession
-from app.modules.identity.dependencies import get_identity_repository
+from app.modules.identity.dependencies import get_identity_repository, get_registration_repository
 from tests.identity_support import MemoryIdentityRepository
 
 ORIGIN = "http://localhost:8082"
@@ -18,9 +18,10 @@ HEADERS = {"Origin": ORIGIN, "X-Fluentt-Web": "1"}
 @pytest.fixture
 def state():
     repo = MemoryIdentityRepository()
-    settings = Settings(_env_file=None, environment="test", mobile_web_origins=[ORIGIN], mobile_web_csrf_secret="test-only-csrf-key-with-more-than-32-bytes")
+    settings = Settings(personal_learner_registration_enabled=True, _env_file=None, environment="test", mobile_web_origins=[ORIGIN], mobile_web_csrf_secret="test-only-csrf-key-with-more-than-32-bytes")
     application = create_app(settings)
     application.app.dependency_overrides[get_identity_repository] = lambda: repo
+    application.app.dependency_overrides[get_registration_repository] = lambda: repo
     with TestClient(application, base_url="http://localhost:8001") as client:
         yield client, repo
 
@@ -168,7 +169,7 @@ def test_authenticated_legacy_password_setup_is_idempotent(state):
 
 def test_browser_cookie_is_secure_in_production():
     from app.modules.identity.browser_security import set_browser_cookie
-    settings = Settings(_env_file=None,environment="production",mobile_web_origins=["https://app.example.test"],mobile_web_csrf_secret="test-only-secret-with-more-than-32-bytes")
+    settings = Settings(personal_learner_registration_enabled=True, _env_file=None,environment="production",mobile_web_origins=["https://app.example.test"],mobile_web_csrf_secret="test-only-secret-with-more-than-32-bytes")
     response = Response()
     set_browser_cookie(response, issue_credential().raw, datetime.now(timezone.utc)+timedelta(days=90), settings)
     cookie = response.headers["set-cookie"].lower()

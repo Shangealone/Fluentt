@@ -49,7 +49,7 @@ def bank(questions_engine):
             questions_permission(repo, name, grant=True, access=access)
         token = issue_session(repo, "https://id.example", name)
         profile = resolve_session(repo, token)
-    settings = Settings(
+    settings = Settings(personal_learner_registration_enabled=True,
         _env_file=None, environment="test", database_url=questions_engine.url.render_as_string(hide_password=False)
     )
     with TestClient(create_app(settings)) as client:

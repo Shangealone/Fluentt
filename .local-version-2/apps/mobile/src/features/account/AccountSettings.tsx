@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BackHandler, Image, Pressable, Switch, Text as SampleText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import Constants from "expo-constants";
@@ -50,7 +50,7 @@ export function AccountSettings() {
     if (panel !== "home") setPanel("home");
     else if (profile) router.replace(destination(profile));
   }
-  backRef.current = back;
+  useLayoutEffect(() => { backRef.current = back; });
   function open(next: Panel) {
     if (lock.current || !scope.current.active || !profile) return;
     setError(""); setSuccess("");

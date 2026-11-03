@@ -5,6 +5,7 @@ import { AdminLogin } from "@/components/admin-login";
 import { Card } from "@/components/ui";
 import { backend } from "@/services/admin-server";
 import { isAdminProfile } from "@/services/admin-contract";
+import { adminDemoEnabled } from "@/services/admin-demo-access";
 
 async function Login({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
@@ -28,7 +29,7 @@ async function Login({ searchParams }: { searchParams: Promise<Record<string, st
         {unavailable ? <><p role="alert">The account service is unavailable.</p><a className="button" href="/login">Retry</a></>
           : <AdminLogin enabled={enabled} />}
       </Card>
-      <div className="demo-signin-card" style={{ marginTop: "24px", padding: "24px", background: "var(--accent)", border: "1.5px solid var(--primary)", borderRadius: "16px" }}>
+      {adminDemoEnabled() && <div className="demo-signin-card" style={{ marginTop: "24px", padding: "24px", background: "var(--accent)", border: "1.5px solid var(--primary)", borderRadius: "16px" }}>
         <p className="eyebrow" style={{ color: "var(--primary)", margin: "0 0 8px 0" }}>⚡ DEMONSTRATION ACCESS</p>
         <h2 style={{ margin: "0 0 10px 0", fontSize: "20px" }}>Instant Demo Sign-in</h2>
         <p style={{ margin: "0 0 16px 0", fontSize: "14px" }}>
@@ -37,7 +38,7 @@ async function Login({ searchParams }: { searchParams: Promise<Record<string, st
         <form method="post" action="/api/admin/demo-login">
           <button type="submit" className="button demo-button">⚡ Sign In as Demo Administrator (@admin_demo) →</button>
         </form>
-      </div>
+      </div>}
       <p style={{ marginTop: "16px", fontSize: "13px" }}>No administrator self-registration is available.</p>
     </main>
   </div>;

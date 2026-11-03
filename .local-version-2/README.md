@@ -1,8 +1,10 @@
 # FLUENTT
 
-## Unified accounts and local startup
+## Current team startup
 
-Personal learners, students, and teachers use one sign-in and account-creation page at `http://localhost:8082/auth`. Real accounts require the API and PostgreSQL. In this workspace, run `powershell -File scripts/start.ps1 api` and `powershell -File scripts/start.ps1 mobile` from separate terminals. The API starter starts the existing isolated local PostgreSQL cluster on F: before serving port 8001; it does not initialize or migrate a database. Keep the ignored local configuration and credentials private. See [UNIFIED_ACCOUNTS.md](docs/UNIFIED_ACCOUNTS.md) for settings, session behavior, Android development access, and verification. Earlier milestone descriptions below are historical where they conflict with the current account flow.
+Use **[docs/TEAM_SETUP.md](docs/TEAM_SETUP.md)** as the authoritative setup guide for this checkpoint. It covers a fresh clone, existing databases, ignored environment files, ports, account provisioning, and feature prerequisites. The section-by-section text below is retained as historical development notes; its old migration heads, paths, ports, and feature exclusions are not current startup instructions.
+
+Students and teachers use `http://localhost:8082/auth`; existing personal learner accounts retain sign-in. New personal signup is disabled by default. Classes use optional externally assessed Beginner, Intermediate, and Advanced labels. The current migration head is `0022_class_proficiency`.
 
 Section 25 adds persisted class announcements and bounded instructor–student direct messages. Open **Class communication** from instructor/class details or the school student's My Classes card. Current class access is required; text is immutable after send, retries reuse request IDs, and read marking is private to the viewer. Manual refresh only. Migration 0012_class_communication preserves existing message destinations/history (63 tables). See docs/COMMUNICATIONS.md, docs/SECTION_25_REPORT.md and docs/OCT_21_DEMO_CHECKLIST.md. Real OIDC remains disabled and the normal local database has no published curriculum/questions/assignments; the passed synthetic backend smoke does not make the hands-on demo ready.
 

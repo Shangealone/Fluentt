@@ -217,9 +217,11 @@ def mutate(repo, credential, settings, *, root_id=None, payload, request_key, ex
                         raise fail(422, "Publish this version before sharing it.")
                     for classroom in classrooms:
                         if action == "share":
-                            if classroom.status != "active" or classroom.archived_at or classroom.grade_level_id != version.grade_level_id or classroom.language != version.language:
-                                raise fail(422, "Share only with active classes with the same grade and learning language.")
+                            if classroom.status != "active" or classroom.archived_at or classroom.language != version.language:
+                                raise fail(422, "Share only with active classes with the same learning language.")
                             bind_subject(db, classroom, version.subject_id, payload.bind_subject)
+                            # The share trigger checks the persisted class subject; sessions disable autoflush.
+                            db.flush()
                         latest = db.scalar(select(TeacherLessonShare).where(TeacherLessonShare.teacher_lesson_id == root.id, TeacherLessonShare.class_id == classroom.id).order_by(TeacherLessonShare.ordinal.desc()).limit(1))
                         if action == "unshare" and (latest is None or not latest.active):
                             continue
@@ -264,10 +266,11 @@ def read(repo, credential, settings, *, root_id=None, version_id=None, class_id=
                 current = {row.class_id: str(row.version_id) for row in db.execute(select(shares).where(shares.c.teacher_lesson_id == root.id))}
                 items = []
                 for row in rows[:limit]:
-                    eligible = row.status == "active" and row.archived_at is None and row.grade_level_id == version.grade_level_id and row.language == version.language and row.subject_id in {None, version.subject_id}
-                    items.append(dict(id=str(row.id), name=row.class_name, grade=db.get(GradeLevel, row.grade_level_id).number,
+                    eligible = row.status == "active" and row.archived_at is None and row.language == version.language and row.subject_id in {None, version.subject_id}
+                    items.append(dict(id=str(row.id), name=row.class_name, grade=db.get(GradeLevel, row.grade_level_id).number if row.grade_level_id else None,
+                                      proficiency_level=row.proficiency_level,
                                       language=row.language, eligible=eligible, needs_binding=row.subject_id is None,
-                                      shared_version_id=current.get(row.id), reason=None if eligible else "Requires an active class with the same grade, language, and subject."))
+                                      shared_version_id=current.get(row.id), reason=None if eligible else "Requires an active class with the same language and subject."))
                 return dict(items=items, has_more=len(rows) > limit, offset=offset, limit=limit)
             return describe(db, root, version)
         query = select(TeacherLesson).where(TeacherLesson.instructor_id == user.id)

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { backend, webOrigin } from "@/services/admin-server";
 import { boundedText, uuid } from "@/services/research-routing";
+import { adminDemoEnabled } from "@/services/admin-demo-access";
 
 async function proxy(request: NextRequest, context: { params: Promise<{ segments: string[] }> }) {
   const { segments } = await context.params;
@@ -11,7 +12,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ segments
   const write = request.method === "POST" && ((segments.length === 1 && ["packs", "protocols"].includes(kind))
     || (segments.length === 3 && uuid.test(id) && ((kind === "packs" && action === "publish") || (kind === "protocols" && ["state", "allocations"].includes(action)))));
   if ((!read && !write) || new URL(request.url).search) return fail(404, "Vocabulary route is unavailable.");
-  if (request.cookies.get("fluentt_demo_admin")?.value === "1") return fail(403, "Use an authorized live administrator account.");
+  if (adminDemoEnabled() && request.cookies.get("fluentt_demo_admin")?.value === "1") return fail(403, "Use an authorized live administrator account.");
   try {
     const upstream = new Headers();
     let body: string | undefined;

@@ -1,3 +1,4 @@
+import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
 
@@ -60,7 +61,7 @@ export function ClassDetailsView({ row, phase, error, created, onRetry, onAction
             <View style={s.art}><Image accessible={false} source={require("../../../assets/illustrations/instructor-classroom.png")} resizeMode="contain" style={s.artImage} /></View>
           </View>
           <View style={s.meta}>
-            <View style={s.chip}><Text style={s.chipText}>Grade {row.grade_level}</Text></View>
+            <View style={s.chip}><Text style={s.chipText}>{classProficiencyLabel(row.proficiency_level)}</Text></View>
             <View style={[s.chip, s.languageChip]}><Text style={[s.chipText, s.languageText]}>{row.language === "english" ? "English" : "Tagalog"}</Text></View>
             <View style={s.status}><View style={[s.statusDot, row.status === "archived" && s.archivedDot]} /><Text style={[s.statusText, row.status === "archived" && s.archivedText]}>{row.status === "active" ? "Active" : "Archived"}</Text></View>
           </View>

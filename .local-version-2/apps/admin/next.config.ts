@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Dedicated outputs allow verification without replacing the running development cache.
+  distDir: process.env.FLUENTT_ADMIN_BUILD_DIR ?? ".next",
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,

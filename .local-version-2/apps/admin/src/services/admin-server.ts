@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { isAdminProfile } from "./admin-contract";
+import { adminDemoEnabled } from "./admin-demo-access";
 
 export function webOrigin(): string {
   const value = process.env.FLUENTT_ADMIN_WEB_ORIGIN ?? "http://localhost:3000";
@@ -23,7 +24,7 @@ export async function backend(path: string, init: RequestInit = {}) {
   // Authentication must wait for a real request, including partial-prefetch renders.
   await connection();
   const jar = await cookies();
-  const origin = process.env.FLUENTT_API_URL ?? "http://localhost:8000";
+  const origin = process.env.FLUENTT_API_URL ?? "http://localhost:8001";
   const url = new URL(origin);
   if (url.origin !== origin || url.username || url.password
       || !["http:", "https:"].includes(url.protocol)
@@ -42,7 +43,7 @@ import { DEMO_ADMIN_COOKIE, DEMO_ADMIN_PROFILE } from "./admin-demo";
 
 export async function requireAdmin() {
   const jar = await cookies();
-  if (jar.get(DEMO_ADMIN_COOKIE)?.value === "1") {
+  if (adminDemoEnabled() && jar.get(DEMO_ADMIN_COOKIE)?.value === "1") {
     return DEMO_ADMIN_PROFILE;
   }
   const response = await backend("/me");

@@ -1,3 +1,4 @@
+import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { useCallback, useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -42,7 +43,7 @@ function ClassChoices({ api, onChoose }: { api: ProgressAccess; onChoose: (row: 
       <Text accessibilityRole="alert" style={s.error}>{read.error}</Text><ProgressAction label="Try again" secondary onPress={() => setRetry(value => value + 1)} />
     </> : read.data ? <>
       {!read.data.items.length && <Text style={s.body}>No eligible classes. Join a class to see its published assignments.</Text>}
-      {read.data.items.map(row => <ProgressAction key={row.id} secondary label={`${row.class_name} · Grade ${row.grade} · ${row.language === "tagalog" ? "Tagalog" : "English"}`} onPress={() => onChoose(row)} />)}
+      {read.data.items.map(row => <ProgressAction key={row.id} secondary label={`${row.class_name} · ${classProficiencyLabel(row.proficiency_level)} · ${row.language === "tagalog" ? "Tagalog" : "English"}`} onPress={() => onChoose(row)} />)}
       {(offset > 0 || read.data.has_more) && <View style={s.row}>
         <ProgressAction label="Previous classes" secondary disabled={!offset} onPress={() => setOffset(value => Math.max(0, value - 20))} />
         <ProgressAction label="More classes" secondary disabled={!read.data.has_more} onPress={() => setOffset(value => value + 20)} />

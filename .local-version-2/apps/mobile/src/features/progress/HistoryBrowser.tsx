@@ -1,3 +1,4 @@
+import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { useCallback, useState } from "react";
 import { View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
@@ -46,7 +47,7 @@ export function HistoryBrowser({ api, initialClassId, personal = false }: { api:
       <Button secondary label="Choose history class" onPress={() => setChoosing(value => !value)} />
       <Button secondary label="Use all eligible classes" onPress={() => { setSelected(undefined); setChoosing(false); }} />
       {choosing && <Picker fetch={classes} emptyTitle="No eligible classes" emptyDescription="Join a class to see its published assignments."
-        render={row => <Button key={row.id} label={`Choose ${row.class_name} · Grade ${row.grade} · ${row.language}`} onPress={() => { setSelected(row.id); setChoosing(false); }} />} />}
+        render={row => <Button key={row.id} label={`Choose ${row.class_name} · ${classProficiencyLabel(row.proficiency_level)} · ${row.language}`} onPress={() => { setSelected(row.id); setChoosing(false); }} />} />}
       <Text accessibilityRole="header" style={s.heading}>Submission filter</Text>
       <Choices values={["all", "not_started", "in_progress", "submitted"]} value={status} onChange={value => setStatus(value as typeof status)} label={value => value.replaceAll("_", " ")} />
       <Input accessibilityLabel="History start date" placeholder="Start date YYYY-MM-DD (optional)" value={from} onChangeText={setFrom} autoCapitalize="none" autoCorrect={false} />

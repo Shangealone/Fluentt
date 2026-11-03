@@ -44,7 +44,12 @@ class TeacherLessonShare(Entity, Base):
     ordinal: Mapped[int] = mapped_column(Integer)
     active: Mapped[bool] = mapped_column(Boolean)
     request_id: Mapped[UUID]
-    __table_args__ = (UniqueConstraint("teacher_lesson_id", "class_id", "ordinal"), UniqueConstraint("teacher_lesson_id", "class_id", "request_id"))
+    __table_args__ = (
+        UniqueConstraint("teacher_lesson_id", "class_id", "ordinal",
+                         name="teacher_lesson_shares_teacher_lesson_id_class_id_ordinal_key"),
+        UniqueConstraint("teacher_lesson_id", "class_id", "request_id",
+                         name="teacher_lesson_shares_teacher_lesson_id_class_id_request_id_key"),
+    )
 
 
 class TeacherLessonMutation(Entity, Base):

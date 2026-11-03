@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ComponentRef, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
@@ -23,7 +23,7 @@ const methodLabels: Record<AssignmentMethod, string> = {
 
 export function StudentPublishedAssignmentsView({ detail, canLoad, fetch, onRefresh, onBack, onAccount, onView, onOpen, onResults }: Props) {
   const { width, fontScale } = useWindowDimensions();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const [offset, setOffset] = useState(0);
   const [retry, setRetry] = useState(0);
   const [loaded, setLoaded] = useState<{

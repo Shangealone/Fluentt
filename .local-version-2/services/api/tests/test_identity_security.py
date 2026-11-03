@@ -10,7 +10,7 @@ from app.core.rate_limit import IdentityRateLimiter, RateLimitExceeded
 from app.core.security import credential_digest, issue_credential, valid_credential_format
 from app.core.usernames import normalize_username, validate_new_username
 from app.modules.identity.errors import IdentityError
-from app.modules.identity.schemas import CreateUserRequest
+from app.modules.identity.schemas import RegistrationRequest
 from app.modules.identity.user_service import create_user
 from tests.identity_support import MemoryIdentityRepository
 
@@ -65,7 +65,7 @@ def test_bounded_rate_limiter_window_and_scope(monkeypatch):
 )
 def test_invalid_identity_settings(values):
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, **values)
+        Settings(personal_learner_registration_enabled=True, _env_file=None, **values)
 
 
 def test_creation_rolls_back_profile_if_session_issuance_cannot_persist():
@@ -76,7 +76,7 @@ def test_creation_rolls_back_profile_if_session_issuance_cannot_persist():
     repository = BrokenRepository()
     with pytest.raises(RuntimeError):
         create_user(
-            repository, CreateUserRequest(username="learner", role="personal_student"), Settings(_env_file=None)
+            repository, RegistrationRequest(username="learner", role="personal_student", password="SyntheticPass123!"), Settings(personal_learner_registration_enabled=True, _env_file=None)
         )
     assert not repository.users and not repository.profiles and not repository.sessions
 
@@ -92,8 +92,8 @@ def test_concurrent_unique_constraint_error_maps_only_username_conflict():
     with pytest.raises(IdentityError) as exc:
         create_user(
             ConflictRepository(),
-            CreateUserRequest(username="learner", role="personal_student"),
-            Settings(_env_file=None),
+            RegistrationRequest(username="learner", role="personal_student", password="SyntheticPass123!"),
+            Settings(personal_learner_registration_enabled=True, _env_file=None),
         )
     assert exc.value.status == 409
 
@@ -108,22 +108,22 @@ def test_unrelated_integrity_error_is_not_claimed_as_username_duplicate():
 
     with pytest.raises(IntegrityError):
         create_user(
-            BrokenRepository(), CreateUserRequest(username="learner", role="personal_student"), Settings(_env_file=None)
+            BrokenRepository(), RegistrationRequest(username="learner", role="personal_student", password="SyntheticPass123!"), Settings(personal_learner_registration_enabled=True, _env_file=None)
         )
 
 
 def test_issued_response_repr_hides_raw_credential():
     result = create_user(
         MemoryIdentityRepository(),
-        CreateUserRequest(username="User_" + uuid4().hex[:8], role="instructor"),
-        Settings(_env_file=None),
+        RegistrationRequest(username="User_" + uuid4().hex[:8], role="instructor", password="SyntheticPass123!"),
+        Settings(personal_learner_registration_enabled=True, _env_file=None),
     )
     assert result.session.credential not in repr(result)
 
 
 def test_service_does_not_grant_admin_even_if_request_validation_is_bypassed():
-    request = CreateUserRequest.model_construct(username="AdminAttempt", role="administrator")
+    request = RegistrationRequest.model_construct(username="AdminAttempt", role="administrator")
     repository = MemoryIdentityRepository()
     with pytest.raises(IdentityError) as exc:
-        create_user(repository, request, Settings(_env_file=None))
+        create_user(repository, request, Settings(personal_learner_registration_enabled=True, _env_file=None))
     assert exc.value.status == 422 and not repository.users

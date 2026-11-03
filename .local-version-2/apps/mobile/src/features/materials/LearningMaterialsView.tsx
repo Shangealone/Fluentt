@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { type ComponentRef, useEffect, useRef } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
@@ -42,7 +42,7 @@ function MaterialCard({ material, onRead }: { material: MaterialView; onRead: ()
 
 export function LearningMaterialsView(p: Props) {
   const { width, fontScale } = useWindowDimensions();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const selected = p.page?.items.find(item => item.id === p.selectedId);
   const reading = !!selected && !p.loading && !p.error;
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [p.selectedId, p.lessonId]);

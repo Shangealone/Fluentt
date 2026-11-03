@@ -49,7 +49,8 @@ class Summary(Model):
 class ClassOption(Model):
     id: UUID
     class_name: str
-    grade: int
+    grade: int | None
+    proficiency_level: Literal["beginner", "intermediate", "advanced"] | None = None
     language: Literal["english", "tagalog"]
 
 

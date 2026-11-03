@@ -1,3 +1,4 @@
+import { proficiencyLevels, classProficiencyLabel, type ClassProficiency } from "../../services/api/classProficiency";
 import { useState } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text, TextInput, useWindowDimensions } from "../../accessibility/Primitives";
@@ -7,9 +8,9 @@ import { FluenttLogo } from "../../components/FluenttLogo";
 import { PersonalIcon } from "../../components/PersonalIcon";
 import { homeColors as c } from "../../theme/personal";
 import type { Language } from "../../services/api/identity";
-import { grades, languages } from "../../components/onboarding";
+import { languages } from "../../components/onboarding";
 
-export type CreateClassFields = { class_name: string; grade_level: number | null; language: Language | null; description: string };
+export type CreateClassFields = { class_name: string; proficiency_level: ClassProficiency | null; language: Language | null; description: string };
 type Props = {
   fields: CreateClassFields; operation: "save" | "check" | null; locked: boolean; error: string;
   mode?: "create" | "edit"; phase?: "loading" | "ready" | "error"; onRetry?: () => void;
@@ -54,20 +55,22 @@ export function CreateClassView({ fields, operation, locked, error, onChange, on
             <Text nativeID="create-class-name" style={s.label}>Class name</Text>
             <TextInput accessibilityLabel="Class name" accessibilityLabelledBy="create-class-name" value={fields.class_name}
               onChangeText={class_name => onChange({ ...fields, class_name })} editable={!disabled} maxLength={150}
-              placeholder="e.g. Grade 7 · Mabini" placeholderTextColor="#7D8B82" style={s.input} returnKeyType="done" />
+              placeholder="e.g. Mabini · English" placeholderTextColor="#7D8B82" style={s.input} returnKeyType="done" />
             <View style={s.gradeSection}>
-              <Text style={s.label}>Grade level</Text>
-              <View accessibilityRole="radiogroup" accessibilityLabel="Grade level" style={s.grades}>
-                {grades.map(grade => {
-                  const selected = fields.grade_level === grade;
-                  return <Pressable key={grade} accessibilityRole="radio" accessibilityLabel={"Grade " + grade}
+              <Text style={s.label}>Class proficiency level (optional)</Text>
+              <Text style={s.editHint}>Select the level assigned through your school’s assessment.</Text>
+              <View accessibilityRole="radiogroup" accessibilityLabel="Class proficiency level" style={s.grades}>
+                {proficiencyLevels.map(level => {
+                  const selected = fields.proficiency_level === level;
+                  return <Pressable key={level} accessibilityRole="radio" accessibilityLabel={classProficiencyLabel(level)}
                     accessibilityState={{ checked: selected, disabled }} aria-checked={selected} disabled={disabled}
-                    onPress={() => onChange({ ...fields, grade_level: grade })}
+                    onPress={() => onChange({ ...fields, proficiency_level: level })}
                     style={[s.grade, expanded ? s.twoColumns : s.threeColumns, selected && s.selected, disabled && s.dim]}>
-                    <Text style={[s.gradeText, selected && s.selectedText]}>Grade {grade}</Text>
+                    <Text style={[s.gradeText, selected && s.selectedText]}>{classProficiencyLabel(level)}</Text>
                   </Pressable>;
                 })}
               </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Clear class proficiency level" accessibilityState={{ disabled }} disabled={disabled} onPress={() => onChange({ ...fields, proficiency_level: null })} style={[s.grade, disabled && s.dim]}><Text style={s.gradeText}>Clear selection</Text></Pressable>
             </View>
           </View>
           <View style={[s.card, compact && s.compactCard]}>
@@ -84,7 +87,7 @@ export function CreateClassView({ fields, operation, locked, error, onChange, on
                 </Pressable>;
               })}
             </View>
-            {editing && <Text style={s.editHint}>Grade and language can only change before your class has a subject, students, or learning activities.</Text>}
+            {editing && <Text style={s.editHint}>Learning language can only change before your class has a subject, students, or learning activities.</Text>}
           </View>
           <View style={s.noteCard}>
             <Pressable accessibilityRole="button" accessibilityLabel={editing ? "Class note" : "Add a class note"} accessibilityState={{ expanded: noteOpen, disabled: busy }}

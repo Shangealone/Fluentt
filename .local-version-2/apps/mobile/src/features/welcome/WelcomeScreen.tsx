@@ -7,12 +7,13 @@ import { PersonalIcon } from "../../components/PersonalIcon";
 import { homeColors } from "../../theme/personal";
 
 type Props = {
-  onPersonal: () => void;
+  onPersonal?: () => void;
+  onTeacher?: () => void;
   onClassroom: () => void;
   onSignIn: () => void;
 };
 
-export function WelcomeScreen({ onPersonal, onClassroom, onSignIn }: Props) {
+export function WelcomeScreen({ onPersonal, onTeacher, onClassroom, onSignIn }: Props) {
   const { width } = useWindowDimensions();
   const compact = width < 360;
 
@@ -29,9 +30,9 @@ export function WelcomeScreen({ onPersonal, onClassroom, onSignIn }: Props) {
       </View>
 
       <View style={[styles.panel, compact && styles.compactPanel]}>
-        <Text accessibilityRole="header" style={styles.heading}>How would you like to learn?</Text>
+        <Text accessibilityRole="header" style={styles.heading}>{onPersonal ? "How would you like to learn?" : "Your classroom starts here"}</Text>
         <View style={styles.choices}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Learn on my own. Go at your own pace."
+          {onPersonal && <Pressable accessibilityRole="button" accessibilityLabel="Learn on my own. Go at your own pace."
             onPress={onPersonal} style={({ pressed }) => [styles.choice, styles.primary, pressed && styles.pressed]}>
             <View style={[styles.choiceIcon, styles.personalIcon]}>
               <Image accessible={false} source={require("../../../assets/illustrations/activity-learn.png")} resizeMode="contain" style={styles.illustration} />
@@ -41,19 +42,25 @@ export function WelcomeScreen({ onPersonal, onClassroom, onSignIn }: Props) {
               <Text style={[styles.choiceDescription, styles.primaryDescription]}>Go at your own pace.</Text>
             </View>
             <PersonalIcon name="arrow" size={17} color="#FFFFFF" />
-          </Pressable>
+          </Pressable>}
 
           <Pressable accessibilityRole="button" accessibilityLabel="Learn with my class. Join your teacher and classmates."
-            onPress={onClassroom} style={({ pressed }) => [styles.choice, pressed && styles.pressed]}>
+            onPress={onClassroom} style={({ pressed }) => [styles.choice, !onPersonal && styles.primary, pressed && styles.pressed]}>
             <View style={styles.choiceIcon}>
               <Image accessible={false} source={require("../../../assets/illustrations/activity-class.png")} resizeMode="contain" style={styles.illustration} />
             </View>
             <View style={styles.choiceCopy}>
-              <Text style={styles.choiceTitle}>Learn with my class</Text>
-              <Text style={styles.choiceDescription}>Join your teacher and classmates.</Text>
+              <Text style={[styles.choiceTitle, !onPersonal && styles.primaryText]}>Learn with my class</Text>
+              <Text style={[styles.choiceDescription, !onPersonal && styles.primaryDescription]}>Join your teacher and classmates.</Text>
             </View>
-            <PersonalIcon name="arrow" size={17} color={homeColors.ink} />
+            <PersonalIcon name="arrow" size={17} color={!onPersonal ? "#FFFFFF" : homeColors.ink} />
           </Pressable>
+          {onTeacher && <Pressable accessibilityRole="button" accessibilityLabel="Teach a class. Create lessons and support your students."
+            onPress={onTeacher} style={({ pressed }) => [styles.choice, pressed && styles.pressed]}>
+            <View style={styles.choiceIcon}><Image accessible={false} source={require("../../../assets/illustrations/account-teacher.png")} resizeMode="contain" style={styles.illustration} /></View>
+            <View style={styles.choiceCopy}><Text style={styles.choiceTitle}>Teach a class</Text><Text style={styles.choiceDescription}>Create lessons and support your students.</Text></View>
+            <PersonalIcon name="arrow" size={17} color={homeColors.ink} />
+          </Pressable>}
         </View>
 
         <View style={styles.signInRow}>

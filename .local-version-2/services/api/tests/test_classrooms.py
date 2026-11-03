@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 from app.core.config import Settings
 from app.main import create_app
-from app.modules.identity.dependencies import get_identity_repository
+from app.modules.identity.dependencies import get_identity_repository, get_registration_repository
 from app.modules.classrooms.router import get_classroom_repository
 from app.modules.classrooms import service
 from tests.classroom_support import MemoryClassroomRepository
@@ -11,7 +11,7 @@ from tests.classroom_support import MemoryClassroomRepository
 
 @pytest.fixture
 def classroom_api():
-    settings = Settings(
+    settings = Settings(personal_learner_registration_enabled=True,
         _env_file=None,
         environment="test",
         database_url=None,
@@ -22,12 +22,17 @@ def classroom_api():
     app = create_app(settings)
     repo = MemoryClassroomRepository()
     app.app.dependency_overrides[get_identity_repository] = lambda: repo
+    app.app.dependency_overrides[get_registration_repository] = lambda: repo
     app.app.dependency_overrides[get_classroom_repository] = lambda: repo
     with TestClient(app, raise_server_exceptions=False) as client:
         yield client, repo
 
 
 def account(client, role="instructor"):
+    if role == "school_student":
+        from tests.identity_support import existing_school_account
+        created = existing_school_account(client, "Student_" + uuid4().hex[:12])
+        return {"Authorization": "Bearer " + created["session"]["credential"]}
     response = client.post("/api/v1/users", json={"password": "SyntheticPass123!", "username": "Teacher_" + uuid4().hex[:12], "role": role})
     assert response.status_code == 201
     return {"Authorization": "Bearer " + response.json()["session"]["credential"]}

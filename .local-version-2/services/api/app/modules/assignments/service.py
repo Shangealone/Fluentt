@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select, text, func
 from sqlalchemy.exc import DBAPIError
 from app.models.assessments import Assignment, AssignmentVersion, AssignmentQuestion, Question, QuestionRevision
-from app.models.curriculum import Lesson, CurriculumGrade, CurriculumSubject, CurriculumVersion, GradeLevel, Subject
+from app.models.curriculum import Lesson, CurriculumSubject, CurriculumVersion, GradeLevel, Subject
 from app.models.operations import AuditLog
 from app.modules.classrooms.repository import ClassroomRepository
 from app.modules.classrooms.service import require_instructor
@@ -24,7 +24,7 @@ def fail(status=409, message="This draft or its content changed. Reload before t
 def lesson_path(db, classroom, lesson_id, current=True):
     statement = path_statement(5).where(Lesson.id == lesson_id)
     if current:
-        statement = statement.where(*visible(5), CurriculumGrade.grade_level_id == classroom.grade_level_id)
+        statement = statement.where(*visible(5))
         if classroom.subject_id is not None:
             statement = statement.where(CurriculumSubject.subject_id == classroom.subject_id)
     path = db.execute(statement.execution_options(populate_existing=True)).first()
@@ -243,7 +243,7 @@ def execute(
                 if classroom.status != "active" or classroom.archived_at is not None:
                     raise fail(409, "Archived classes cannot select assignment content.")
                 statement = path_statement(5).where(
-                    *visible(5), CurriculumGrade.grade_level_id == classroom.grade_level_id
+                    *visible(5)
                 )
                 if classroom.subject_id is not None:
                     statement = statement.where(CurriculumSubject.subject_id == classroom.subject_id)
@@ -329,7 +329,7 @@ def execute(
                         raise fail(409, "Archived classes cannot create or edit assignment drafts.")
                     path = lesson_path(db, classroom, payload.lesson_id)
                     if path is None:
-                        raise fail(422, "Choose a published lesson compatible with this class grade and subject.")
+                        raise fail(422, "Choose a published lesson compatible with this class learning language and subject.")
                     selected = []
                     identities = set()
                     for row_id in payload.question_revision_ids:

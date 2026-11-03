@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { type ComponentRef, useEffect, useRef, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View, type LayoutChangeEvent } from "react-native";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
 import { PersonalIcon } from "../../components/PersonalIcon";
@@ -20,7 +20,7 @@ type Props = {
 const methods: Record<string, string> = { multiple_choice: "Multiple choice", true_false: "True or false", identification: "Identification", fill_in_the_blank: "Fill in the blanks", multiple_select: "Multiple select", error_identification: "Find the error", word_arrangement: "Arrange words", sentence_arrangement: "Arrange sentences", matching_type: "Matching", flashcards: "Flashcard" };
 
 export function AttemptPlayerView(p: Props) {
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const { fontScale } = useWindowDimensions();
   const completed = p.row.questions.filter(item => responseComplete(item, p.buffers[item.assignment_question_id])).length;
   const frozen = p.busy || p.uncertain || p.pending || p.blocked;

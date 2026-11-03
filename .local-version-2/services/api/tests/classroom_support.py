@@ -85,6 +85,7 @@ class MemoryClassroomRepository(MemoryIdentityRepository):
             id=row.id,
             class_name=row.class_name,
             grade_level=row.grade_level_id,
+            proficiency_level=row.proficiency_level,
             language=row.language,
             description=row.description,
             join_code=code.code

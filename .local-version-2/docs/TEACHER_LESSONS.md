@@ -74,3 +74,7 @@ The existing assignment builder accepts an optional `lessonId`. Teacher context 
 ### Later trigger correction
 
 During administrator content import on 2026-11-01, migration 0019's shared trigger tried to access `instructor_id` on unrelated curriculum rows, causing those writes to fail. The failed import rolled back. Forward migration `0020_teacher_trigger_dispatch` narrowed that field access to teacher-lesson rows; it was applied locally after a private backup, and the administrator draft import subsequently committed. No frozen migration or existing content was rewritten. No application test suite was run.
+
+## 2026-11-03 classroom grouping update
+
+Class proficiency is an optional client assessment label: Beginner, Intermediate, Advanced. Class sharing and assignment eligibility now match language and subject without requiring school-grade equality; lesson grade remains curriculum metadata. Existing class grades and historical assignments are preserved. See CLASS_PROFICIENCY.md for migration and access details.

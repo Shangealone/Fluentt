@@ -6,7 +6,7 @@ from starlette.testclient import TestClient
 from app.core.config import Settings
 from app.core.security import hash_password, verify_password
 from app.main import create_app
-from app.modules.identity.dependencies import get_identity_repository
+from app.modules.identity.dependencies import get_identity_repository, get_registration_repository
 from tests.identity_support import MemoryIdentityRepository
 
 
@@ -17,8 +17,9 @@ def repo():
 
 @pytest.fixture
 def client(repo):
-    app = create_app()
+    app = create_app(Settings(_env_file=None, environment="test", database_url=None, personal_learner_registration_enabled=True))
     app.app.dependency_overrides[get_identity_repository] = lambda: repo
+    app.app.dependency_overrides[get_registration_repository] = lambda: repo
     return TestClient(app.app, base_url="http://testserver")
 
 
@@ -36,7 +37,7 @@ def test_password_hashing_and_verification():
 def test_register_user_with_password(client):
     response = client.post(
         "/api/v1/users",
-        json={"username": "mika_student", "role": "school_student", "password": "Password123!"},
+        json={"username": "mika_student", "role": "personal_student", "password": "Password123!"},
         headers={"Host": "127.0.0.1"},
     )
     assert response.status_code == 201
@@ -48,7 +49,7 @@ def test_register_user_with_password(client):
 def test_register_user_password_too_short(client):
     response = client.post(
         "/api/v1/users",
-        json={"username": "short_pw_user", "role": "school_student", "password": "123"},
+        json={"username": "short_pw_user", "role": "personal_student", "password": "123"},
         headers={"Host": "127.0.0.1"},
     )
     assert response.status_code == 422
@@ -110,13 +111,10 @@ def test_login_nonexistent_user(client):
     assert login_res.json()["error"]["code"] == "invalid_credentials"
 
 
-def test_login_user_without_password(client):
-    # Legacy registration without password
-    client.post(
-        "/api/v1/users",
-        json={"username": "legacy_user", "role": "school_student"},
-        headers={"Host": "127.0.0.1"},
-    )
+def test_login_user_without_password(client, repo):
+    from tests.identity_support import existing_school_account
+    existing_school_account(client, "legacy_user")
+    repo.users["legacy_user"].password_hash = None
 
     login_res = client.post(
         "/api/v1/sessions/login",

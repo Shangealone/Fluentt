@@ -20,7 +20,7 @@ class BrowseQuery(BaseModel):
 
 class ClassContext(BaseModel):
     class_id: UUID
-    grade_level_id: UUID
+    grade_level_id: UUID | None
     subject_id: UUID | None
     language: Literal["english", "tagalog"]
     requires_subject: bool

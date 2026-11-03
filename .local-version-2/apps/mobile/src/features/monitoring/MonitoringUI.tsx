@@ -1,3 +1,4 @@
+import { classProficiencyLabel, type ClassProficiency } from "../../services/api/classProficiency";
 import { useState, type ReactNode } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
@@ -25,8 +26,8 @@ export function Action({ label, onPress, icon, primary = false, quiet = false, o
   </Pressable>;
 }
 
-export function Hero({ title, subtitle, illustration = "classroom", grade, language }: {
-  title: string; subtitle?: string; illustration?: keyof typeof art; grade?: number; language?: "english" | "tagalog";
+export function Hero({ title, subtitle, illustration = "classroom", proficiency, language }: {
+  title: string; subtitle?: string; illustration?: keyof typeof art; proficiency?: ClassProficiency | null; language?: "english" | "tagalog";
 }) {
   const { width, fontScale } = useWindowDimensions();
   return <View style={[m.hero, fontScale > 1.2 && m.heroStack]}>
@@ -34,8 +35,8 @@ export function Hero({ title, subtitle, illustration = "classroom", grade, langu
       <Text style={m.eyebrow}>{illustration === "classroom" ? "Your teaching space" : "Class overview"}</Text>
       <Text accessibilityRole="header" style={[m.title, width < 360 && m.compactTitle]}>{title}</Text>
       {!!subtitle && <Text style={m.intro}>{subtitle}</Text>}
-      {(grade !== undefined || language) && <View style={m.chips}>
-        {grade !== undefined && <View style={m.chip}><Text style={m.chipText}>Grade {grade}</Text></View>}
+      {(proficiency !== undefined || language) && <View style={m.chips}>
+        {proficiency !== undefined && <View style={m.chip}><Text style={m.chipText}>{classProficiencyLabel(proficiency)}</Text></View>}
         {!!language && <View style={[m.chip, m.neutralChip]}><Text style={m.chipText}>{language === "tagalog" ? "Tagalog" : "English"}</Text></View>}
       </View>}
     </View>

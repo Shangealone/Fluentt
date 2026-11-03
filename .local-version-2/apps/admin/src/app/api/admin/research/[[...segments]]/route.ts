@@ -1,6 +1,7 @@
 import { proxyResearchSetup } from "@/services/research-proxy";
 import { NextRequest } from "next/server";
 import { backend, webOrigin, adminCookieNames } from "@/services/admin-server";
+import { adminDemoEnabled } from "@/services/admin-demo-access";
 import {
   DEMO_RESEARCH_STUDIES,
   DEMO_RESEARCH_ANALYTICS,
@@ -21,7 +22,7 @@ export async function GET(
   const fail = (status: number, message: string) =>
     Response.json({ error: { message } }, { status, headers });
 
-  const isDemo = request.cookies.get("fluentt_demo_admin")?.value === "1";
+  const isDemo = adminDemoEnabled() && request.cookies.get("fluentt_demo_admin")?.value === "1";
 
   // Route: /api/admin/research/studies
   if (segments.length === 1 && segments[0] === "studies") {

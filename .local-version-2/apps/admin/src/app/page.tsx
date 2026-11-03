@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Connection } from "@/components/connection";
+import { adminDemoEnabled } from "@/services/admin-demo-access";
 
 export default function Home() {
   return <div className="shell">
@@ -17,7 +18,7 @@ export default function Home() {
           <h2 id="access-title">Welcome to Fluentt</h2>
           <p>Sign in with your organization’s account to access your administration tools.</p>
           <Link className="button" href="/login">Administrator sign-in <span aria-hidden="true">→</span></Link>
-          <div className="demo-access"><strong>Just exploring?</strong><p>Preview the workspace with sample content.</p><form method="post" action="/api/admin/demo-login"><button type="submit" className="button secondary-button">Open sample workspace</button></form></div>
+          {adminDemoEnabled() && <div className="demo-access"><strong>Just exploring?</strong><p>Preview the workspace with sample content.</p><form method="post" action="/api/admin/demo-login"><button type="submit" className="button secondary-button">Open sample workspace</button></form></div>}
           <p className="small-note">Available tools depend on your account permissions.</p>
         </section>
       </section>

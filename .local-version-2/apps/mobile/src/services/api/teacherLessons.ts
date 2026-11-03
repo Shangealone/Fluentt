@@ -1,3 +1,4 @@
+import { isClassProficiency, isLegacyClassGrade, type ClassProficiency } from "./classProficiency";
 import { ApiError, request, type AuthContext } from "./client";
 import { assignmentMethods, type AssignmentMethod, type AssignmentPage, type LessonContext } from "./assignments";
 export type LessonSection = { heading: string; body: string };
@@ -5,7 +6,7 @@ export type TeacherQuestion = { method: AssignmentMethod; prompt: string; instru
 export type TeacherLessonInput = { title: string; introduction: string | null; grade: number; language: "english" | "tagalog"; subject_id: string; sections: LessonSection[]; questions: TeacherQuestion[] };
 export type TeacherLessonSummary = { id: string; version_id: string; lesson_id: string; version: number; title: string; introduction: string | null; grade: number; language: "english" | "tagalog"; subject_id: string; subject_name: string; revision: string; status: "draft" | "published" | "archived"; published_at: string | null; question_count: number };
 export type TeacherLesson = TeacherLessonSummary & { sections: LessonSection[]; questions: TeacherQuestion[]; versions: TeacherLessonSummary[]; shares: { class_id: string; class_name: string; version_id: string }[] };
-export type LessonClass = { id: string; name: string; grade: number; language: string; eligible: boolean; needs_binding: boolean; shared_version_id: string | null; reason: string | null };
+export type LessonClass = { id: string; name: string; grade: number | null; proficiency_level: ClassProficiency | null; language: string; eligible: boolean; needs_binding: boolean; shared_version_id: string | null; reason: string | null };
 export type SharedLesson = { lesson_id: string; class_id: string; title: string; introduction: string | null; context: LessonContext; version: number; published_at: string; instructor: string; sections: LessonSection[] | null };
 export type LessonCommand = { action: "save" | "publish" | "new_version" | "archive" | "share" | "unshare"; version_id: string; draft?: TeacherLessonInput; class_ids?: string[]; confirm?: boolean; bind_subject?: boolean };
 function invalid(): never { throw new ApiError(0, "We couldn’t confirm this lesson response. Reload and try again."); }
@@ -34,7 +35,7 @@ export function teacherLessonAccess(run: <T>(operation: (auth: AuthContext) => P
     subjects: () => run(async auth => { const rows = await request<{ id: string; name: string }[]>("/instructor/lesson-subjects", "GET", undefined, auth); if (!Array.isArray(rows) || rows.some(row => typeof row.id !== "string" || typeof row.name !== "string")) invalid(); return rows; }),
     create: (body: TeacherLessonInput, key: string) => run(async auth => detail(await request<TeacherLesson>("/instructor/lessons", "POST", body, auth, { "Idempotency-Key": key }))),
     change: (row: TeacherLessonSummary, body: LessonCommand, key: string) => run(async auth => detail(await request<TeacherLesson>(`${rootPath(row.id)}/actions`, "POST", body, auth, { "Idempotency-Key": key, "If-Match": row.revision }))),
-    classes: (row: TeacherLessonSummary, offset = 0) => run(async auth => page(await request<AssignmentPage<LessonClass>>(`${rootPath(row.id)}/classes?version_id=${encodeURIComponent(row.version_id)}&offset=${offset}`, "GET", undefined, auth), item => { if (!item || typeof item.id !== "string" || typeof item.name !== "string" || typeof item.eligible !== "boolean") invalid(); return item; })),
+    classes: (row: TeacherLessonSummary, offset = 0) => run(async auth => page(await request<AssignmentPage<LessonClass>>(`${rootPath(row.id)}/classes?version_id=${encodeURIComponent(row.version_id)}&offset=${offset}`, "GET", undefined, auth), item => { if (!item || typeof item.id !== "string" || typeof item.name !== "string" || typeof item.eligible !== "boolean" || !isLegacyClassGrade(item.grade) || !isClassProficiency(item.proficiency_level)) invalid(); return item; })),
     shared: (classId: string, offset = 0) => run(async auth => page(await request<AssignmentPage<SharedLesson>>(`/classes/${encodeURIComponent(classId)}/teacher-lessons?offset=${offset}`, "GET", undefined, auth), shared)),
     read: (classId: string, lessonId: string) => run(async auth => shared(await request<SharedLesson>(`/classes/${encodeURIComponent(classId)}/teacher-lessons/${encodeURIComponent(lessonId)}`, "GET", undefined, auth))),
   };

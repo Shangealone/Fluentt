@@ -1,8 +1,9 @@
+import { proficiencyLevels, classProficiencyLabel, type ClassProficiency } from "../../services/api/classProficiency";
 import { useState, useRef } from "react";
 import { Text } from "../../accessibility/Primitives";
 
 import { Input, Button, ErrorMessage, s } from "../../components/ui";
-import { Choices, grades, languages } from "../../components/onboarding";
+import { Choices, languages } from "../../components/onboarding";
 import type { ClassDraft } from "../../services/api/classes";
 import type { Language } from "../../services/api/identity";
 import { classFormError } from "./state";
@@ -18,8 +19,8 @@ export function ClassForm({
   locked?: boolean;
 }) {
   const [name, setName] = useState(initial?.class_name ?? "");
-  const [grade, setGrade] = useState<number | null>(
-    initial?.grade_level ?? null,
+  const [proficiency, setProficiency] = useState<ClassProficiency | null>(
+    initial?.proficiency_level ?? null,
   );
   const [language, setLanguage] = useState<Language | null>(
     initial?.language ?? null,
@@ -30,7 +31,7 @@ export function ClassForm({
   const lock = useRef(false);
   async function submit() {
     if (lock.current) return;
-    const invalid = classFormError(name, grade, language, description);
+    const invalid = classFormError(name, proficiency, language, description);
     if (invalid) {
       setError(invalid);
       return;
@@ -41,7 +42,7 @@ export function ClassForm({
     try {
       await onSubmit({
         class_name: name.trim(),
-        grade_level: grade!,
+        proficiency_level: proficiency,
         language: language!,
         description: description.trim() || null,
       });
@@ -58,7 +59,7 @@ export function ClassForm({
   }
   function autofillDemoClass() {
     setName("Baitang 7 - Mabini");
-    setGrade(7);
+    setProficiency(null);
     setLanguage("tagalog");
     setDescription("Seksyon Mabini para sa Filipino 7 — Panitikan ng Pilipinas at Gramatika");
     setError("");
@@ -75,22 +76,24 @@ export function ClassForm({
       <Text style={s.heading}>Class name</Text>
       <Input
         accessibilityLabel="Class name"
-        placeholder="e.g. Grade 5 English A"
+        placeholder="e.g. Mabini English A"
         maxLength={150}
         editable={!busy && !locked}
         value={name}
         onChangeText={setName}
       />
-      <Text style={s.heading}>Grade level</Text>
+      <Text style={s.heading}>Class proficiency level (optional)</Text>
+      <Text style={s.body}>Select the level assigned through your school’s assessment.</Text>
       <Choices
-        values={grades}
-        value={grade}
+        values={proficiencyLevels}
+        value={proficiency}
         onChange={(value) => {
-          if (!busy && !locked) setGrade(value);
+          if (!busy && !locked) setProficiency(value);
         }}
         disabled={busy || locked}
-        label={(n) => `Grade ${n}`}
+        label={classProficiencyLabel}
       />
+      <Button label="Clear selection" variant="secondary" disabled={busy || locked} onPress={() => setProficiency(null)} />
       <Text style={s.heading}>Learning language</Text>
       <Choices
         values={languages}

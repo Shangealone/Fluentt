@@ -1,3 +1,4 @@
+import { validateProgressClass } from "./progress";
 import type { AuthContext } from "./client";
 import { request, ApiError } from "./client.ts";
 import type { AssignmentPage, LessonContext } from "./assignments.ts";
@@ -16,7 +17,7 @@ export type ContextOption = { id: string; label: string };
 const natural = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 const invalid = (): never => { throw new ApiError(0, "Unexpected monitoring data. Refresh to verify class activity."); };
 export function validateCounts(c: Counts) { if (!c || !Object.values(c).every(natural) || c.available !== c.not_started + c.in_progress + c.submitted || c.pending !== c.not_started + c.in_progress) invalid(); }
-export function validateOverview(row: Overview) { validateCounts(row?.counts); if (row.progress_policy !== "submission-counts-v1" || !natural(row.eligible_students) || !natural(row.available_assignments) || row.counts.available !== row.eligible_students * row.available_assignments || !row.classroom?.id) invalid(); return row; }
+export function validateOverview(row: Overview) { validateCounts(row?.counts); validateProgressClass(row?.classroom); if (row.progress_policy !== "submission-counts-v1" || !natural(row.eligible_students) || !natural(row.available_assignments) || row.counts.available !== row.eligible_students * row.available_assignments || !row.classroom?.id) invalid(); return row; }
 function validatePage<T>(page: AssignmentPage<T>): AssignmentPage<T> { if (!page || !Array.isArray(page.items) || !natural(page.offset) || !natural(page.limit) || page.limit < 1 || page.limit > 100 || page.items.length > page.limit || typeof page.has_more !== "boolean") invalid(); return page; }
 export function validateMean(mean: AssignmentMean) {
   if (!mean || mean.mean_policy !== "released-assignment-mean-v1" || !natural(mean.eligible_results) || !["available", "unavailable", "not_comparable"].includes(mean.status)) invalid();
@@ -26,7 +27,7 @@ export function validateMean(mean: AssignmentMean) {
 function query(filters: MonitoringFilters, offset = 0, kind?: string) { const params = new URLSearchParams({ offset: String(offset) }); for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value); if (kind) params.set("kind", kind); return params; }
 const base = (classId: string) => `/classes/${encodeURIComponent(classId)}/monitoring`;
 export const monitoringApi = {
-  classes: async (secret: AuthContext, q = "", offset = 0) => validatePage(await request<AssignmentPage<ProgressClass>>(`/instructor/monitoring/classes?${query({ q }, offset)}`, "GET", undefined, secret)),
+  classes: async (secret: AuthContext, q = "", offset = 0) => { const page = validatePage(await request<AssignmentPage<ProgressClass>>(`/instructor/monitoring/classes?${query({ q }, offset)}`, "GET", undefined, secret)); page.items.forEach(validateProgressClass); return page; },
   overview: async (secret: AuthContext, id: string, filters: MonitoringFilters = {}) => validateOverview(await request<Overview>(`${base(id)}?${query(filters)}`, "GET", undefined, secret)),
   contexts: async (secret: AuthContext, id: string, kind: "lesson" | "edition", offset = 0) => validatePage(await request<AssignmentPage<ContextOption>>(`${base(id)}/contexts?${query({}, offset, kind)}`, "GET", undefined, secret)),
   students: async (secret: AuthContext, id: string, filters: MonitoringFilters, offset = 0) => validatePage(await request<AssignmentPage<MonitoredStudent>>(`${base(id)}/students?${query(filters, offset)}`, "GET", undefined, secret)),

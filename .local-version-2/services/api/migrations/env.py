@@ -56,7 +56,16 @@ def run_migrations():
             include_schemas=True,
         )
         with context.begin_transaction():
-            context.run_migrations()
+            try:
+                context.run_migrations()
+            except AttributeError as exc:
+                from sqlalchemy.engine.mock import MockConnection
+
+                if exc.name != "exec_driver_sql" or not isinstance(exc.obj, MockConnection):
+                    raise
+                raise RuntimeError(
+                    "These migrations require live PostgreSQL function introspection; run the migration online."
+                ) from exc
         return
 
     if settings.database_url is None:

@@ -28,7 +28,7 @@ def teacher_context(db, classroom, lesson_id, current=True):
         shares = active_shares()
         statement = statement.join(shares, shares.c.version_id == TeacherLessonVersion.id).where(
             shares.c.class_id == classroom.id, TeacherLesson.archived_at.is_(None),
-            TeacherLessonVersion.grade_level_id == classroom.grade_level_id, TeacherLessonVersion.language == classroom.language)
+            TeacherLessonVersion.language == classroom.language)
         if classroom.subject_id is not None:
             statement = statement.where(TeacherLessonVersion.subject_id == classroom.subject_id)
     version = db.scalar(statement.execution_options(populate_existing=True))
@@ -38,16 +38,16 @@ def teacher_context(db, classroom, lesson_id, current=True):
 def lesson_catalog(db, classroom, query):
     """Union source IDs before paging, so pages never duplicate/skip either source."""
     from app.modules.curriculum.repository import path_statement, visible
-    from app.models.curriculum import CurriculumGrade, CurriculumSubject, CurriculumVersion
+    from app.models.curriculum import CurriculumSubject, CurriculumVersion
     from sqlalchemy import literal, union_all
     official = path_statement(5).with_only_columns(Lesson.id.label("id"), CurriculumVersion.created_at.label("created_at"), literal("curriculum").label("source")).where(
-        *visible(5), CurriculumGrade.grade_level_id == classroom.grade_level_id)
+        *visible(5))
     shares = active_shares()
     teacher = select(Lesson.id.label("id"), Lesson.created_at.label("created_at"), literal("teacher").label("source")).join(
         TeacherLessonVersion, TeacherLessonVersion.lesson_id == Lesson.id).join(TeacherLesson).join(shares, shares.c.version_id == TeacherLessonVersion.id).where(
         shares.c.class_id == classroom.id, TeacherLesson.instructor_id == classroom.instructor_id,
         TeacherLesson.archived_at.is_(None), TeacherLessonVersion.published_at.is_not(None),
-        TeacherLessonVersion.grade_level_id == classroom.grade_level_id, TeacherLessonVersion.language == classroom.language)
+        TeacherLessonVersion.language == classroom.language)
     if classroom.subject_id:
         official = official.where(CurriculumSubject.subject_id == classroom.subject_id)
         teacher = teacher.where(TeacherLessonVersion.subject_id == classroom.subject_id)

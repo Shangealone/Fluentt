@@ -10,7 +10,7 @@ from app.core.config import Settings
 from app.main import create_app
 from app.modules.classrooms.router import get_classroom_repository
 from app.modules.enrollment.router import get_enrollment_repository
-from app.modules.identity.dependencies import get_identity_repository
+from app.modules.identity.dependencies import get_identity_repository, get_registration_repository
 from tests.enrollment_support import MemoryEnrollmentRepository
 from tests.test_classrooms import account, create
 
@@ -22,6 +22,7 @@ MINE = JOIN + "/mine"
 @pytest.fixture
 def enrollment_api():
     settings = Settings(
+        personal_learner_registration_enabled=True,
         _env_file=None,
         environment="test",
         database_url=None,
@@ -33,7 +34,7 @@ def enrollment_api():
     )
     app = create_app(settings)
     repo = MemoryEnrollmentRepository()
-    for dependency in (get_identity_repository, get_classroom_repository, get_enrollment_repository):
+    for dependency in (get_identity_repository, get_registration_repository, get_classroom_repository, get_enrollment_repository):
         app.app.dependency_overrides[dependency] = lambda: repo
     with TestClient(app, raise_server_exceptions=False) as client:
         owner = account(client)
@@ -58,7 +59,7 @@ def test_explicit_confirmation_multiple_classes_restore_and_privacy(enrollment_a
     assert client.get("/api/v1/sessions/me", headers=student).json()["profile_status"] == "onboarding"
     response = preview(client, student, classroom)
     assert response.status_code == 200
-    assert set(response.json()) == {"class_name", "grade_level", "language", "instructor_display_name", "class_version"}
+    assert set(response.json()) == {"class_name", "grade_level", "proficiency_level", "language", "instructor_display_name", "class_version"}
     assert response.headers["cache-control"] == "no-store"
     assert not repo.memberships
     request = {"code": classroom["join_code"], "class_version": response.json()["class_version"]}
@@ -78,6 +79,7 @@ def test_explicit_confirmation_multiple_classes_restore_and_privacy(enrollment_a
         "status",
         "class_name",
         "grade_level",
+        "proficiency_level",
         "language",
         "instructor_display_name",
     }

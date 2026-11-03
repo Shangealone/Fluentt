@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { adminCookieNames, backend, webOrigin } from "@/services/admin-server";
+import { adminDemoEnabled } from "@/services/admin-demo-access";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function handle(request: NextRequest, context: { params: Promise<{ segments?: string[] }> }) {
@@ -19,7 +20,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ segment
     : request.method === "POST" ? collection || history || publish || retire : request.method === "PUT" && version))
     return fail(405, "Method unavailable.");
 
-  if (request.cookies.get("fluentt_demo_admin")?.value === "1") {
+  if (adminDemoEnabled() && request.cookies.get("fluentt_demo_admin")?.value === "1") {
     const { DEMO_QUESTIONS } = await import("@/services/admin-demo");
     if (request.method === "GET") {
       if (collection) {

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { adminCookieNames, backend, webOrigin } from "@/services/admin-server";
+import { adminDemoEnabled } from "@/services/admin-demo-access";
 
 const kinds = ["versions", "grades", "subjects", "quarters", "topics", "lessons", "competencies"];
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -27,7 +28,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ segment
   if (!methodAllowed || (!management && request.method !== "GET"))
     return Response.json({ error: { message: "Method unavailable." } }, { status: 405, headers });
 
-  if (request.cookies.get("fluentt_demo_admin")?.value === "1") {
+  if (adminDemoEnabled() && request.cookies.get("fluentt_demo_admin")?.value === "1") {
     const { DEMO_CURRICULUM_NODES } = await import("@/services/admin-demo");
     if (request.method === "GET") {
       const entity = management ? segments[1] : segments[0];

@@ -459,3 +459,11 @@ The user approved implementing three original grammar lessons and clarified that
 ## Instructor monitoring student filter scope — 2026-10-30
 
 Keep the full current eligible roster visible when an instructor selects a lesson or edition. Scope each student's assignment counts and history to that selection, and preserve the selected ID and display label in the monitoring route through student and assignment detail navigation. Clearing filters removes that route scope. The route label is presentation only; existing authenticated monitoring APIs remain authoritative. No backend, permission, persistence, or metric changes are included.
+
+## 2026-11-03 — School-client registration scope
+
+Delivered new-account types are Student and Teacher; administrators retain their existing provisioning process. Personal learner signup is disabled by default through FLUENTT_PERSONAL_LEARNER_REGISTRATION_ENABLED. Both signup transports enforce the same policy and the public UI reads available account types from the API. Existing personal accounts retain sign-in, functionality, and records. Restore signup by enabling the flag and restarting the API; see PERSONAL_LEARNER_REGISTRATION.md. No role conversion, deletion, or schema migration accompanies this decision.
+
+## 2026-11-03 — Client-assessed class proficiency
+
+The client groups learners into Beginner, Intermediate, Advanced after its own English assessment. Replace the required school-grade class selector with optional Class proficiency level, preserving legacy grade records without conversion. Existing classes remain Level not set. Classroom lesson eligibility no longer requires grade equality; language, subject, publication, ownership/membership, archival and historical version rules remain. Proficiency is a grouping label; no grade/difficulty/score mapping or automated assessment is introduced. See CLASS_PROFICIENCY.md.

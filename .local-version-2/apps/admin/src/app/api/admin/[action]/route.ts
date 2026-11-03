@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { adminCookieNames, backend, webOrigin } from "@/services/admin-server";
 import { DEMO_ADMIN_COOKIE, DEMO_ADMIN_PROFILE } from "@/services/admin-demo";
+import { adminDemoEnabled } from "@/services/admin-demo-access";
 
 const paths: Record<string, { method: string; path: string }> = {
   config: { method: "GET", path: "/auth/config" },
@@ -19,7 +20,9 @@ function unavailable(status = 503) {
 async function handle(request: NextRequest, context: { params: Promise<{ action: string }> }) {
   const { action } = await context.params;
   if (action === "demo-login" && request.method === "POST") {
+    if (!adminDemoEnabled()) return unavailable(404);
     const origin = webOrigin();
+    if (request.headers.get("origin") !== origin || request.headers.get("sec-fetch-site") === "cross-site") return unavailable(403);
     const forwarded = new Headers({
       "Location": `${origin}/dashboard`,
       "Cache-Control": "no-store",
@@ -29,13 +32,14 @@ async function handle(request: NextRequest, context: { params: Promise<{ action:
     return new Response(null, { status: 303, headers: forwarded });
   }
 
-  if (action === "me" && request.method === "GET" && request.cookies.get(DEMO_ADMIN_COOKIE)?.value === "1") {
+  if (adminDemoEnabled() && action === "me" && request.method === "GET" && request.cookies.get(DEMO_ADMIN_COOKIE)?.value === "1") {
     return Response.json(DEMO_ADMIN_PROFILE, {
       headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
     });
   }
 
-  if (action === "session" && request.method === "DELETE" && request.cookies.get(DEMO_ADMIN_COOKIE)?.value === "1") {
+  if (adminDemoEnabled() && action === "session" && request.method === "DELETE" && request.cookies.get(DEMO_ADMIN_COOKIE)?.value === "1") {
+    if (request.headers.get("origin") !== webOrigin() || request.headers.get("sec-fetch-site") === "cross-site") return unavailable(403);
     const forwarded = new Headers({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
     forwarded.append("Set-Cookie", `${DEMO_ADMIN_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0; HttpOnly${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
     return new Response(null, { status: 204, headers: forwarded });

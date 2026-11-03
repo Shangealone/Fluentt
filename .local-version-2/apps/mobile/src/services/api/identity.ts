@@ -69,6 +69,12 @@ async function browserSession(value: BrowserSession): Promise<BrowserSession> {
   return value;
 }
 export const identity = {
+  registrationOptions: async (): Promise<{ roles: Role[] }> => {
+    const data = await request<{ roles: Role[] }>("/registration/options");
+    if (!data || !Array.isArray(data.roles) || !data.roles.includes("school_student") || !data.roles.includes("instructor") || data.roles.some(role => !["personal_student", "school_student", "instructor"].includes(role)))
+      throw new ApiError(0, "We couldn’t load the available account types.");
+    return data;
+  },
   browserMe: async () => browserSession(await request<BrowserSession>("/browser/sessions/me", "GET", undefined, browserTransport)),
   browserCreate: async (username: string, role: Role, password: string, enrollment?: RegistrationClass) => {
     const issued = await browserSession(await request<BrowserSession>("/browser/users", "POST", {

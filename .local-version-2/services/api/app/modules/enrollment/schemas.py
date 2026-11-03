@@ -16,7 +16,8 @@ class Confirmation(CodeRequest):
 
 class StudentClass(BaseModel):
     class_name: str
-    grade_level: int
+    grade_level: int | None
+    proficiency_level: Literal["beginner", "intermediate", "advanced"] | None = None
     language: Literal["english", "tagalog"]
     instructor_display_name: str | None
 

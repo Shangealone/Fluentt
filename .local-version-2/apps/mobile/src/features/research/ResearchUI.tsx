@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ComponentRef, useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
@@ -18,7 +18,7 @@ export function ResearchFrame({ title, description, art, busy, scrollKey, onBack
   onBack: () => void; onAccount: () => void; children: ReactNode;
 }) {
   const { width, fontScale } = useWindowDimensions();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [scrollKey]);
   return <SafeAreaView edges={["top", "left", "right", "bottom"]} style={r.screen}>
     <View style={[r.header, width < 360 && r.compact]}>

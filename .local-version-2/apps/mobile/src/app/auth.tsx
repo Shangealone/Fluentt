@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BackHandler } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams, usePreventRemove } from "expo-router";
 import { AuthScreenView, type AuthErrors, type AuthFields } from "../features/auth/AuthScreenView";
 import { authRoles } from "../features/auth/AuthArtwork";
+import { useRegistrationOptions } from "../features/auth/useRegistrationOptions";
 import { useSession } from "../session/provider";
 import { destination, usernameError } from "../session/routing";
 import { ApiError, type Role } from "../services/api/identity";
@@ -14,13 +15,15 @@ const emptyFields: AuthFields = { username: "", password: "", confirmation: "", 
 export default function Auth() {
   const params = useLocalSearchParams<{ mode?: string; role?: string }>();
   const initialMode = params.mode === "create" ? "create" : "signin";
-  const initialRole = authRoles.find(value => value.value === params.role)?.value ?? "personal_student";
+  const initialRole = authRoles.find(value => value.value === params.role)?.value ?? "school_student";
   return <AuthForm initialMode={initialMode} initialRole={initialRole} />;
 }
 
 function AuthForm({ initialMode, initialRole }: { initialMode: Mode; initialRole: Role }) {
+  const registration = useRegistrationOptions();
   const session = useSession();
-  const sessionRef = useRef(session); sessionRef.current = session;
+  const sessionRef = useRef(session);
+  useLayoutEffect(() => { sessionRef.current = session; }, [session]);
   const [mode, setMode] = useState<Mode>(initialMode), [step, setStep] = useState<"type" | "account">("type"), [role, setRole] = useState<Role>(initialRole);
   const [fields, setFields] = useState<AuthFields>(emptyFields), [errors, setErrors] = useState<AuthErrors>({});
   const [preview, setPreview] = useState<{ code: string; data: ClassPreview } | null>(null);
@@ -31,6 +34,11 @@ function AuthForm({ initialMode, initialRole }: { initialMode: Mode; initialRole
   const operationRef = useRef<"auth" | "class" | null>(null), backRef = useRef<() => void>(() => {});
   const classPreview = preview?.code === fields.classCode ? preview.data : null;
   const locked = () => lock.current || sessionRef.current.pending;
+  useEffect(() => {
+    if (!registration.loading && !registration.personalLearnerEnabled && role === "personal_student" && !lock.current && !session.pending) {
+      setRole("school_student"); setStep("type"); setPreview(null);
+    }
+  }, [registration.loading, registration.personalLearnerEnabled, role, session.pending, operation]);
 
   // Param updates do not remove the route. Defer them instead of replacing a form with an active operation.
   useEffect(() => {
@@ -66,14 +74,14 @@ function AuthForm({ initialMode, initialRole }: { initialMode: Mode; initialRole
     if (mode === "create" && step === "account") { setStep("type"); resetMessages(); setFocusKey(value => value + 1); }
     else router.replace("/");
   }
-  backRef.current = back;
+  useLayoutEffect(() => { backRef.current = back; });
   function changeMode(next: Mode) {
     if (locked()) return;
     setMode(next); setStep("type"); resetMessages(); setError(""); setUncertain(false);
     setFields(value => ({ ...value, password: "", confirmation: "" })); setVisibilityReset(value => value + 1); setFocusKey(value => value + 1);
   }
   function changeRole(next: Role) {
-    if (locked() || next === role) return;
+    if (locked() || registration.loading || (next === "personal_student" && !registration.personalLearnerEnabled) || next === role) return;
     setRole(next); setFields(value => ({ ...value, classCode: "" })); setPreview(null); resetMessages(); setFocusKey(value => value + 1);
   }
   function change(field: keyof AuthFields, value: string) {
@@ -83,7 +91,7 @@ function AuthForm({ initialMode, initialRole }: { initialMode: Mode; initialRole
     if (field === "classCode") { setPreview(null); if (!uncertain) setError(""); }
   }
   function nextStep() {
-    if (locked()) return;
+    if (locked() || registration.loading || (role === "personal_student" && !registration.personalLearnerEnabled)) return;
     if (role === "school_student" && !classPreview) { setErrors({ classCode: "Check your class code before continuing." }); setFocusKey(value => value + 1); return; }
     resetMessages(); setStep("account"); setFocusKey(value => value + 1);
   }
@@ -103,6 +111,7 @@ function AuthForm({ initialMode, initialRole }: { initialMode: Mode; initialRole
     if (lock.current || !active.current) return;
     const currentSession = sessionRef.current, creating = mode === "create";
     if (!currentSession.pending) {
+      if (creating && (registration.loading || (role === "personal_student" && !registration.personalLearnerEnabled))) return;
       if (creating && (step !== "account" || (role === "school_student" && !classPreview))) { setStep("type"); setErrors({ classCode: "Check your class code before creating your account." }); setFocusKey(value => value + 1); return; }
       if (creating && uncertain) return;
       const validation: AuthErrors = {};
@@ -139,6 +148,7 @@ function AuthForm({ initialMode, initialRole }: { initialMode: Mode; initialRole
   }
 
   return <AuthScreenView mode={mode} step={step} role={role} fields={fields} errors={errors} preview={classPreview} operation={operation}
+    personalLearnerEnabled={registration.personalLearnerEnabled} registrationLoading={registration.loading}
     pending={session.pending} uncertain={uncertain} error={error} focusKey={focusKey} visibilityReset={visibilityReset}
     onChange={change} onMode={changeMode} onRole={changeRole} onCheck={() => { void checkClass(); }} onNext={nextStep} onSubmit={() => { void submit(); }} onBack={back} />;
 }

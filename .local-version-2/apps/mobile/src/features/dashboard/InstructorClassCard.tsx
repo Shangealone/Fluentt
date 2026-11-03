@@ -1,3 +1,4 @@
+import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
 
@@ -22,7 +23,7 @@ export function InstructorClassCard({ row }: { row: ClassDetails }) {
     </View>
     <Text accessibilityRole="header" style={styles.name}>{row.class_name}</Text>
     <View style={styles.chips}>
-      <View style={styles.chip}><Text style={styles.chipText}>Grade {row.grade_level}</Text></View>
+      <View style={styles.chip}><Text style={styles.chipText}>{classProficiencyLabel(row.proficiency_level)}</Text></View>
       <View style={[styles.chip, styles.language]}><Text style={[styles.chipText, styles.languageText]}>{row.language === "english" ? "English" : "Tagalog"}</Text></View>
     </View>
     <View style={styles.codeRow}><Text style={styles.codeLabel}>Class code</Text>

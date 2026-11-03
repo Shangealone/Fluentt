@@ -114,7 +114,7 @@ export async function request<T>(
         preview_changed: "Class details changed. Verify the code and review again.",
         school_student_required: "Only school students can join classes.",
         class_context_locked:
-          "Grade and language cannot change after a subject, membership or learning activity is attached.",
+          "Learning language cannot change after a subject, membership or learning activity is attached.",
         idempotency_conflict:
           "This request was already used. Refresh My Classes before creating another.",
         code_capacity:
