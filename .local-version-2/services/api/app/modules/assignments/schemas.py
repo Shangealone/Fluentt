@@ -49,7 +49,8 @@ class Context(Model):
     curriculum_name: str | None
     source: Literal["curriculum", "teacher"] = "curriculum"
     lesson_version: int | None = None
-    grade: int
+    grade: int | None
+    proficiency_level: Literal["beginner", "intermediate", "advanced"] | None = None
     subject_id: UUID
     subject_name: str
 

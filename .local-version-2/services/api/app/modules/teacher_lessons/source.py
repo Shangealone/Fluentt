@@ -16,7 +16,8 @@ def context_for_version(db, version, leaf=None):
     from app.modules.assignments.schemas import Context
     leaf = leaf or db.get(Lesson, version.lesson_id, populate_existing=True)
     return Context(lesson_id=leaf.id, lesson_name=leaf.name, curriculum_version_id=None, curriculum_name=None,
-                   source="teacher", lesson_version=version.version, grade=db.get(GradeLevel, version.grade_level_id).number,
+                   source="teacher", lesson_version=version.version, grade=db.get(GradeLevel, version.grade_level_id).number if version.grade_level_id else None,
+                   proficiency_level=version.proficiency_level,
                    subject_id=version.subject_id, subject_name=db.get(Subject, version.subject_id).name)
 
 

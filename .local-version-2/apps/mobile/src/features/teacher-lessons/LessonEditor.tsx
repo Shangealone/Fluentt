@@ -6,13 +6,16 @@ import { Text } from "../../accessibility/Primitives";
 import type { TeacherLesson, TeacherLessonInput, TeacherLessonAccess, TeacherQuestion, LessonCommand } from "../../services/api/teacherLessons";
 import type { ClassDetails } from "../../services/api/classes";
 import { LessonButton, LessonFrame, LessonHero, LessonLoading, LessonNote, l } from "./LessonUI";
-import { LessonContentFields, LessonDetailsFields, LessonQuizFields, LessonReview, LessonSharePicker, LessonSteps, lessonSteps, type LessonStep } from "./LessonEditorParts";
+import { LessonDetailsFields, LessonQuizFields, LessonReview, LessonSharePicker, LessonSteps, lessonSteps, type LessonStep } from "./LessonEditorParts";
 import { cloneQuestion, newQuestion, prepareQuestion, QuestionAuthor, questionError, TeacherQuestionPreview } from "./QuestionAuthor";
 
+import { LessonContentEditor, LessonReadingPreview } from "./LessonContentEditor";
+import { sectionIssue } from "./sectionEditing";
+
 type Confirmation = { title: string; message: string; label: string; accept: () => void };
-type Pending = { base: TeacherLesson | null; body: TeacherLessonInput | LessonCommand; key: string; action: string };
-function fromRow(row: TeacherLesson): TeacherLessonInput { return cloneQuestion({ title: row.title, introduction: row.introduction, grade: row.grade, language: row.language, subject_id: row.subject_id, sections: row.sections, questions: row.questions }); }
-function blank(classroom?: ClassDetails | null): TeacherLessonInput { return { title: "", introduction: null, grade: classroom?.grade_level ?? 7, language: classroom?.language ?? "english", subject_id: "", sections: [], questions: [] }; }
+type Pending = { base: TeacherLesson | null; body: TeacherLessonInput | LessonCommand; key: string; action: string; returnStep?: LessonStep; section?: number | null };
+function fromRow(row: TeacherLesson): TeacherLessonInput { return cloneQuestion({ title: row.title, introduction: row.introduction, grade: row.grade, proficiency_level: row.proficiency_level ?? null, language: row.language, subject_id: row.subject_id, sections: row.sections, questions: row.questions }); }
+function blank(classroom?: ClassDetails | null): TeacherLessonInput { return { title: "", introduction: null, grade: null, proficiency_level: classroom?.proficiency_level ?? null, language: classroom?.language ?? "english", subject_id: "", sections: [], questions: [] }; }
 function draftError(body: TeacherLessonInput) {
   if (!body.title.trim() || Array.from(body.title.trim()).length > 200) return "Give your lesson a title of 1–200 characters.";
   if (!body.subject_id) return "Choose a subject before saving.";
@@ -23,13 +26,14 @@ function draftError(body: TeacherLessonInput) {
   return null;
 }
 
-export function LessonEditor({ initial, subjects, api, classId, classroom, initialStep = "Details", active = true }: { initial: TeacherLesson | null; subjects: { id: string; name: string }[]; api: TeacherLessonAccess; classId: string; classroom?: ClassDetails | null; initialStep?: LessonStep; active?: boolean }) {
+export function LessonEditor({ initial, subjects, api, classId, classroom, initialStep = "Details", initialSection = 0, active = true }: { initial: TeacherLesson | null; subjects: { id: string; name: string }[]; api: TeacherLessonAccess; classId: string; classroom?: ClassDetails | null; initialStep?: LessonStep; initialSection?: number; active?: boolean }) {
   const [row, setRow] = useState(initial), [draft, setDraft] = useState(() => initial ? fromRow(initial) : blank(classroom));
   const [step, setStep] = useState<LessonStep>(initial?.status === "published" || initial?.status === "archived" ? "Review" : initialStep);
   const [busy, setBusy] = useState(false), [reading, setReading] = useState(false), [dirty, setDirty] = useState(false);
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [pending, setPending] = useState<Pending | null>(null), [mustReload, setMustReload] = useState(false), [accessError, setAccessError] = useState(false);
   const [confirm, setConfirm] = useState<Confirmation | null>(null), [about, setAbout] = useState(false), [shareMode, setShareMode] = useState<"share" | "unshare" | null>(null);
   const [question, setQuestion] = useState<{ index: number; value: TeacherQuestion } | null>(null), [questionDirty, setQuestionDirty] = useState(false), [preview, setPreview] = useState<TeacherQuestion | null>(null);
+  const [contentPreview, setContentPreview] = useState(false), [activeSection, setActiveSection] = useState<number | null>(initialSection < 0 ? null : initialSection), [contentValidation, setContentValidation] = useState(false), [contentFocus, setContentFocus] = useState(0);
   const live = useRef(false), lock = useRef(false), epoch = useRef(0);
   useFocusEffect(useCallback(() => { live.current = true; return () => { live.current = false; epoch.current++; }; }, []));
   const hasUnsaved = dirty || questionDirty;
@@ -50,8 +54,8 @@ export function LessonEditor({ initial, subjects, api, classId, classroom, initi
     setStep(next); setError(""); setPreview(null);
   };
   function change(next: TeacherLessonInput) { if (!frozen) { setDraft(next); setDirty(true); setNotice(""); } }
-  function clearProtected() { setAccessError(true); setRow(null); setDraft(blank()); setPending(null); setQuestion(null); setPreview(null); setQuestionDirty(false); setDirty(false); }
-  function restore(saved: TeacherLesson) { setRow(saved); setDraft(fromRow(saved)); setPending(null); setMustReload(false); setDirty(false); setQuestion(null); setQuestionDirty(false); setPreview(null); }
+  function clearProtected() { setAccessError(true); setRow(null); setDraft(blank()); setPending(null); setQuestion(null); setPreview(null); setContentPreview(false); setActiveSection(null); setContentValidation(false); setQuestionDirty(false); setDirty(false); }
+  function restore(saved: TeacherLesson) { setRow(saved); setDraft(fromRow(saved)); setPending(null); setMustReload(false); setDirty(false); setQuestion(null); setQuestionDirty(false); setPreview(null); setContentPreview(false); setContentValidation(false); }
   async function send(operation: Pending) {
     if (lock.current || !live.current || !active) return;
     lock.current = true; setBusy(true); setError(""); setPending(operation); setPreview(null);
@@ -59,10 +63,11 @@ export function LessonEditor({ initial, subjects, api, classId, classroom, initi
     try {
       const saved = operation.base ? await api.change(operation.base, operation.body as LessonCommand, operation.key) : await api.create(operation.body as TeacherLessonInput, operation.key);
       if (!live.current || current !== epoch.current) return;
-      restore(saved); setShareMode(null); setStep(operation.action === "new_version" ? "Details" : "Review");
+      const destination = operation.returnStep ?? (operation.action === "new_version" ? "Details" : "Review");
+      restore(saved); setShareMode(null); setStep(destination);
       setNotice(operation.action === "publish" ? "Version published. Choose classes separately to share it." : operation.action === "share" ? "Lesson shared with the selected classes." : operation.action === "unshare" ? "Selected class shares stopped. Existing assignments are retained." : operation.action === "new_version" ? "Your new draft is ready. Existing shared lessons and assignments keep their original versions." : operation.action === "archive" ? "Lesson archived. Its history and existing class shares are retained." : "Draft saved. Students can’t see this draft.");
       if (!initial || initial.version_id !== saved.version_id) {
-        prevent(); router.replace({ pathname: "/instructor-lesson", params: { id: saved.id, versionId: saved.version_id, step: operation.action === "new_version" ? "Details" : "Review", ...(classId ? { classId } : {}) } });
+        prevent(); router.replace({ pathname: "/instructor-lesson", params: { id: saved.id, versionId: saved.version_id, step: destination, ...(destination === "Content" ? { section: String(operation.section ?? -1) } : {}), ...(classId ? { classId } : {}) } });
       }
     } catch (cause) {
       if (!live.current || current !== epoch.current) return;
@@ -81,8 +86,17 @@ export function LessonEditor({ initial, subjects, api, classId, classroom, initi
   function save() {
     if (frozen) return;
     const body = { ...cloneQuestion(draft), title: draft.title.trim(), introduction: draft.introduction?.trim() || null, questions: draft.questions.map(prepareQuestion) };
-    const invalid = draftError(body); if (invalid) { setError(invalid); return; }
-    void send({ base: row ? cloneQuestion(row) : null, body: row ? { action: "save", version_id: row.version_id, draft: body } : body, key: Crypto.randomUUID(), action: "save" });
+    const invalid = draftError(body); if (invalid) {
+      setError(invalid);
+      if (!body.title.trim() || !body.subject_id || Array.from(body.title).length > 200 || Array.from(body.introduction ?? "").length > 8000) setStep("Details");
+      else {
+        const index = body.sections.findIndex(section => sectionIssue(section));
+        if (index >= 0) { setContentValidation(true); setActiveSection(index); setStep("Content"); setContentFocus(value => value + 1); }
+        else if (body.questions.length > 200 || body.questions.some(q => questionError(q))) setStep("Quiz");
+      }
+      return;
+    }
+    void send({ base: row ? cloneQuestion(row) : null, body: row ? { action: "save", version_id: row.version_id, draft: body } : body, key: Crypto.randomUUID(), action: "save", returnStep: step, section: activeSection });
   }
   async function reload() {
     if (!row || lock.current) return;
@@ -94,18 +108,19 @@ export function LessonEditor({ initial, subjects, api, classId, classroom, initi
   }
   function confirmReload() { setConfirm({ title: "Reload the saved lesson?", message: "This discards local edits and reads the current saved version. If another device changed the lesson, you’ll see that version. Interrupted publication or sharing should first be retried with its original request.", label: "Reload saved lesson", accept: () => void reload() }); }
   function leave() { router.replace(classId ? { pathname: "/instructor-lessons", params: { classId } } : "/instructor-lessons"); }
-  function cancelQuestion() { const cancel = () => { setQuestion(null); setQuestionDirty(false); setPreview(null); }; if (questionDirty) setConfirm({ title: "Discard question changes?", message: "These question edits haven’t been added to your lesson. Your other lesson details will stay.", label: "Discard question edits", accept: cancel }); else cancel(); }
-  const onBack = () => { if (preview) setPreview(null); else if (question) cancelQuestion(); else if (shareMode) setShareMode(null); else leave(); };
+  function cancelQuestion() { const cancel = () => { setQuestion(null); setQuestionDirty(false); setPreview(null); setContentPreview(false); setContentValidation(false); }; if (questionDirty) setConfirm({ title: "Discard question changes?", message: "These question edits haven’t been added to your lesson. Your other lesson details will stay.", label: "Discard question edits", accept: cancel }); else cancel(); }
+  const onBack = () => { if (contentPreview) setContentPreview(false); else if (preview) setPreview(null); else if (question) cancelQuestion(); else if (shareMode) setShareMode(null); else leave(); };
   const account = () => {
     if (lock.current) return;
     if (hasUnsaved || pending || mustReload) {
       setConfirm({ title: pending || mustReload ? "Leave an uncertain request?" : "Leave with unsaved changes?", message: pending || mustReload ? "The request may have completed. Leaving clears this screen’s retry details. Check your library before repeating the operation." : "Opening your account will discard these unsaved lesson and question edits. Stay here to save them first.", label: "Open my account", accept: () => { setPending(null); setDirty(false); setQuestionDirty(false); prevent(); router.push("/account"); } });
     } else router.push("/account");
   };
-  const frame = (children: ReactNode) => <LessonFrame busy={busy} scrollKey={`${step}-${!!confirm}-${!!question}-${!!preview}-${shareMode}-${!!pending}`} onBack={onBack} onAccount={account}>{children}</LessonFrame>;
+  const frame = (children: ReactNode) => <LessonFrame busy={busy} scrollKey={`${step}-${!!confirm}-${!!question}-${!!preview}-${contentPreview}-${shareMode}-${!!pending}`} onBack={onBack} onAccount={account}>{children}</LessonFrame>;
   if (accessError) return frame(<><LessonHero title="This lesson is unavailable" description="Return to your library to check your saved lessons." />{!!error && <LessonNote error>{error}</LessonNote>}<LessonButton label="Back to my lessons" primary onPress={() => { prevent(); leave(); }} /></>);
   if (reading) return frame(<LessonLoading label="Loading the saved lesson…" />);
   if (confirm) return frame(<View style={[l.card, l.confirmation]}><Text accessibilityRole="header" style={l.heading}>{confirm.title}</Text><Text style={l.body}>{confirm.message}</Text><LessonButton label="Stay here" primary onPress={() => setConfirm(null)} disabled={busy} /><LessonButton label={confirm.label} onPress={() => { const action = confirm.accept; setConfirm(null); action(); }} disabled={busy} /></View>);
+  if (contentPreview) return frame(<LessonReadingPreview draft={draft} onClose={() => setContentPreview(false)} />);
   if (preview) return frame(<TeacherQuestionPreview key={JSON.stringify(preview)} question={preview} onClose={() => setPreview(null)} />);
   const showPreview = (q: TeacherQuestion) => { if (busy || pending || mustReload) return; const issue = questionError(prepareQuestion(q)); if (issue) { setError(issue); return; } setPreview(cloneQuestion(q)); };
   if (question) return frame(<><LessonHero title={question.index < 0 ? "Add a question" : "Edit question"} description="Give your learners a clear next step." />{!!error && <LessonNote error>{error}</LessonNote>}<QuestionAuthor value={question.value} disabled={frozen} onChange={value => { if (!frozen) { setQuestion({ ...question, value }); setQuestionDirty(true); setError(""); } }} /><LessonButton label="Preview as a student" disabled={frozen} onPress={() => showPreview(question.value)} /><LessonButton label={question.index < 0 ? "Add to lesson" : "Save question to lesson"} primary disabled={frozen} onPress={() => { const value = prepareQuestion(question.value), issue = questionError(value); if (issue) { setError(issue); return; } const questions = [...draft.questions]; if (question.index < 0) questions.push(value); else questions[question.index] = value; change({ ...draft, questions }); setQuestion(null); setQuestionDirty(false); setError(""); }} /><Text style={l.small}>This updates your local lesson. Save the lesson draft to keep it on the server.</Text><LessonButton label="Back to quiz" quiet disabled={busy} onPress={cancelQuestion} /></>);
@@ -117,7 +132,7 @@ export function LessonEditor({ initial, subjects, api, classId, classroom, initi
     {!!error && <LessonNote error>{error}</LessonNote>}{!!notice && <LessonNote>{notice}</LessonNote>}
     {editable && <><LessonSteps value={step} disabled={frozen} onSelect={move} /><Text accessibilityLiveRegion="polite" style={l.small}>{hasUnsaved ? "Unsaved changes" : row ? "Draft saved" : "Not saved yet"}</Text></>}
     {step === "Details" && editable && <LessonDetailsFields draft={draft} subjects={subjects} change={change} disabled={frozen} />}
-    {step === "Content" && editable && <LessonContentFields sections={draft.sections} onChange={sections => change({ ...draft, sections })} disabled={frozen} />}
+    {step === "Content" && editable && <><LessonContentEditor sections={draft.sections} active={activeSection} onActive={setActiveSection} onChange={sections => change({ ...draft, sections })} disabled={frozen} showValidation={contentValidation} focusRequest={contentFocus} /><LessonButton label="Preview as a student" disabled={frozen} onPress={() => setContentPreview(true)} /><LessonButton label={busy ? "Saving…" : "Save draft"} primary disabled={frozen} onPress={save} /><Text style={l.small}>Saves the whole lesson draft, including details and quiz questions. Switching sections keeps your edits but doesn’t save them.</Text></>}
     {step === "Quiz" && editable && <LessonQuizFields questions={draft.questions} onChange={questions => change({ ...draft, questions })} onEdit={index => { if (!frozen) { setQuestion({ index, value: index < 0 ? newQuestion() : cloneQuestion(draft.questions[index]) }); setQuestionDirty(false); setError(""); } }} onPreview={showPreview} disabled={frozen} />}
     {(step === "Review" || !editable) && <LessonReview row={row} draft={draft} subjectName={row?.subject_name ?? subjects.find(s => s.id === draft.subject_id)?.name ?? "Choose a subject"} editable={editable && !frozen} onEdit={move} onPreview={showPreview} />}
     {editable && step !== "Review" && <><LessonButton label={`Continue to ${lessonSteps[lessonSteps.indexOf(step) + 1].toLowerCase()}`} primary disabled={frozen} onPress={() => move(lessonSteps[lessonSteps.indexOf(step) + 1])} />{step !== "Details" && <LessonButton label={`Back to ${lessonSteps[lessonSteps.indexOf(step) - 1].toLowerCase()}`} quiet disabled={frozen} onPress={() => move(lessonSteps[lessonSteps.indexOf(step) - 1])} />}</>}

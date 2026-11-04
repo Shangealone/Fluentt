@@ -6,7 +6,7 @@ import { ApiError } from '../apps/mobile/src/services/api/client.ts';
 import { SessionController } from '../apps/mobile/src/session/controller.ts';
 import { destination } from '../apps/mobile/src/session/routing.ts';
 
-const preview = { class_name: 'Synthetic class', grade_level: 5, language: 'tagalog',
+const preview = { class_name: 'Synthetic class', grade_level: 5, proficiency_level: 'beginner', language: 'tagalog',
   instructor_display_name: null, class_version: 'a'.repeat(64) };
 const membership = { ...preview, id: 'b8098185-daf9-4f56-a13f-54b7ec3b037a',
   class_id: '104326fd-63b3-4831-bb78-6b69920be2a0', joined_at: '2026-10-17T00:00:00Z', status: 'active' };

@@ -1,3 +1,4 @@
+import { lessonLevelLabel } from "../../services/api/lessonLevel";
 import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { useCallback, useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
@@ -63,7 +64,7 @@ function AssignmentCard({ row }: { row: HistoryItem }) {
     <View style={[s.recordTop, width < 360 && fontScale > 1.2 && { flexDirection: "column" }]}>
       <AssignmentRecordArt /><View style={[s.recordCopy, width < 360 && fontScale > 1.2 && s.stackedCopy]}>
         <Text accessibilityRole="header" style={s.itemTitle}>{row.title}</Text>
-        <Text style={s.small}>{row.class_name} · Grade {row.context.grade} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text>
+        <Text style={s.small}>{row.class_name} · {lessonLevelLabel(row.context)} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text>
       </View>
     </View>
     <View style={[s.badge, row.submission_status === "in_progress" && s.started, row.submission_status === "submitted" && s.submitted]}>
@@ -78,7 +79,7 @@ function AssignmentCard({ row }: { row: HistoryItem }) {
       pathname: row.submission_status === "submitted" ? "/assessment-results" : "/assignment-attempt", params: { id: row.id },
     })} style={({ pressed }) => [s.action, pressed && s.dim]}><Text style={s.actionText}>{row.submission_status === "submitted" ? "View results" : "Open assignment"}</Text></Pressable>
     <View style={s.details}><ProgressDisclosure title="Assignment details">
-      <Text style={s.small}>Subject: {row.context.subject_name}{"\n"}Lesson: {row.context.lesson_name}{"\n"}Curriculum: {row.context.curriculum_name ?? "Teacher lesson"}{"\n"}Grade {row.context.grade} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text>
+      <Text style={s.small}>Subject: {row.context.subject_name}{"\n"}Lesson: {row.context.lesson_name}{"\n"}Curriculum: {row.context.curriculum_name ?? "Teacher lesson"}{"\n"}{lessonLevelLabel(row.context)} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text>
       <Text style={s.small}>Published: {date(row.published_at)}{row.started_at ? `\nStarted: ${date(row.started_at)}` : ""}{row.last_activity_at ? `\nLast activity: ${date(row.last_activity_at)}` : ""}{row.submitted_at ? `\nSubmitted: ${date(row.submitted_at)}` : ""}</Text>
       {points && <Text style={s.small}>These are objective points shared by your teacher, rather than an examination grade.</Text>}
     </ProgressDisclosure></View>

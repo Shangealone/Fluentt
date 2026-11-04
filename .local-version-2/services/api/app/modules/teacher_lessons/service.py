@@ -53,7 +53,7 @@ def brief(db, root, version):
     leaf = db.get(Lesson, version.lesson_id, populate_existing=True)
     context = context_for_version(db, version, leaf)
     return dict(id=str(root.id), version_id=str(version.id), lesson_id=str(leaf.id), version=version.version,
-                title=leaf.name, introduction=leaf.description, grade=context.grade, subject_id=str(version.subject_id),
+                title=leaf.name, introduction=leaf.description, grade=context.grade, proficiency_level=version.proficiency_level, subject_id=str(version.subject_id),
                 subject_name=context.subject_name, language=version.language, revision=token(root),
                 status="archived" if root.archived_at else "published" if version.published_at else "draft",
                 published_at=version.published_at.isoformat() if version.published_at else None,
@@ -101,7 +101,7 @@ def set_questions(db, user, root, version, definitions):
 def write_draft(db, repo, user, root, payload, version=None):
     if db.get(Subject, payload.subject_id, populate_existing=True) is None:
         raise fail(422, "Choose an available subject.")
-    grade_id = repo.ensure_grade(payload.grade)
+    grade_id = repo.ensure_grade(payload.grade) if payload.grade is not None else None
     if version is None:
         leaf = Lesson(topic_id=None, teacher_owned=True, name=payload.title, description=payload.introduction,
                       position=1, status="draft", source_metadata={})
@@ -109,7 +109,7 @@ def write_draft(db, repo, user, root, payload, version=None):
         db.flush()
         number = (db.scalar(select(func.max(TeacherLessonVersion.version)).where(TeacherLessonVersion.teacher_lesson_id == root.id)) or 0) + 1
         version = TeacherLessonVersion(teacher_lesson_id=root.id, lesson_id=leaf.id, version=number,
-                                      grade_level_id=grade_id, subject_id=payload.subject_id, language=payload.language,
+                                      grade_level_id=grade_id, proficiency_level=payload.proficiency_level, subject_id=payload.subject_id, language=payload.language,
                                       sections=[row.model_dump() for row in payload.sections])
         db.add(version)
     else:
@@ -118,6 +118,7 @@ def write_draft(db, repo, user, root, payload, version=None):
         leaf = db.get(Lesson, version.lesson_id)
         leaf.name, leaf.description = payload.title, payload.introduction
         version.grade_level_id, version.subject_id, version.language = grade_id, payload.subject_id, payload.language
+        version.proficiency_level = payload.proficiency_level
         version.sections = [row.model_dump() for row in payload.sections]
     db.flush()
     set_questions(db, user, root, version, payload.questions)
@@ -193,7 +194,8 @@ def mutate(repo, credential, settings, *, root_id=None, payload, request_key, ex
                     if any(row.published_at is None for row in versions(db, root)):
                         raise fail(409, "This lesson already has a draft. Open it before making another version.")
                     leaf = db.get(Lesson, version.lesson_id)
-                    data = LessonInput(title=leaf.name, introduction=leaf.description, grade=db.get(GradeLevel, version.grade_level_id).number,
+                    data = LessonInput(title=leaf.name, introduction=leaf.description, grade=db.get(GradeLevel, version.grade_level_id).number if version.grade_level_id else None,
+                                       proficiency_level=version.proficiency_level,
                                        language=version.language, subject_id=version.subject_id, sections=version.sections,
                                        questions=[author_question(db, row) for row in question_rows(db, version)])
                     version = write_draft(db, repo, user, root, data)

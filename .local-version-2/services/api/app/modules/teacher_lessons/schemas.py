@@ -53,7 +53,8 @@ class QuestionInput(Model):
 class LessonInput(Model):
     title: str = Field(min_length=1, max_length=200, strict=True)
     introduction: str | None = Field(default=None, max_length=8000, strict=True)
-    grade: int = Field(ge=1, le=12, strict=True)
+    grade: int | None = Field(default=None, ge=1, le=12, strict=True)
+    proficiency_level: Literal["beginner", "intermediate", "advanced"] | None = None
     language: Literal["english", "tagalog"]
     subject_id: UUID
     sections: list[Section] = Field(default_factory=list, max_length=50)

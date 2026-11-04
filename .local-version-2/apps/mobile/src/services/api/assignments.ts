@@ -2,7 +2,7 @@ import type { AuthContext } from "./client";
 import { request, ApiError } from "./client.ts";
 export const assignmentMethods = ["multiple_choice", "true_false", "identification", "fill_in_the_blank", "multiple_select", "flashcards", "error_identification", "word_arrangement", "sentence_arrangement", "matching_type"] as const;
 export type AssignmentMethod = typeof assignmentMethods[number];
-export type LessonContext = { lesson_id: string; lesson_name: string; curriculum_version_id: string | null; curriculum_name: string | null; source?: "curriculum" | "teacher"; lesson_version?: number | null; grade: number; subject_id: string; subject_name: string };
+export type LessonContext = { lesson_id: string; lesson_name: string; curriculum_version_id: string | null; curriculum_name: string | null; source?: "curriculum" | "teacher"; lesson_version?: number | null; grade: number | null; proficiency_level?: "beginner" | "intermediate" | "advanced" | null; subject_id: string; subject_name: string };
 export type AssignmentItem = { id: string; question_id: string; version: number; eligible: boolean;
   definition: { lesson_id: string; method: AssignmentMethod; prompt: string; instructions: string | null; content: Record<string, unknown> } };
 export type AssignmentInput = { lesson_id: string; title: string; instructions: string | null; question_revision_ids: string[] };

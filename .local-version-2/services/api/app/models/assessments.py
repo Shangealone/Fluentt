@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,7 +25,7 @@ ANSWER_METHODS = (
 class Question(Entity, Base):
     __tablename__ = "questions"
     author_id: Mapped[UUID | None] = reference("users.id", nullable=True)
-    teacher_lesson_id: Mapped[UUID | None] = reference("teacher_lessons.id", nullable=True)
+    teacher_lesson_id: Mapped[UUID | None] = mapped_column(ForeignKey("teacher_lessons.id"), nullable=True, index=True)
     status: Mapped[str] = mapped_column(publication(), default="draft", server_default="draft")
     archived_at: Mapped[datetime | None]
 

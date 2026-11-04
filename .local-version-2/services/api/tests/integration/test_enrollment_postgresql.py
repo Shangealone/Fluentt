@@ -14,6 +14,8 @@ from app.core.config import Settings
 from app.main import create_app
 from app.models.operations import AuditLog
 from app.models.users import Classroom, ClassJoinCode, ClassMembership, User
+from app.core.security import hash_password
+from app.modules.identity.repository import IdentityRepository
 from app.modules.classrooms import service as class_service
 from app.modules.enrollment.repository import EnrollmentRepository
 
@@ -23,8 +25,22 @@ JOIN = "/api/v1/class-memberships"
 
 
 def account(client, role):
-    response = client.post("/api/v1/users", json={"password": "SyntheticPass123!", "username": "Enroll_" + uuid4().hex[:12], "role": role})
-    assert response.status_code == 201
+    username = "Enroll_" + uuid4().hex[:12]
+    if role in {"school_student", "personal_student"}:
+        # These tests exercise existing accounts. New school registrations need
+        # a class code, and new personal registrations are disabled by default.
+        # Seed only this historical state in the disposable test database.
+        with Session(client.app.app.state.engine) as db, db.begin():
+            repo = IdentityRepository(db)
+            user = User(id=uuid4(), username=username, role=role,
+                        password_hash=hash_password("SyntheticPass123!"),
+                        profile_status="onboarding", onboarding_step=("class_enrollment" if role == "school_student" else "personal_preferences"))
+            repo.add_user(user)
+            repo.add_profile(user)
+        response = client.post("/api/v1/sessions/login", json={"username": username, "password": "SyntheticPass123!"})
+    else:
+        response = client.post("/api/v1/users", json={"password": "SyntheticPass123!", "username": username, "role": role})
+    assert response.status_code == (200 if role in {"school_student", "personal_student"} else 201), response.text
     return {"Authorization": "Bearer " + response.json()["session"]["credential"]}, UUID(response.json()["user"]["id"])
 
 

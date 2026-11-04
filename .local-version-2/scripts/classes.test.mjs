@@ -4,11 +4,11 @@ import {ClassSubmission,classFormError,copyClassCode,shareClassCode} from '../ap
 import {classApi} from '../apps/mobile/src/services/api/classes.ts';
 import {ApiError} from '../apps/mobile/src/services/api/client.ts';
 import {destination} from '../apps/mobile/src/session/routing.ts';
-const draft={class_name:'Grade 5 English A',grade_level:5,language:'english',description:null};
-const row={...draft,id:'synthetic-class',join_code:'000042',status:'active',created_at:'2026-10-17T00:00:00Z',updated_at:'2026-10-17T00:00:00Z'};
-test('class form requires valid trimmed name, grade and language',()=>{
- assert.equal(classFormError(' A ',1,'english',''),null);assert.equal(classFormError('A',12,'tagalog','x'.repeat(500)),null);
- for(const [name,grade,language,description] of [[' ',1,'english',''],['a'.repeat(151),1,'english',''],['A',0,'english',''],['A',13,'english',''],['A',null,'english',''],['A',1,null,''],['A',1,'filipino',''],['A',1,'english','x'.repeat(501)]])assert.ok(classFormError(name,grade,language,description));
+const draft={class_name:'Grade 5 English A',proficiency_level:'beginner',language:'english',description:null};
+const row={...draft,grade_level:5,id:'synthetic-class',join_code:'000042',status:'active',created_at:'2026-10-17T00:00:00Z',updated_at:'2026-10-17T00:00:00Z'};
+test('class form requires a valid name, proficiency and language',()=>{
+ for(const level of [null,'beginner','intermediate','advanced']) assert.equal(classFormError(' A ',level,'english',''),null);
+ for(const [name,level,language,description] of [[' ',null,'english',''],['a'.repeat(151),null,'english',''],['A','unknown','english',''],['A',1,'english',''],['A',null,null,''],['A',null,'filipino',''],['A',null,'english','x'.repeat(501)]]) assert.ok(classFormError(name,level,language,description));
 });
 test('successful class issuance and repeated taps share one in-flight request',async()=>{
  const state=new ClassSubmission();let resolve;let requests=0;const request=async(value,key)=>{requests++;assert.deepEqual(value,draft);assert.equal(key,'request-1');return new Promise(r=>{resolve=r;});};

@@ -1,3 +1,4 @@
+import { lessonLevelLabel } from "../../services/api/lessonLevel";
 import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { useCallback, useState } from "react";
 import { View } from "react-native";
@@ -15,7 +16,7 @@ import { ProgressOverview } from "./ProgressSummary";
 export function HistoryCard({ row, onOpen }: { row: HistoryItem; onOpen?: (() => void) | null }) {
   return <View style={s.card}>
     <Text accessibilityRole="header" style={s.heading}>{row.title}</Text>
-    <Text style={s.body}>{row.class_name} · Grade {row.context.grade} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text>
+    <Text style={s.body}>{row.class_name} · {lessonLevelLabel(row.context)} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text>
     <Text style={s.body}>Subject: {row.context.subject_name} · Lesson: {row.context.lesson_name} · Edition: {row.context.curriculum_name ?? "Teacher lesson"}</Text>
     <Text style={s.body}>Submission: {row.submission_status === "not_started" ? "Not started" : row.submission_status === "in_progress" ? "In progress" : "Submitted"}</Text>
     <Text style={s.body}>Published: {new Date(row.published_at).toLocaleString()}</Text>
