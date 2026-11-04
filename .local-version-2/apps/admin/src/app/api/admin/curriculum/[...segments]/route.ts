@@ -27,32 +27,6 @@ async function handle(request: NextRequest, context: { params: Promise<{ segment
   if (!methodAllowed || (!management && request.method !== "GET"))
     return Response.json({ error: { message: "Method unavailable." } }, { status: 405, headers });
 
-  if (request.cookies.get("fluentt_demo_admin")?.value === "1") {
-    const { DEMO_CURRICULUM_NODES } = await import("@/services/admin-demo");
-    if (request.method === "GET") {
-      const entity = management ? segments[1] : segments[0];
-      const parentId = request.nextUrl.searchParams.get("parent_id");
-      let items = DEMO_CURRICULUM_NODES.filter((n) => n.kind === entity);
-      if (parentId) items = items.filter((n) => n.parent_id === parentId);
-      return Response.json({ items, limit: 50, offset: 0, has_more: false, class_context: null }, { headers });
-    }
-    if (["POST", "PATCH"].includes(request.method)) {
-      return Response.json({
-        id: `demo-node-${Date.now()}`,
-        code: `demo-code-${Date.now()}`,
-        name: "Demo Node (Saved)",
-        kind: segments[1] || "lessons",
-        status: "draft",
-        verification_status: "verified",
-        parent_id: null,
-        subject_id: null,
-      }, { headers });
-    }
-    if (request.method === "DELETE") {
-      return new Response(null, { status: 204, headers });
-    }
-  }
-
   try {
 
     const upstreamHeaders = new Headers();

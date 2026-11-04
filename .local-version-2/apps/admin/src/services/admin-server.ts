@@ -1,8 +1,18 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { headers as requestHeaders } from "next/headers";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { isAdminProfile } from "./admin-contract";
+import type { AdminProfile } from "./admin-contract";
+
+export async function localMonitoringPreview(): Promise<boolean> {
+  await connection();
+  const host = (await requestHeaders()).get("host");
+  return process.env.NODE_ENV === "development"
+    && Boolean(process.env.FLUENTT_ADMIN_LOCAL_PREVIEW_TOKEN)
+    && ["127.0.0.1:3000", "localhost:3000"].includes(host ?? "");
+}
 
 export function webOrigin(): string {
   const value = process.env.FLUENTT_ADMIN_WEB_ORIGIN ?? "http://localhost:3000";
@@ -33,17 +43,22 @@ export async function backend(path: string, init: RequestInit = {}) {
     const value = jar.get(name)?.value;
     return value && /^[A-Za-z0-9_-]{43}$/.test(value) ? `${name}=${value}` : "";
   }).filter(Boolean).join("; "));
+  if (path.startsWith("/monitoring/") && await localMonitoringPreview()) {
+    headers.set("X-FLUENTT-Local-Preview-Token", process.env.FLUENTT_ADMIN_LOCAL_PREVIEW_TOKEN!);
+  }
   return fetch(`${origin}/api/v1/admin${path}`, {
     ...init, headers, cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(35000),
   });
 }
 
-import { DEMO_ADMIN_COOKIE, DEMO_ADMIN_PROFILE } from "./admin-demo";
-
-export async function requireAdmin() {
-  const jar = await cookies();
-  if (jar.get(DEMO_ADMIN_COOKIE)?.value === "1") {
-    return DEMO_ADMIN_PROFILE;
+export async function requireAdmin(allowLocalPreview = false) {
+  if (allowLocalPreview && await localMonitoringPreview()) {
+    const profile: AdminProfile & { local_preview: true } = {
+      username: "Local preview", role: "administrator", permissions: ["dashboard.view", "monitoring.read"],
+      csrf_token: "", expires_at: new Date(Date.now() + 3600000).toISOString(),
+      absolute_expires_at: new Date(Date.now() + 3600000).toISOString(), local_preview: true,
+    };
+    return profile;
   }
   const response = await backend("/me");
   if (response.status === 401 || response.status === 403) redirect("/login?expired=1");

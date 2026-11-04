@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     enrollment_session_limit: int = 10
     admin_web_origin: str = "http://localhost:3000"
     admin_auth_limit: int = 10
+    admin_local_preview_token: SecretStr | None = None
     admin_oidc_issuer: str | None = None
     admin_oidc_client_id: str | None = None
     admin_oidc_client_secret: SecretStr | None = None

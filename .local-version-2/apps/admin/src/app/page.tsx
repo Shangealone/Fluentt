@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { Connection } from "@/components/connection";
+import { redirect } from "next/navigation";
+import { localMonitoringPreview } from "@/services/admin-server";
 
-export default function Home() {
+export default async function Home() {
+  if (await localMonitoringPreview()) redirect("/dashboard");
   return <div className="shell">
     <header><Link className="brand" href="/" aria-label="FLUENTT home">FLUENTT <span>●</span></Link><span className="badge">Administration</span></header>
     <main>
@@ -17,7 +20,6 @@ export default function Home() {
           <h2 id="access-title">Welcome to Fluentt</h2>
           <p>Sign in with your organization’s account to access your administration tools.</p>
           <Link className="button" href="/login">Administrator sign-in <span aria-hidden="true">→</span></Link>
-          <div className="demo-access"><strong>Just exploring?</strong><p>Preview the workspace with sample content.</p><form method="post" action="/api/admin/demo-login"><button type="submit" className="button secondary-button">Open sample workspace</button></form></div>
           <p className="small-note">Available tools depend on your account permissions.</p>
         </section>
       </section>

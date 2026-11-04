@@ -40,7 +40,6 @@ export function AdminSession({ initial, beforeLogout }: { initial: AdminProfile;
   return <section aria-label="Administrator account" className="account-panel" aria-busy={busy}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
       <p style={{ margin: 0 }}>Signed in as <strong>{profile.username}</strong> · Administrator</p>
-      {profile.username === "admin_demo" && <span className="badge" style={{ background: "#e4edb9", color: "#173d33" }}>⚡ DEMO ADMINISTRATOR</span>}
     </div>
     <p style={{ margin: "8px 0 0" }}>Granted Privileges: {profile.permissions.join(", ")}</p>
     <div className="account-actions"><Button onClick={() => void refresh()} disabled={busy}>Refresh session</Button>

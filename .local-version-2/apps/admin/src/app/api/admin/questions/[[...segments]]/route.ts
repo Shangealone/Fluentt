@@ -19,34 +19,6 @@ async function handle(request: NextRequest, context: { params: Promise<{ segment
     : request.method === "POST" ? collection || history || publish || retire : request.method === "PUT" && version))
     return fail(405, "Method unavailable.");
 
-  if (request.cookies.get("fluentt_demo_admin")?.value === "1") {
-    const { DEMO_QUESTIONS } = await import("@/services/admin-demo");
-    if (request.method === "GET") {
-      if (collection) {
-        return Response.json({ items: DEMO_QUESTIONS, limit: 50, offset: 0, has_more: false }, { headers });
-      }
-      if (detail) {
-        const found = DEMO_QUESTIONS.find((q) => q.id === item) ?? DEMO_QUESTIONS[0];
-        return Response.json(found, { headers });
-      }
-      if (history) {
-        const found = DEMO_QUESTIONS.find((q) => q.id === item) ?? DEMO_QUESTIONS[0];
-        return Response.json({ items: [found.latest_revision], limit: 20, offset: 0, has_more: false }, { headers });
-      }
-      if (key) {
-        return Response.json({ key: { correct_option_id: "opt-2" } }, { headers });
-      }
-      return Response.json(DEMO_QUESTIONS[0], { headers });
-    }
-    if (["POST", "PUT"].includes(request.method)) {
-      return Response.json({
-        id: `demo-q-${Date.now()}`,
-        status: "draft",
-        verification_status: "verified",
-      }, { headers });
-    }
-  }
-
   try {
 
     const upstream = new Headers(); let body: string | undefined;

@@ -8,6 +8,7 @@ from app.modules.identity.browser_router import router as browser_router
 from app.modules.classrooms.router import router as classrooms_router
 from app.modules.enrollment.router import router as enrollment_router
 from app.modules.administration.router import router as administration_router
+from app.modules.administration.monitoring_router import router as admin_monitoring_router
 from app.modules.curriculum.router import router as curriculum_router, admin_router as admin_curriculum_router
 from app.modules.curriculum.management_router import router as curriculum_management_router
 from app.modules.curriculum.material_router import router as material_router
@@ -52,6 +53,7 @@ router.include_router(identity_router)
 router.include_router(browser_router)
 router.include_router(enrollment_router)
 router.include_router(administration_router)
+router.include_router(admin_monitoring_router)
 router.include_router(curriculum_router)
 router.include_router(admin_curriculum_router)
 router.include_router(curriculum_management_router)

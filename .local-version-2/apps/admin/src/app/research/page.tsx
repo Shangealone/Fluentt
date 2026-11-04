@@ -3,7 +3,6 @@ import Link from "next/link";
 import { requireAdmin } from "@/services/admin-server";
 import { AdminNav } from "@/components/admin-nav";
 import { ResearchManager } from "@/components/research-manager";
-import { cookies } from "next/headers";
 
 async function Research() {
   const profile = await requireAdmin();
@@ -25,7 +24,7 @@ async function Research() {
           </p>
         </div>
         {profile.permissions.includes("research.read") ? (
-          <ResearchManager initial={profile} previewOnly={(await cookies()).get("fluentt_demo_admin")?.value === "1"} />
+          <ResearchManager initial={profile} previewOnly={false} />
         ) : (
           <section role="alert">
             <h2>Research access required</h2>

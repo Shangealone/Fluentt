@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
         { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'" },
       ] },
       { source: "/dashboard/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
+      { source: "/monitoring/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
       { source: "/curriculum/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
       { source: "/questions/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
       { source: "/research/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },

@@ -9,7 +9,6 @@ export async function proxyResearchSetup(request: RequestWithCookies, segments: 
   const fail = (status: number, message: string) => Response.json({ error: { message } }, { status, headers });
   const path = researchRoute(segments, request.method, new URL(request.url).searchParams);
   if (!path) return fail(404, "Research setup route or query is unavailable.");
-  if (request.cookies.get("fluentt_demo_admin")?.value === "1") return fail(403, "Demo access cannot read or configure research classrooms. Use an authorized live administrator session.");
   const expire = () => headers.append("Set-Cookie", `${deps.adminCookieNames()[0]}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
   try {
     const upstream = new Headers();

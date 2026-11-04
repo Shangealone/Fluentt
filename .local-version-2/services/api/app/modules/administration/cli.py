@@ -81,7 +81,7 @@ def grading_permission(repo, username, *, grant, access="reader"):
 
 def content_permission(repo, username, *, grant, access, domain):
     """Only explicit section-approved policies; never arbitrary RBAC administration."""
-    if domain not in {"curriculum", "questions", "grading"}:
+    if domain not in {"curriculum", "questions", "grading", "monitoring"}:
         raise ValueError("Unknown content permission domain")
     policies = {
         "reader": {domain + ".read"},
@@ -90,6 +90,8 @@ def content_permission(repo, username, *, grant, access, domain):
     }
     if domain == "grading":
         policies = {"reader": {"grading.read"}, "runner": {"grading.read", "grading.run"}}
+    if domain == "monitoring":
+        policies = {"reader": {"monitoring.read"}}
     if access not in policies:
         raise ValueError("Unknown content access policy")
     allowed = policies[access]
@@ -194,6 +196,8 @@ def main(argv=None):
         "revoke-grading-read",
         "grant-grading-run",
         "revoke-grading-run",
+        "grant-monitoring-read",
+        "revoke-monitoring-read",
     ):
         commands.add_parser(name).add_argument("--username", required=True)
     args = parser.parse_args(argv)
@@ -216,14 +220,14 @@ def main(argv=None):
                     access="runner" if args.command.endswith("-run") else "reader",
                 )
                 print("Grading permission updated.")
-            elif "curriculum-" in args.command or "questions-" in args.command:
+            elif "curriculum-" in args.command or "questions-" in args.command or "monitoring-" in args.command:
                 access = args.command.rsplit("-", 1)[1]
                 content_permission(
                     repo,
                     args.username,
                     grant=args.command.startswith("grant-"),
                     access="reader" if access == "read" else access,
-                    domain="questions" if "questions-" in args.command else "curriculum",
+                    domain="monitoring" if "monitoring-" in args.command else "questions" if "questions-" in args.command else "curriculum",
                 )
                 print("Content permission updated.")
             else:

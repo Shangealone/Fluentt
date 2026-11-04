@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { adminCookieNames, backend, webOrigin } from "@/services/admin-server";
-import { DEMO_ADMIN_COOKIE, DEMO_ADMIN_PROFILE } from "@/services/admin-demo";
 
 const paths: Record<string, { method: string; path: string }> = {
   config: { method: "GET", path: "/auth/config" },
@@ -8,7 +7,6 @@ const paths: Record<string, { method: string; path: string }> = {
   callback: { method: "GET", path: "/auth/callback" },
   me: { method: "GET", path: "/me" },
   session: { method: "DELETE", path: "/session" },
-  "demo-login": { method: "POST", path: "/demo-login" },
 };
 
 function unavailable(status = 503) {
@@ -18,29 +16,6 @@ function unavailable(status = 503) {
 
 async function handle(request: NextRequest, context: { params: Promise<{ action: string }> }) {
   const { action } = await context.params;
-  if (action === "demo-login" && request.method === "POST") {
-    const origin = webOrigin();
-    const forwarded = new Headers({
-      "Location": `${origin}/dashboard`,
-      "Cache-Control": "no-store",
-      "Referrer-Policy": "no-referrer",
-    });
-    forwarded.append("Set-Cookie", `${DEMO_ADMIN_COOKIE}=1; Path=/; SameSite=Lax; HttpOnly${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
-    return new Response(null, { status: 303, headers: forwarded });
-  }
-
-  if (action === "me" && request.method === "GET" && request.cookies.get(DEMO_ADMIN_COOKIE)?.value === "1") {
-    return Response.json(DEMO_ADMIN_PROFILE, {
-      headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
-    });
-  }
-
-  if (action === "session" && request.method === "DELETE" && request.cookies.get(DEMO_ADMIN_COOKIE)?.value === "1") {
-    const forwarded = new Headers({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
-    forwarded.append("Set-Cookie", `${DEMO_ADMIN_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0; HttpOnly${process.env.NODE_ENV === "production" ? "; Secure" : ""}`);
-    return new Response(null, { status: 204, headers: forwarded });
-  }
-
   const target = paths[action];
   if (!target || request.method !== target.method) return unavailable(404);
   try {
