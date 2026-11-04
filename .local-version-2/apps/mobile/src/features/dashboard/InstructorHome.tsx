@@ -18,14 +18,14 @@ const tabs = [
   { route: "/instructor-monitoring", label: "Overview", icon: "overview" },
 ] as const satisfies readonly { route: string; label: string; icon: PersonalIconName }[];
 
-/** Homepage-only navigation; forms and other role portals retain their own boundaries. */
-export function InstructorHomeNavigation() {
+/** Shared teaching navigation; hosts retain their unsaved-navigation boundaries. */
+export function InstructorHomeNavigation({ activeRoute = "/instructor" }: { activeRoute?: string } = {}) {
   const { width, fontScale } = useWindowDimensions();
   const largeText = fontScale > 1.2 && width < 400;
   return <SafeAreaView edges={["bottom"]} style={styles.navSurface}>
     <View accessibilityRole="tablist" accessibilityLabel="Teaching navigation" style={[styles.navRow, largeText && styles.largeTextNav]}>
       {tabs.map(tab => {
-        const selected = tab.route === "/instructor";
+        const selected = tab.route === activeRoute;
         return <Pressable key={tab.route} accessibilityRole="tab" accessibilityLabel={tab.label}
           accessibilityState={{ selected }} aria-selected={selected} onPress={() => { if (!selected) router.navigate(tab.route); }}
           style={({ pressed }) => [styles.tab, largeText && styles.largeTextTab, pressed && styles.pressed]}>

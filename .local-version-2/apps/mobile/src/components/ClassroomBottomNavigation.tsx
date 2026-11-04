@@ -21,7 +21,7 @@ export function ClassroomBottomNavigation() {
   const path = usePathname();
   // Hide outside main destinations, including attempts and forms with unsaved state.
   if (loading || error || profile?.role !== "school_student" || destination(profile) !== "/student"
-    || (!tabs.some(tab => tab.route === path) && path !== "/account" && path !== "/class-code")) return null;
+    || (!tabs.some(tab => tab.route === path) && path !== "/account" && path !== "/class-code" && path !== "/communication")) return null;
   return <SafeAreaView edges={["bottom", "left", "right"]} style={styles.surface}>
     <View accessibilityRole="tablist" accessibilityLabel="Class learning navigation" style={styles.row}>
       {tabs.map(tab => {

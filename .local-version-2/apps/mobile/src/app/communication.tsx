@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
+import { View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { CommunicationBrowser } from "../features/communications/CommunicationBrowser";
 import { CommunicationLayout } from "../features/communications/CommunicationUI";
 import { useSession } from "../session/provider";
 import { destination } from "../session/routing";
+import { InstructorHomeNavigation } from "../features/dashboard/InstructorHome";
 export default function Communication() {
   const { classId, studentId, mode, refresh } = useLocalSearchParams<{ classId?: string; studentId?: string; mode?: string; refresh?: string }>();
   const activeClassId = typeof classId === "string" ? classId : "";
@@ -18,8 +20,10 @@ export default function Communication() {
     else if (activeClassId) router.replace("/communication");
     else if (profile) router.replace(destination(profile));
   }
-  return <CommunicationLayout onBack={back} onAccount={() => router.replace("/account")}>
+  return <View style={{ flex: 1 }}><CommunicationLayout onBack={back} onAccount={() => router.replace("/account")}>
     {focused && <CommunicationBrowser key={`${profile.id}:${activeClassId}:${activeStudentId}:${activeMode}:${refresh}`} api={communication} classId={activeClassId} studentId={activeStudentId} mode={activeMode} />}
-  </CommunicationLayout>;
+  </CommunicationLayout>
+    {profile.role === "instructor" && <InstructorHomeNavigation activeRoute="/communication" />}
+  </View>;
 }
 
