@@ -9,13 +9,13 @@ import { homeColors as c } from "../../theme/personal";
 export function LessonArt({ small = false }: { small?: boolean }) {
   return <View accessible={false} importantForAccessibility="no-hide-descendants" style={[l.art, small && l.smallArt]}><View style={[l.paper, l.paperBack]} /><View style={l.paper}><View style={l.line} /><View style={[l.line, l.lineTwo]} /><View style={[l.line, l.lineThree]} /><View style={l.paperTab} /></View><View style={l.pencil} /><View style={l.desk}><View style={l.legs} /></View><View style={l.pot}><View style={l.plant} /></View></View>;
 }
-export function LessonFrame({ children, busy = false, scrollKey = "", onBack, onAccount }: { children: ReactNode; busy?: boolean; scrollKey?: string; onBack: () => void; onAccount: () => void }) {
+export function LessonFrame({ children, busy = false, scrollKey = "", onBack, onAccount, scrollEnabled = true }: { children: ReactNode; busy?: boolean; scrollKey?: string; onBack: () => void; onAccount: () => void; scrollEnabled?: boolean }) {
   const { width } = useWindowDimensions();
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [scrollKey]);
   return <SafeAreaView edges={["top", "left", "right", "bottom"]} style={l.screen}>
     <View style={[l.header, width < 360 && l.compact]}><Pressable accessibilityRole="button" accessibilityLabel="Go back" accessibilityState={{ disabled: busy }} disabled={busy} onPress={onBack} style={[l.circle, busy && l.dim]}><View style={l.backIcon}><PersonalIcon name="chevron" size={18} /></View></Pressable><FluenttLogo size={32} /><Pressable accessibilityRole="button" accessibilityLabel="My account" accessibilityState={{ disabled: busy }} disabled={busy} onPress={onAccount} style={[l.circle, busy && l.dim]}><PersonalIcon name="account" size={18} /></Pressable></View>
-    <KeyboardAvoidingView style={l.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}><ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={[l.content, width < 360 && l.compact]}>{children}<Text style={l.footer}>Made for your classroom.</Text></ScrollView></KeyboardAvoidingView>
+    <KeyboardAvoidingView style={l.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}><ScrollView ref={scroll} scrollEnabled={scrollEnabled} keyboardShouldPersistTaps="handled" contentContainerStyle={[l.content, width < 360 && l.compact]}>{children}<Text style={l.footer}>Made for your classroom.</Text></ScrollView></KeyboardAvoidingView>
   </SafeAreaView>;
 }
 export function LessonHero({ title, description }: { title: string; description: string }) {

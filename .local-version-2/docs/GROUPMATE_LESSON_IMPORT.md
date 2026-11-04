@@ -107,7 +107,7 @@ Confirm the migration revision:
 .\.venv\Scripts\python.exe -m alembic current
 ```
 
-This checkpoint expects `0024_instructor_questions`.
+This checkpoint expects `0025_assessed_proficiency`.
 
 ## 5. Import the lessons and start the API
 

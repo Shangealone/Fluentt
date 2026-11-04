@@ -35,6 +35,8 @@ from app.modules.research.classroom_router import (
 )
 
 router = APIRouter()
+from app.modules.monitoring.proficiency import router as proficiency_router
+router.include_router(proficiency_router)
 from app.modules.teacher_lessons.router import router as teacher_lessons_router
 router.include_router(teacher_lessons_router)
 router.include_router(personal_practice_router)

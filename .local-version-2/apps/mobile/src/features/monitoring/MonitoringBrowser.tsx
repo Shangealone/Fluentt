@@ -1,3 +1,4 @@
+import { AssessedProficiency } from "./AssessedProficiency";
 import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, View } from "react-native";
@@ -171,7 +172,7 @@ export function MonitoringBrowser({ api, classId = "", studentId, assignmentId, 
     </View>
     {!classId ? <MonitoringPage key={key} fetch={classes} renderHeader={() => <>{hero()}{controls()}</>} filtered={!!q} onClear={clear} emptyTitle="Your classes will appear here" emptyDescription="Create an active class to see its overview."
       render={row => <View key={row.id} style={m.card}><View style={m.rowTop}><View style={[m.tile, m.avatar]}><Image accessible={false} source={classroomArt} resizeMode="contain" style={m.tileImage} /></View><View style={m.rowCopy}><Text accessibilityRole="header" style={m.cardTitle}>{row.class_name}</Text><Text style={m.subline}>{classProficiencyLabel(row.proficiency_level)} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text></View></View><Action label="Open overview" icon="arrow" onPress={() => open(row.id)} /></View>} />
-    : studentId ? <MonitoringPage<StudentDetail> key={key} fetch={student} renderHeader={page => <>{hero(page?.overview)}{page && <StudentSummary row={page.summary} />}<Text accessibilityRole="header" style={[m.heading, m.sectionTitle]}>Assignments</Text>{controls()}</>}
+    : studentId ? <MonitoringPage<StudentDetail> key={key} fetch={student} renderHeader={page => <>{hero(page?.overview)}{page && <><StudentSummary row={page.summary} /><AssessedProficiency classId={classId} studentId={studentId} /></>}<Text accessibilityRole="header" style={[m.heading, m.sectionTitle]}>Assignments</Text>{controls()}</>}
       filtered={filtered} onClear={clear} emptyTitle="No assignments yet" emptyDescription="Published class assignments will appear here." render={row => <StudentHistoryCard key={row.id} row={row} />} renderFooter={page => <Updated value={page.overview.as_of} />} />
     : assignmentId ? <MonitoringPage<AssignmentDetail> key={key} fetch={assignment} renderHeader={page => <>{hero(page?.overview)}{page && <AssignmentSummary row={page.summary} />}<Text accessibilityRole="header" style={[m.heading, m.sectionTitle]}>Student submissions</Text>{controls()}</>}
       filtered={filtered} onClear={clear} emptyTitle="No current students" emptyDescription="Students appear here when they are eligible for this assignment." render={row => <OutcomeCard key={row.id} row={row} classId={classId} assignmentId={assignmentId} scope={routeScope} />} renderFooter={page => <Updated value={page.overview.as_of} />} />

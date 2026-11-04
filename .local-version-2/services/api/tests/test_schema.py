@@ -27,7 +27,7 @@ def migration_module():
 def test_mapper_configuration_and_unchanged_frozen_tables_match():
     configure_mappers()
     snapshot = {repair_statement(statement) for statement in migration_module().SCHEMA_SQL}
-    assert len(Base.metadata.tables) == 84
+    assert len(Base.metadata.tables) == 85
     for table in Base.metadata.sorted_tables:
         if table.name in {
             "admin_browser_sessions",
@@ -50,6 +50,7 @@ def test_mapper_configuration_and_unchanged_frozen_tables_match():
             "teacher_lesson_shares",
             "teacher_lesson_mutations",
             "instructor_lesson_questions",
+            "student_proficiency_events",
             "esr_vocabulary_packs",
             "esr_protocols",
             "esr_allocations",

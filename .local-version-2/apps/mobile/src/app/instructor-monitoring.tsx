@@ -1,11 +1,12 @@
+import { ProficiencyScreen } from "../features/monitoring/AssessedProficiency";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { MonitoringBrowser } from "../features/monitoring/MonitoringBrowser";
 import type { MonitoringFilters } from "../services/api/monitoring";
 import { useSession } from "../session/provider";
 export default function InstructorMonitoring() {
-  const { classId, studentId, assignmentId, lesson_id, curriculum_version_id, scopeLabel } = useLocalSearchParams<{
-    classId?: string; studentId?: string; assignmentId?: string; lesson_id?: string; curriculum_version_id?: string; scopeLabel?: string;
+  const { classId, studentId, assignmentId, assessment, lesson_id, curriculum_version_id, scopeLabel } = useLocalSearchParams<{
+    classId?: string; studentId?: string; assignmentId?: string; assessment?: string; lesson_id?: string; curriculum_version_id?: string; scopeLabel?: string;
   }>();
   const activeClassId = typeof classId === "string" ? classId : "";
   const activeStudentId = typeof studentId === "string" ? studentId : undefined;
@@ -29,6 +30,7 @@ export default function InstructorMonitoring() {
   }, [scopeConflict]);
   if (scopeConflict) return null;
   if (profile?.role !== "instructor") return null;
+  if (assessment === "1" && activeClassId && activeStudentId) return focused ? <ProficiencyScreen key={`${profile.id}:${activeClassId}:${activeStudentId}`} classId={activeClassId} studentId={activeStudentId} /> : null;
   return focused ? <MonitoringBrowser key={`${profile.id}:${activeClassId}:${activeStudentId}:${activeAssignmentId}`} api={monitoring} classId={activeClassId} studentId={activeStudentId} assignmentId={activeAssignmentId} scope={scope} scopeLabel={activeScopeLabel} /> : null;
 }
 

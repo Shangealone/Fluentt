@@ -1,3 +1,4 @@
+import { AssessedProficiency } from "../monitoring/AssessedProficiency";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BackHandler, Image, Pressable, Switch, Text as SampleText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
@@ -121,6 +122,7 @@ export function AccountSettings() {
       {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}{!!success && <Text accessibilityLiveRegion="polite" style={s.success}>{success}</Text>}
       <View style={[s.profile, contrastBorder]}><View style={s.avatar}><Text accessible={false} style={s.avatarText}>{initial}</Text></View><View style={s.profileCopy}><Text style={s.username}>{profile.username}</Text><View style={s.role}><Text style={s.roleText}>{role}</Text></View></View></View>
       {profile.profile_status !== "active" && <View style={[s.card, contrastBorder, { marginTop: 14 }]}><Text accessibilityRole="header" style={s.cardTitle}>Finish setting up</Text><Text style={[s.body, { marginTop: 7, marginBottom: 12 }]}>A few more choices will get your account ready.</Text><SettingsAction label="Continue setup" secondary disabled={busy} onPress={() => router.push(destination(profile))} /></View>}
+      {profile.role === "school_student" && <AssessedProficiency key={profile.id} />}
       {profile.role === "personal_student" && <>
         <Text accessibilityRole="header" style={s.heading}>Your learning</Text><SettingsGroup>
           <SettingsRow title="Learning language" subtitle={profile.language === "english" ? "English" : profile.language === "tagalog" ? "Tagalog" : "Not selected"} icon="learn" disabled={busy} onPress={() => open("learning")} />

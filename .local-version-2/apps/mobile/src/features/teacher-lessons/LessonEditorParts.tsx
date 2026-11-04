@@ -1,17 +1,17 @@
 import { proficiencyLevels, classProficiencyLabel } from "../../services/api/classProficiency";
 import { useCallback, useState } from "react";
-import { View } from "react-native";
-import { Text, useWindowDimensions } from "../../accessibility/Primitives";
+import { Pressable, View } from "react-native";
+import { Text } from "../../accessibility/Primitives";
 import type { TeacherLesson, TeacherLessonInput, TeacherQuestion, TeacherLessonAccess, LessonClass } from "../../services/api/teacherLessons";
 import { LessonArt, LessonButton, LessonChoice, LessonField, LessonLoading, LessonNote, LessonStatus, l } from "./LessonUI";
 import { questionLabels } from "./QuestionAuthor";
 import { useLessonPage } from "./useLessonData";
+import { w } from "./WritingUI";
 
 export const lessonSteps = ["Details", "Content", "Quiz", "Review"] as const;
 export type LessonStep = typeof lessonSteps[number];
 export function LessonSteps({ value, onSelect, disabled }: { value: LessonStep; onSelect: (step: LessonStep) => void; disabled: boolean }) {
-  const { width, fontScale } = useWindowDimensions();
-  return <View accessibilityLabel="Lesson editing steps" style={l.steps}>{lessonSteps.map((step, i) => <View key={step} style={[l.step, (width < 360 || fontScale > 1.2) && l.largeStep, value === step && l.selected]}><LessonButton label={`${i + 1}. ${step}`} quiet disabled={disabled} onPress={() => onSelect(step)} /><Text style={l.stepText}>{step === value ? "Current step" : i < lessonSteps.indexOf(value) ? "Previous step" : ""}</Text></View>)}</View>;
+  return <View accessibilityLabel="Lesson editing steps" style={w.steps}>{lessonSteps.map((step, i) => <Pressable key={step} accessibilityRole="button" accessibilityState={{ selected: value === step, disabled }} disabled={disabled} onPress={() => onSelect(step)} style={[w.step, value === step && w.stepSelected]}><Text style={w.stepText}>{i + 1} {step === "Content" ? "Write" : step === "Quiz" ? "Questions" : step}</Text></Pressable>)}</View>;
 }
 export function LessonDetailsFields({ draft, subjects, change, disabled }: { draft: TeacherLessonInput; subjects: { id: string; name: string }[]; change: (next: TeacherLessonInput) => void; disabled: boolean }) {
   const [subjectPicker, setSubjectPicker] = useState(false);

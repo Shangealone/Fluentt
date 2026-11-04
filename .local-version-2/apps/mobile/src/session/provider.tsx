@@ -1,3 +1,4 @@
+import { assessedProficiencyAccess, type AssessedProficiencyAccess } from "../services/api/assessedProficiency";
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
@@ -71,6 +72,7 @@ type Session = {
   results: ResultsAccess;
   progress: ProgressAccess;
   monitoring: MonitoringAccess;
+  assessedProficiency: AssessedProficiencyAccess;
   communication: CommunicationAccess;
   pathway: PathwayAccess;
   materials: MaterialsAccess;
@@ -173,6 +175,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const liveCapture = useMemo(() => captureAccess(authenticated), [authenticated]);
   const liveResults = useMemo(() => resultsAccess(authenticated), [authenticated]);
   const liveCommunication = useMemo(() => communicationAccess(authenticated), [authenticated]);
+  const liveAssessedProficiency = useMemo(() => assessedProficiencyAccess(authenticated), [authenticated]);
   const liveMonitoring = useMemo(() => monitoringAccess(authenticated), [authenticated]);
   const liveProgress = useMemo(() => progressAccess(authenticated), [authenticated]);
   const livePathway = useMemo(() => pathwayAccess(authenticated), [authenticated]);
@@ -184,7 +187,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const livePractice = useMemo(() => practiceAccess(authenticated), [authenticated]);
   const liveActivityHistory = useMemo(() => personalHistoryAccess(authenticated), [authenticated]);
   return <Context.Provider value={{
-    profile, registrationPreview: code => enrollmentApi.registrationPreview(code, Platform.OS === "web" ? browserTransport : undefined), classes: liveClasses, enrollment: liveEnrollment, assignments: liveAssignments, teacherLessons: liveTeacherLessons, vocabulary: liveVocabulary, capture: liveCapture, results: liveResults, progress: liveProgress, monitoring: liveMonitoring, communication: liveCommunication, pathway: livePathway, materials: liveMaterials, notifications: liveNotifications, pronunciation: livePronunciation, conversation: liveConversation, research: liveResearch, practice: livePractice, activityHistory: liveActivityHistory, refreshProfile, loading, error, recovery, pending,
+    profile, registrationPreview: code => enrollmentApi.registrationPreview(code, Platform.OS === "web" ? browserTransport : undefined), classes: liveClasses, enrollment: liveEnrollment, assignments: liveAssignments, teacherLessons: liveTeacherLessons, vocabulary: liveVocabulary, capture: liveCapture, results: liveResults, progress: liveProgress, monitoring: liveMonitoring, assessedProficiency: liveAssessedProficiency, communication: liveCommunication, pathway: livePathway, materials: liveMaterials, notifications: liveNotifications, pronunciation: livePronunciation, conversation: liveConversation, research: liveResearch, practice: livePractice, activityHistory: liveActivityHistory, refreshProfile, loading, error, recovery, pending,
     retry: () => void recover(recovery),
     logout: () => { void recover("logout"); },
     create: async (username, role, password, enrollment) => {
