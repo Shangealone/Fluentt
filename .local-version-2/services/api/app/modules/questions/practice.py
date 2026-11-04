@@ -1,3 +1,4 @@
+from app.models.instructor_questions import InstructorLessonQuestion
 """Personal, unscored practice over explicitly published question revisions.
 
 School grade is not a personal eligibility rule. Difficulty is authored question
@@ -90,7 +91,7 @@ def latest_questions(language):
     return (select(QuestionRevision).join(Question, Question.id == QuestionRevision.question_id)
             .join(locked, (locked.c.question_id == QuestionRevision.question_id) &
                   (locked.c.version == QuestionRevision.version))
-            .where(Question.status == "published", Question.archived_at.is_(None),
+            .where(Question.id.not_in(select(InstructorLessonQuestion.question_id)), Question.status == "published", Question.archived_at.is_(None),
                    QuestionRevision.language == language))
 
 
@@ -182,7 +183,7 @@ def reveal(revision_id: UUID, credential: Credential, repo: Repo, settings: Conf
         row = db.scalar(select(QuestionRevision).join(Question, Question.id == QuestionRevision.question_id)
                         .where(QuestionRevision.id == revision_id, QuestionRevision.locked_at.is_not(None),
                                QuestionRevision.method == "flashcards", QuestionRevision.language == language,
-                               Question.status == "published", Question.archived_at.is_(None)))
+                               Question.id.not_in(select(InstructorLessonQuestion.question_id)), Question.status == "published", Question.archived_at.is_(None)))
         if row is None or db.execute(lesson_path(row.lesson_id)).first() is None:
             raise unavailable()
         key = db.scalar(select(QuestionAnswerKey).where(QuestionAnswerKey.question_revision_id == row.id))

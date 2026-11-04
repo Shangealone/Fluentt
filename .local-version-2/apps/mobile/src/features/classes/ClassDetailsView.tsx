@@ -1,3 +1,4 @@
+import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
 
@@ -8,12 +9,13 @@ import { homeColors as c } from "../../theme/personal";
 import type { ClassDetails } from "../../services/api/classes";
 import { CodeCard } from "./CodeCard";
 
-export type ClassAction = "assignments" | "overview" | "messages" | "edit";
+export type ClassAction = "lessons" | "assignments" | "overview" | "messages" | "edit";
 type Props = {
   row: ClassDetails | null; phase: "loading" | "ready" | "error"; error: string | null; created: boolean;
   onRetry: () => void; onAction: (action: ClassAction) => void; onBack: () => void; onAccount: () => void;
 };
 const actions: { id: ClassAction; title: string; description: string; icon: PersonalIconName; background: string; color: string }[] = [
+  { id: "lessons", title: "Lessons", description: "Create lessons and share them with your class.", icon: "learn", background: "#E9EFDB", color: "#64866B" },
   { id: "assignments", title: "Assignments", description: "Prepare and share class activities.", icon: "assignments", background: "#EEE8FA", color: "#7863A4" },
   { id: "overview", title: "Overview", description: "View student submissions and released results.", icon: "overview", background: "#FFF0DD", color: "#A87537" },
   { id: "messages", title: "Messages", description: "Send announcements and messages.", icon: "tutor", background: "#E6F2F5", color: "#4C8591" },
@@ -59,7 +61,7 @@ export function ClassDetailsView({ row, phase, error, created, onRetry, onAction
             <View style={s.art}><Image accessible={false} source={require("../../../assets/illustrations/instructor-classroom.png")} resizeMode="contain" style={s.artImage} /></View>
           </View>
           <View style={s.meta}>
-            <View style={s.chip}><Text style={s.chipText}>Grade {row.grade_level}</Text></View>
+            <View style={s.chip}><Text style={s.chipText}>{classProficiencyLabel(row.proficiency_level)}</Text></View>
             <View style={[s.chip, s.languageChip]}><Text style={[s.chipText, s.languageText]}>{row.language === "english" ? "English" : "Tagalog"}</Text></View>
             <View style={s.status}><View style={[s.statusDot, row.status === "archived" && s.archivedDot]} /><Text style={[s.statusText, row.status === "archived" && s.archivedText]}>{row.status === "active" ? "Active" : "Archived"}</Text></View>
           </View>

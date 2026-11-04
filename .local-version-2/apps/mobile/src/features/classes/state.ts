@@ -1,14 +1,15 @@
+import { isClassProficiency, type ClassProficiency } from "../../services/api/classProficiency";
 import type { ClassDetails, ClassDraft } from "../../services/api/classes";
 export function classFormError(
   name: string,
-  grade: number | null,
+  proficiency: ClassProficiency | null,
   language: string | null,
   description: string,
 ): string | null {
   if (!name.trim() || name.trim().length > 150)
     return "Enter a class name with 1–150 characters.";
-  if (grade === null || !Number.isInteger(grade) || grade < 1 || grade > 12)
-    return "Choose Grade 1 through Grade 12.";
+  if (!isClassProficiency(proficiency))
+    return "Choose Beginner, Intermediate, or Advanced, or leave the level not set.";
   if (!["english", "tagalog"].includes(language ?? ""))
     return "Choose English or Tagalog.";
   if (description.trim().length > 500)

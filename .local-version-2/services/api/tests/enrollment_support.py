@@ -52,6 +52,7 @@ class MemoryEnrollmentRepository(MemoryClassroomRepository):
         return StudentClass(
             class_name=classroom.class_name,
             grade_level=classroom.grade_level_id,
+            proficiency_level=classroom.proficiency_level,
             language=classroom.language,
             instructor_display_name=None,
         )

@@ -1,12 +1,14 @@
 # Fluentt UI redesign tracker
 
-Updated: 2026-10-31
+Updated: 2026-11-04
 
 This tracker records the page-by-page redesign work discussed for Fluentt. “Redesigned” means the approved presentation has been implemented in the app; it does not claim that the user has completed hands-on testing. Keep this list current as new pages are approved and implemented.
 
 ## Completed in the current Fluentt visual direction
 
 Shared look: Plus Jakarta Sans, warm background, deep green text, coral primary actions, pastel illustrations, rounded white cards, clear wrapping, and the learner or teacher bottom navigation appropriate to each role.
+
+ESR addition (2026-11-02): administrator `/vocabulary` preparation and school learner `/vocabulary-review` presentation added. These are a gated feature foundation, not an approved live study. Genuine inference and the complete participant workflow remain unavailable; see `ESR_IMPLEMENTATION.md`. Existing page redesign status below is unchanged.
 
 | Area | Page or route | Status |
 |---|---|---|
@@ -32,6 +34,10 @@ Shared look: Plus Jakarta Sans, warm background, deep green text, coral primary 
 | School learner | `/research` studies, consent, participation, activities, assessments, and withdrawal | Implemented; user testing pending |
 | School learner | `/class-code` join a class | Implemented; user confirms the current design matches the Fluentt visual standard. Back history and bottom-navigation visibility/selection were also corrected. |
 | Instructor | `/instructor` home | Implemented |
+| Instructor lesson authoring | `/instructor-lessons`, `/instructor-lesson` library, editor, versions and sharing | Implemented with approved Canvas; local migration 0019 applied; user testing pending |
+| Instructor lesson directory refinement | `/instructor-lessons` Class lessons / Browse lessons tabs and My lessons | Approved preview implemented 2026-11-04: lesson-organizer illustration, compact cards, expandable details, and no catalog grade labels; existing eligibility/navigation retained; user testing pending |
+| Instructor lesson editor refinement | `/instructor-lesson` writing page, question forms and reordering | Approved writing-page preview implemented 2026-11-04: compact steps, optional part headings, all ten simplified question forms, and hold-to-drag reordering with keyboard/up-down alternatives. Explicit saves and original retry/publication contracts retained; hands-on and native testing pending |
+| School learner lessons | `/class-lessons` directory and reading | Implemented; user testing pending |
 | Instructor | `/first-class` create class | Implemented |
 | Instructor | `/class-edit` edit class | Implemented |
 | Instructor | `/class-details` | Implemented |
@@ -56,4 +62,5 @@ The admin landing and dashboard received an earlier responsive refresh recorded 
 - The school student and personal learner both use `/student`, but each role has its own presentation.
 - Continue the preview-first workflow: inspect the real screen and its data constraints, make a Canvas preview, get visual approval, implement the presentation, and preserve the existing APIs, permissions, and saved data behavior.
 - The user handles hands-on testing when requested; record testing separately from visual implementation.
+- Teacher-created lessons and quizzes are documented in [`TEACHER_LESSONS.md`](TEACHER_LESSONS.md). They use explicit class sharing and the existing assignment flow; they do not add automatic grading or reading-completion tracking.
 - Research functionality needs a separate pass: the pre-existing assessment submission sends a fixed `response_duration_ms` value, and the current start/resume contract does not return saved responses. The redesign preserves those contracts and does not claim measured timing or restored responses.

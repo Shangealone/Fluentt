@@ -152,6 +152,17 @@ test('instructor navigation preserves destinations without duplicating the curre
   for (const item of items.slice(1)) item.props.onPress();
   assert.deepEqual(routerEvents, [['navigate','/communication'],['navigate','/notifications'],['navigate','/instructor-monitoring']]);
 });
+test('messages navigation selects Messages and can return Home', () => {
+  const { InstructorHomeNavigation } = local(path.join(mobile, 'src/features/dashboard/InstructorHome.tsx'));
+  const items = elementsIn(InstructorHomeNavigation({activeRoute:'/communication'})).filter(element => element.props.accessibilityRole === 'tab');
+  assert.deepEqual(items.filter(item => item.props.accessibilityState.selected).map(item => item.props.accessibilityLabel), ['Messages']);
+  routerEvents.length = 0;
+  items[1].props.onPress();
+  assert.deepEqual(routerEvents, []);
+  items[0].props.onPress();
+  assert.deepEqual(routerEvents, [['navigate','/instructor']]);
+});
+
 test('instructor class actions retain the exact returned class identifier', () => {
   const { InstructorClassCard } = local(path.join(mobile, 'src/features/dashboard/InstructorClassCard.tsx'));
   routerEvents.length = 0;

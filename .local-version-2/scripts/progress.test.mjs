@@ -46,7 +46,7 @@ test('progress uses authenticated wrappers and bounded encoded filter requests',
 });
 test('history route is available only after student onboarding, never to instructors',()=>{
  assert(routeAllowed({role:'school_student',profile_status:'active'},'learning-history'));
- assert(routeAllowed({role:'personal_student',profile_status:'active',grade:5,language:'tagalog'},'learning-history'));
+ assert(routeAllowed({role:'personal_student',profile_status:'active',grade:5,language:'tagalog',experience:'beginner'},'learning-history'));
  assert(!routeAllowed({role:'instructor',profile_status:'active'},'learning-history'));
  assert(!routeAllowed(null,'learning-history'));assert(!routeAllowed({role:'school_student',profile_status:'onboarding'},'learning-history'));
  assert(!routeAllowed({role:'personal_student',profile_status:'onboarding'},'learning-history'));

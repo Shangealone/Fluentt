@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { lessonLevelLabel } from "../../services/api/lessonLevel";
+import { classProficiencyLabel } from "../../services/api/classProficiency";
+import { useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { Text, TextInput } from "../../accessibility/Primitives";
 import { router } from "expo-router";
@@ -13,6 +15,7 @@ const names: Record<AssignmentMethod, string> = {
 };
 export type BuilderConfirmation = { message: string; accept: () => void; title?: string; label?: string };
 type Props = {
+  authorContent?: ReactNode; onCreateQuestions: () => void; questionsFiltered: boolean; initialStep?: number;
   classroom: ClassDetails; row: AssignmentDraft | null; title: string; instructions: string; lesson: LessonContext | null; items: AssignmentItem[];
   busy: boolean; frozen: boolean; editable: boolean; dirty: boolean; error: string; notice: string; uncertain: boolean; pending: boolean; publication: boolean;
   preview: AssignmentItem | null; confirm: BuilderConfirmation | null; query: string; method: string; filterKey: string;
@@ -24,8 +27,8 @@ type Props = {
 };
 
 /** Builder-only paging presentation; the shared Picker remains unchanged. */
-function BuilderPicker<T>({ fetch, render, emptyTitle, emptyDescription, disabled = false }: {
-  fetch: (offset: number) => Promise<AssignmentPage<T>>; render: (item: T) => ReactNode; emptyTitle: string; emptyDescription: string; disabled?: boolean;
+function BuilderPicker<T>({ fetch, render, emptyTitle, emptyDescription, emptyAction, disabled = false }: {
+  fetch: (offset: number) => Promise<AssignmentPage<T>>; render: (item: T) => ReactNode; emptyTitle: string; emptyDescription: string; emptyAction?: ReactNode; disabled?: boolean;
 }) {
   const [offset, setOffset] = useState(0), [retry, setRetry] = useState(0), [page, setPage] = useState<AssignmentPage<T> | null>(null), [error, setError] = useState("");
   useEffect(() => {
@@ -38,18 +41,18 @@ function BuilderPicker<T>({ fetch, render, emptyTitle, emptyDescription, disable
     return () => { active = false; };
   }, [fetch, offset, retry]);
   return <View style={b.stack}>{error ? <><Notice error>{error}</Notice><Button label="Try again" disabled={disabled} onPress={() => setRetry(value => value + 1)} /></> : !page ? <View style={b.note}><ActivityIndicator color="#176556" /><Text style={b.muted}>Loading your choices…</Text></View> : <>
-    {!page.items.length && <View style={[b.card, b.empty]}><WorksheetArt /><Text accessibilityRole="header" style={[b.heading, b.center]}>{emptyTitle}</Text><Text style={[b.muted, b.center]}>{emptyDescription}</Text></View>}
+    {!page.items.length && <View style={[b.card, b.empty]}><WorksheetArt /><Text accessibilityRole="header" style={[b.heading, b.center]}>{emptyTitle}</Text><Text style={[b.muted, b.center]}>{emptyDescription}</Text>{offset === 0 && emptyAction}</View>}
     {page.items.map(render)}
     {(offset > 0 || page.has_more) && <View style={b.row}><Button label="Previous" disabled={disabled || !offset} onPress={() => setOffset(Math.max(0, offset - 20))} /><Text style={b.muted}>Page {Math.floor(offset / 20) + 1}</Text><Button label="Next" disabled={disabled || !page.has_more} onPress={() => setOffset(offset + 20)} /></View>}
   </>}</View>;
 }
 
 export function BuilderView(p: Props) {
-  const [step, setStep] = useState(p.row && !p.row.editable ? 2 : 0);
+  const [step, setStep] = useState(p.row && !p.row.editable ? 2 : p.initialStep ?? 0);
   const [selectedOpen, setSelectedOpen] = useState(false), [filtersOpen, setFiltersOpen] = useState(false), [optionsOpen, setOptionsOpen] = useState(false), [aboutOpen, setAboutOpen] = useState(false), [validation, setValidation] = useState("");
   const readOnly = !p.editable;
   const shownStep = readOnly ? 2 : step;
-  const context = `Grade ${p.classroom.grade_level} · ${p.classroom.language === "english" ? "English" : "Tagalog"}`;
+  const context = `${classProficiencyLabel(p.classroom.proficiency_level)} · ${p.classroom.language === "english" ? "English" : "Tagalog"}`;
   const moveStep = (next: number) => {
     if (p.busy || p.frozen) return;
     if (next > 0 && (!p.title.trim() || Array.from(p.title.trim()).length > 200 || Array.from(p.instructions.trim()).length > 8000 || !p.lesson)) {
@@ -59,7 +62,7 @@ export function BuilderView(p: Props) {
   };
   const confirmTitle = p.confirm?.title ?? "Please confirm";
   const resetKey = `${shownStep}:${p.preview?.id ?? ""}:${p.confirm ? confirmTitle : ""}:${p.row?.status ?? "new"}`;
-  const catalog = useCallback((offset: number) => p.fetchQuestions(offset), [p.fetchQuestions]);
+  const catalog = p.fetchQuestions;
   const toggle = (label: string, value: boolean, setValue: (value: boolean) => void) => <Pressable accessibilityRole="button" accessibilityState={{ expanded: value, disabled: p.busy }} disabled={p.busy} onPress={() => setValue(!value)} style={[b.row, { minHeight: 44 }]}><Text style={[b.label, { flex: 1 }]}>{label}</Text><Text accessible={false} style={b.label}>{value ? "−" : "+"}</Text></Pressable>;
   const questionCards = (allowEdit: boolean) => p.items.map((item, index) => <View key={item.question_id} style={b.card}>
     <View style={b.questionTitle}><Text style={b.number}>{index + 1}</Text><View style={b.questionCopy}><Text style={b.tag}>{names[item.definition.method]}</Text><Text style={b.label}>{item.definition.prompt}</Text><Text style={b.muted}>Version {item.version}</Text></View></View>
@@ -68,8 +71,8 @@ export function BuilderView(p: Props) {
     {allowEdit && <View style={b.actions}><View style={b.action}><Button label="Move earlier" disabled={p.frozen || index === 0} onPress={() => p.onMove(index, -1)} /></View><View style={b.action}><Button label="Move later" disabled={p.frozen || index === p.items.length - 1} onPress={() => p.onMove(index, 1)} /></View><View style={b.action}><Button label={`Remove question ${index + 1}`} disabled={p.frozen} onPress={() => p.onRemove(item)} /></View></View>}
   </View>);
 
-  return <BuilderShell onBack={p.onBack} onAccount={() => router.push("/account")} busy={p.busy} step={shownStep} onStep={!readOnly && !p.frozen && !p.confirm && !p.preview ? moveStep : undefined} resetKey={resetKey}>
-    {p.confirm ? <><BuilderHero title={confirmTitle} description="Check before continuing." context={context} /><View style={b.card}><Text style={b.body}>{p.confirm.message}</Text><Button label="Keep working" primary disabled={p.busy} onPress={p.onCancelConfirm} /><Button label={p.confirm.label ?? "Confirm"} disabled={p.busy} onPress={p.onAcceptConfirm} /></View></> : p.preview ? <>
+  return <BuilderShell onBack={p.onBack} onAccount={() => router.push("/account")} busy={p.busy} step={shownStep} onStep={!readOnly && !p.frozen && !p.confirm && !p.preview && !p.authorContent ? moveStep : undefined} resetKey={resetKey}>
+    {p.confirm ? <><BuilderHero title={confirmTitle} description="Check before continuing." context={context} /><View style={b.card}><Text style={b.body}>{p.confirm.message}</Text><Button label="Keep working" primary disabled={p.busy} onPress={p.onCancelConfirm} /><Button label={p.confirm.label ?? "Confirm"} disabled={p.busy} onPress={p.onAcceptConfirm} /></View></> : p.authorContent ? p.authorContent : p.preview ? <>
       <BuilderHero title="Question preview" description="See the activity before adding it." context={context} />
       <View style={b.card}><Text style={b.tag}>{names[p.preview.definition.method]}</Text><ItemPreview key={p.preview.id} row={p.preview} /></View>
       {!readOnly && <Button label={p.items.some(item => item.question_id === p.preview!.question_id) ? "Already selected" : "Add question"} primary disabled={p.frozen || !p.preview.eligible || p.items.length >= 200 || p.items.some(item => item.question_id === p.preview!.question_id)} onPress={() => p.onAdd(p.preview!)} />}
@@ -82,8 +85,8 @@ export function BuilderView(p: Props) {
       {shownStep === 0 && <>
         <View style={b.card}><View style={b.stack}><Text style={b.label}>Assignment title</Text><TextInput accessibilityLabel="Assignment title" style={b.input} placeholder="Give your assignment a name" placeholderTextColor="#8C9B92" value={p.title} editable={!p.frozen} onChangeText={p.onTitle} /><Text style={b.muted}>Make it easy for your class to recognize. Up to 200 characters.</Text></View><View style={b.stack}><Text style={b.label}>Instructions <Text style={b.muted}>Optional</Text></Text><TextInput accessibilityLabel="Assignment instructions (optional)" style={[b.input, b.textarea]} placeholder="What would you like your students to do?" placeholderTextColor="#8C9B92" multiline value={p.instructions} editable={!p.frozen} onChangeText={p.onInstructions} /><Text style={b.muted}>Up to 8,000 characters.</Text></View></View>
         <View style={b.stack}><Text accessibilityRole="header" style={b.heading}>Choose a lesson</Text><Text style={b.muted}>Lessons available for this class</Text>
-          {p.lesson && <View style={b.note}><Text style={b.kicker}>Selected lesson</Text><Text style={b.label}>{p.lesson.lesson_name}</Text><Text style={b.muted}>{p.lesson.curriculum_name} · Grade {p.lesson.grade} · {p.lesson.subject_name}</Text></View>}
-          {!p.frozen && <BuilderPicker fetch={p.fetchLessons} emptyTitle="No lessons available yet" emptyDescription="There are no published lessons available for this class. Check again later or contact your content administrator." render={choice => <Pressable key={choice.lesson_id} accessibilityRole="radio" accessibilityState={{ checked: choice.lesson_id === p.lesson?.lesson_id }} onPress={() => p.onLesson(choice)} style={[b.choice, choice.lesson_id === p.lesson?.lesson_id && b.selected]}><View style={b.choiceText}><Text style={b.label}>{choice.lesson_name}</Text><Text style={b.muted}>Grade {choice.grade} · {choice.subject_name}{"\n"}{choice.curriculum_name}</Text></View><View style={[b.radio, choice.lesson_id === p.lesson?.lesson_id && b.radioSelected]} /></Pressable>} />}
+          {p.lesson && <View style={b.note}><Text style={b.kicker}>Selected lesson</Text><Text style={b.label}>{p.lesson.lesson_name}</Text><Text style={b.muted}>{p.lesson.curriculum_name ?? "Teacher lesson"} · {lessonLevelLabel(p.lesson)} · {p.lesson.subject_name}</Text></View>}
+          {!p.frozen && <BuilderPicker fetch={p.fetchLessons} emptyTitle="No lessons available yet" emptyDescription="There are no published lessons available for this class. Check again later or contact your content administrator." render={choice => <Pressable key={choice.lesson_id} accessibilityRole="radio" accessibilityState={{ checked: choice.lesson_id === p.lesson?.lesson_id }} onPress={() => p.onLesson(choice)} style={[b.choice, choice.lesson_id === p.lesson?.lesson_id && b.selected]}><View style={b.choiceText}><Text style={b.label}>{choice.lesson_name}</Text><Text style={b.muted}>{lessonLevelLabel(choice)} · {choice.subject_name}{"\n"}{choice.curriculum_name ?? "Teacher lesson"}</Text></View><View style={[b.radio, choice.lesson_id === p.lesson?.lesson_id && b.radioSelected]} /></Pressable>} />}
         </View>
         <View style={b.footer}><Button label="Continue to questions" primary disabled={p.frozen} onPress={() => moveStep(1)} /><Text style={[b.muted, b.center]}>Your changes are saved only when you choose Save draft.</Text></View>
       </>}
@@ -94,7 +97,7 @@ export function BuilderView(p: Props) {
           {toggle(`Question type: ${p.method ? names[p.method as AssignmentMethod] : "All types"}`, filtersOpen, setFiltersOpen)}
           {filtersOpen && <View style={b.stack}>{["", ...assignmentMethods].map(value => <Button key={value} label={value ? names[value as AssignmentMethod] : "All types"} primary={p.method === value} disabled={p.frozen} onPress={() => p.onMethod(value)} />)}</View>}
           <Button label="Search questions" disabled={p.frozen} onPress={p.onSearch} /><Button label="Clear filters" quiet disabled={p.frozen} onPress={p.onClearFilters} />
-          {p.lesson && !p.frozen && <BuilderPicker key={p.filterKey} fetch={catalog} emptyTitle="No matching questions" emptyDescription="Try another search or question type. This lesson may not have published questions yet." render={item => {
+          {p.lesson && !p.frozen && <BuilderPicker key={p.filterKey} fetch={catalog} emptyTitle={p.questionsFiltered ? "No matching questions" : "No published questions yet"} emptyDescription={p.questionsFiltered ? "Try another search or question type." : "Create questions for this lesson, then choose what to include in your assignment."} emptyAction={p.questionsFiltered ? <Button label="Clear filters" onPress={p.onClearFilters} /> : <Button label="Create questions" primary disabled={p.frozen || p.items.length >= 200} onPress={p.onCreateQuestions} />} render={item => {
             const added = p.items.some(value => value.question_id === item.question_id);
             return <View key={item.id} style={b.card}><View style={b.row}><Text style={b.tag}>{names[item.definition.method]}</Text><Text style={b.muted}>Version {item.version}</Text></View><Text style={b.label}>{item.definition.prompt}</Text><View style={b.actions}><View style={b.action}><Button label="Preview" onPress={() => p.onPreview(item)} /></View><View style={b.action}><Button label={added ? "✓ Added" : "+ Add question"} primary={!added} disabled={added || !item.eligible || p.items.length >= 200} onPress={() => p.onAdd(item)} /></View></View></View>;
           }} />}
@@ -103,7 +106,7 @@ export function BuilderView(p: Props) {
       {shownStep === 2 && <>
         <View style={b.row}><Text style={b.tag}>{readOnly ? p.row?.status === "published" ? "Published" : p.row?.status === "archived" ? "Archived" : "Draft" : p.row && !p.dirty ? "Draft saved" : "Unsaved changes"}</Text><Text style={b.muted}>{p.items.length} questions</Text></View>
         {readOnly && <Notice>{p.row?.status === "published" ? "This assignment is shared with eligible class members and can no longer be edited." : p.row?.status === "archived" ? "This draft is archived. Its saved details remain available to view." : "This assignment is currently available to view only."}</Notice>}
-        <View style={b.card}><Text accessibilityRole="header" style={b.heading}>{p.title}</Text>{!!p.instructions && <Text style={b.body}>{p.instructions}</Text>}<View style={b.divider} />{p.lesson && <View style={b.stack}><Text style={b.muted}>Lesson</Text><Text style={b.label}>{p.lesson.lesson_name}</Text><Text style={b.muted}>Grade {p.lesson.grade} · {p.lesson.subject_name} · {p.lesson.curriculum_name}</Text></View>}{!readOnly && <Button label="Edit details" disabled={p.frozen} onPress={() => moveStep(0)} />}</View>
+        <View style={b.card}><Text accessibilityRole="header" style={b.heading}>{p.title}</Text>{!!p.instructions && <Text style={b.body}>{p.instructions}</Text>}<View style={b.divider} />{p.lesson && <View style={b.stack}><Text style={b.muted}>Lesson</Text><Text style={b.label}>{p.lesson.lesson_name}</Text><Text style={b.muted}>{lessonLevelLabel(p.lesson)} · {p.lesson.subject_name} · {p.lesson.curriculum_name ?? "Teacher lesson"}</Text></View>}{!readOnly && <Button label="Edit details" disabled={p.frozen} onPress={() => moveStep(0)} />}</View>
         <View style={b.row}><Text accessibilityRole="header" style={b.heading}>Questions ({p.items.length})</Text>{!readOnly && <Button label="Edit questions" quiet disabled={p.frozen} onPress={() => moveStep(1)} />}</View>
         {p.items.length ? questionCards(false) : <Notice>Your draft has no questions yet. You can save it now. Add at least one question before publishing.</Notice>}
         {!readOnly && <View style={b.footer}><Button label={p.pending ? "Retry original draft save" : p.row && !p.dirty ? "Draft saved" : "Save draft"} primary disabled={p.busy || p.uncertain || (!!p.row && !p.dirty)} busy={p.busy && !p.publication} onPress={p.onSave} />

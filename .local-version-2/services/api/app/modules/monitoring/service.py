@@ -42,6 +42,7 @@ def classroom_view(db, classroom):
         class_name=classroom.class_name,
         language=classroom.language,
         grade=db.scalar(select(GradeLevel.number).where(GradeLevel.id == classroom.grade_level_id)),
+        proficiency_level=classroom.proficiency_level,
     )
 
 
@@ -217,9 +218,9 @@ def execute(repo, token, settings, *, action, class_id=None, student_id=None, as
         with authorized(repo, token, settings, class_id, student_id) as (db, user, classroom, students):
             if action == "classes":
                 statement = select(
-                    ClassModel.id, ClassModel.class_name, ClassModel.language, GradeLevel.number.label("grade")
+                    ClassModel.id, ClassModel.class_name, ClassModel.language, ClassModel.proficiency_level, GradeLevel.number.label("grade")
                 )
-                statement = statement.join(GradeLevel, ClassModel.grade_level_id == GradeLevel.id).where(
+                statement = statement.outerjoin(GradeLevel, ClassModel.grade_level_id == GradeLevel.id).where(
                     ClassModel.instructor_id == user.id, ClassModel.status == "active", ClassModel.archived_at.is_(None)
                 )
                 if query.q:
@@ -259,6 +260,7 @@ def execute(repo, token, settings, *, action, class_id=None, student_id=None, as
                 rows = (
                     db.execute(
                         select(options)
+                        .where(options.c.id.is_not(None), options.c.label.is_not(None))
                         .order_by(options.c.label, options.c.id)
                         .limit(query.limit + 1)
                         .offset(query.offset)

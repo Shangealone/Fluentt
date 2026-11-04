@@ -1,3 +1,4 @@
+import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { useEffect, useRef, type ComponentRef } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text, TextInput } from "../../accessibility/Primitives";
@@ -80,7 +81,7 @@ export function JoinClassView(props: JoinClassViewProps) {
             <Text style={j.className}>{details.class_name}</Text>
             {details.instructor_display_name && <Text style={a.description}>Teacher: {details.instructor_display_name}</Text>}
             <View style={j.chips}>
-              <View style={j.chip}><Text style={j.chipText}>Grade {details.grade_level}</Text></View>
+              <View style={j.chip}><Text style={j.chipText}>{classProficiencyLabel(details.proficiency_level)}</Text></View>
               <View style={j.chip}><Text style={j.chipText}>{details.language === "english" ? "English" : "Tagalog"}</Text></View>
             </View>
           </View> : <View style={a.field}>

@@ -1,6 +1,6 @@
 # Fluentt content source register — pilot batch
 
-Status: source review and lesson planning only. No source text, images, audio, or transcripts have been copied into the app. No curriculum or question records have been published.
+Status: reference register. Three original English grammar pilot lessons and their 37 questions are published locally. Six additional original Grade 4 lessons from user-supplied SRC-02 screenshots, with 48 questions, were imported as drafts on 2026-11-01; see `LEARNING_MATERIALS_COVERAGE.md`. No source images, audio, or transcripts were copied into the app.
 
 ## Working rules
 
@@ -15,10 +15,10 @@ Status: source review and lesson planning only. No source text, images, audio, o
 
 | ID | Source | Working title/type | Language | Intended learners | Review status |
 | --- | --- | --- | --- | --- | --- |
-| SRC-01 | https://online.flipbuilder.com/xtrvf/udtr/ | Everyone Speak Kids 3 student book / digital reader | English | Around Grade 3, ages 8–9, beginner | Link opens as a digital reader; needs page/unit selection and client confirmation of the exact sections to use. |
+| SRC-01 | https://online.flipbuilder.com/xtrvf/udtr/ | Everyone Speak Kids 3 student book / digital reader | English | Around Grade 3, ages 8–9, beginner | Reader page has no readable text. Seven original Grade 3 everyday-conversation drafts were imported from the registered topic guide; review and publication pending. |
 | SRC-02 | https://www.scribd.com/document/774984093/Come-On-Everyone-4-Student-book | Come On Everyone 4 student book | English | Grades 4–5, ages 9–11, beginner | Outline exposes Starter, School Clubs, Dream Jobs, In Town, Festival, Vacation Plans, Health, Habits, and related sections. Select original lesson targets rather than copying book pages. |
 | SRC-03 | https://www.scribd.com/document/560606335/Come-on-Phonics-1-SB | Come On Phonics 1 student book | English | Kindergarten–Grade 1, ages 4–7, beginner | Phonics sequence is suitable for a separate early-reader track: letters/sounds, beginning vocabulary, listening discrimination, and short reading. |
-| SRC-04 | https://online.flipbuilder.com/yhrca/ycxz/ | Insight Link Starter 1 student book / digital reader | English | Around Grades 2–4, ages 8–10, high beginner | Link is identified as the Starter 1 reader; needs page/unit selection and client confirmation of the intended reading passages. |
+| SRC-04 | https://online.flipbuilder.com/yhrca/ycxz/ | Insight Link Starter 1 student book / digital reader | English | Around Grades 2–4, ages 8–10, high beginner | Reader page has no readable text. Four original Grade 3 reading-skills drafts use new passages; review and publication pending. |
 | SRC-05 | https://online.anyflip.com/hzfnh/whds/mobile/index.html | Cross-curricular reading source / digital reader | English | Around Grades 1–2, ages 6–8, low beginner–beginner | Client screenshots identify Chapters 1–3 and page ranges; use the selected lesson pages rather than copying the whole book. |
 
 All five entries were supplied with: `Client owns or has permission to use: Yes`.
@@ -40,9 +40,9 @@ Permission update supplied by the user on 2026-10-29: transcripts from all eight
 
 ## Proposed pilot lesson map
 
-These are draft targets, not copied source content and not yet approved for publication.
+The added collections below are original draft content informed by the registered source topics. They have not been reviewed or published.
 
-### Pilot A — Grade 3 conversation and everyday words
+### SRC-01 — Grade 3 conversation and everyday words
 
 Source: SRC-01
 
@@ -50,6 +50,7 @@ Source: SRC-01
 - Learner outcome: ask and answer short everyday questions with confidence.
 - Starter activities: hear-and-choose vocabulary, build a short question/answer sentence, flashcards for key words.
 - Suggested difficulty: Easy, with a small Medium follow-up after review.
+- Status: Seven original lessons imported; see `LEARNING_MATERIALS_COVERAGE.md`.
 
 ### Pilot B — Early phonics and beginning sounds
 
@@ -63,7 +64,7 @@ Source: SRC-03
 ### Candidate follow-up groups
 
 - SRC-02: separate Grade 4–5 units such as school clubs, places in town, health, and habits.
-- SRC-04: reading units for main idea, detail, and useful vocabulary after the client selects passages.
+- SRC-04: Four original reading-skills lessons imported with new passages; see `LEARNING_MATERIALS_COVERAGE.md`.
 - SRC-05: Grade 1–2 short reading units from School, Ice Cream, and Houses after the client confirms the pages and permitted wording.
 - VID-01–VID-07: older-learner grammar and conversation units; keep them separate from the Grade 3 and early-reader tracks.
 - VID-08: optional resource-literacy material for older learners or teachers, not a core learner activity.

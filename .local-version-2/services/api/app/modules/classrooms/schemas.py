@@ -4,12 +4,14 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Language = Literal["english", "tagalog"]
+Proficiency = Literal["beginner", "intermediate", "advanced"]
 
 
 class ClassCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
     class_name: str = Field(strict=True, min_length=1, max_length=150)
-    grade_level: int = Field(strict=True, ge=1, le=12)
+    grade_level: int | None = Field(default=None, strict=True, ge=1, le=12)
+    proficiency_level: Proficiency | None = None
     language: Language
     description: str | None = Field(default=None, strict=True, max_length=500)
 
@@ -28,6 +30,7 @@ class ClassUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
     class_name: str | None = Field(default=None, strict=True, min_length=1, max_length=150)
     grade_level: int | None = Field(default=None, strict=True, ge=1, le=12)
+    proficiency_level: Proficiency | None = None
     language: Language | None = None
     description: str | None = Field(default=None, strict=True, max_length=500)
 
@@ -51,7 +54,8 @@ class ClassUpdate(BaseModel):
 class ClassDetails(BaseModel):
     id: UUID
     class_name: str
-    grade_level: int
+    grade_level: int | None
+    proficiency_level: Proficiency | None = None
     language: Language
     description: str | None
     join_code: str | None = Field(pattern=r"^[0-9]{6}$")

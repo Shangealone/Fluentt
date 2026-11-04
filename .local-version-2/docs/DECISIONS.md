@@ -1,5 +1,9 @@
 # Decisions
 
+## ESR foundation and training preparation — 2026-11-02
+
+The user approved the concurrent counterbalanced FSRS-6/FIFAKT design and implementation. Added private vocabulary snapshots, isolated review transactions, interval-only fusion, administrator preparation and learner review presentation. Preserve legacy SM-2 records, ordinary assignments and personal practice. No simulated provider is accepted by this pipeline. Study activation remains blocked by missing genuine inference and incomplete consent/enrollment, withdrawal and study-assessment integration. Design approval is not ethics, guardian or site approval. The user confirmed no checkpoint exists and selected training preparation next; the preparation document, untrained manifest and integrity checker are included without downloading data or starting training. See ESR_IMPLEMENTATION.md and ESR_TRAINING_PREPARATION.md for exact scope, 22 focused checks and remaining work.
+
 ## Unified accounts and browser sessions — 2026-10-29
 
 The user approved a shared username/password sign-in and registration flow for the three mobile roles, with authenticated legacy password setup. Browser credentials use server-issued HttpOnly cookies and session-bound request proofs; native credentials remain in SecureStore. New public registrations require passwords; administrator authentication stays separate. The old incompatible development databases are untouched; this workspace uses a separate isolated F: PostgreSQL cluster and an independently migrated empty version-2 database. Local mobile builds use an explicit reachable development API address. Demo access and runtime sample-data fallbacks are removed, including runtime simulated pronunciation scoring; separate speech services retain their own honest availability and permission behavior. No password recovery or production deployment is included. Details and verification are in UNIFIED_ACCOUNTS.md.
@@ -465,3 +469,16 @@ For a temporary PC-off English speech demo, a separate 4-core GitHub Codespace m
 ## Administrator scheduler labels — 2026-11-05
 
 The user requested separate FSRS-6-only and FSRS-6 + FIFAKT result features in the new administrator page. Preserve Learn as classroom submission activity because its captures do not record which scheduler, if any, was used. The administrator may count eligible ordinary-classroom, nonsimulated FSRS-6 review events separately from explicitly simulated FIFAKT prototype traces; neither count is a retention or effectiveness result. Current configured database has no review events or states. Keep research identities/conditions and personal progress out of this monitoring surface. Do not activate or describe the untrained FIFAKT adapter as a validated learner model. See `ADMIN_MONITORING_IMPLEMENTATION.md`.
+
+## 2026-11-03 — School-client registration scope
+
+Delivered new-account types are Student and Teacher; administrators retain their existing provisioning process. Personal learner signup is disabled by default through FLUENTT_PERSONAL_LEARNER_REGISTRATION_ENABLED. Both signup transports enforce the same policy and the public UI reads available account types from the API. Existing personal accounts retain sign-in, functionality, and records. Restore signup by enabling the flag and restarting the API; see PERSONAL_LEARNER_REGISTRATION.md. No role conversion, deletion, or schema migration accompanies this decision.
+
+## 2026-11-03 — Client-assessed class proficiency
+
+The client groups learners into Beginner, Intermediate, Advanced after its own English assessment. Replace the required school-grade class selector with optional Class proficiency level, preserving legacy grade records without conversion. Existing classes remain Level not set. Classroom lesson eligibility no longer requires grade equality; language, subject, publication, ownership/membership, archival and historical version rules remain. Proficiency is a grouping label; no grade/difficulty/score mapping or automated assessment is introduced. See CLASS_PROFICIENCY.md.
+
+
+## Version 5 combination — 2026-11-05
+
+The user requested a GitHub backup before combining the current WavLM app with Kaiser version-5, keeping client-focused registration and adding FSRS-6 + FIFAKT. Backup 2aebe91 was pushed as backup-before-version5-2026-11-05. The combined app is in versions/fluentt-version5-combined/.local-version-2 on codex/version5-wavlm-integration. Merge version-5 at d49a239 while retaining actual Voice processing and current administrator monitoring. Preserve the version-5 new-personal-registration-disabled policy and existing account history. Import the ESR review foundation without bypassing missing trained-provider and study-workflow guards. Source combination is complete; trained hybrid activation remains blocked. See VERSION5_COMBINATION.md for tests, changed files and next requirements.

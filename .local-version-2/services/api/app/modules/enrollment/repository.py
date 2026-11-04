@@ -45,13 +45,14 @@ class EnrollmentRepository(IdentityRepository):
         )
 
     def describe_class(self, classroom):
-        grade = self.session.get(GradeLevel, classroom.grade_level_id)
+        grade = self.session.get(GradeLevel, classroom.grade_level_id) if classroom.grade_level_id else None
         display_name = self.session.scalar(
             select(InstructorProfile.display_name).where(InstructorProfile.user_id == classroom.instructor_id)
         )
         return StudentClass(
             class_name=classroom.class_name,
-            grade_level=grade.number,
+            grade_level=grade.number if grade else None,
+            proficiency_level=classroom.proficiency_level,
             language=classroom.language,
             instructor_display_name=display_name,
         )

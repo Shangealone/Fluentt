@@ -31,6 +31,18 @@ from app.modules.identity.user_service import check_username, create_user, login
 router = APIRouter(tags=["mobile identity"], dependencies=[Depends(require_secure_transport)])
 
 
+@router.get("/registration/options")
+def registration_options(
+    response: Response,
+    settings: Annotated[Settings, Depends(get_identity_settings)],
+) -> dict[str, list[str]]:
+    response.headers["Cache-Control"] = "no-store"
+    roles = ["school_student", "instructor"]
+    if settings.personal_learner_registration_enabled:
+        roles.insert(0, "personal_student")
+    return {"roles": roles}
+
+
 @router.get("/usernames/check", response_model=UsernameAvailability, dependencies=[Depends(throttle_checks)])
 def username_availability(
     username: Annotated[str, Query(max_length=128)],

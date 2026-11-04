@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
 
 import { router, usePreventRemove } from "expo-router";
@@ -9,6 +9,11 @@ import { type AssignmentAccess, type AssignmentDraft, type AssignmentInput, type
 import { addItem, draftError, DraftSubmission, moveItem } from "./state";
 import { BuilderView, type BuilderConfirmation } from "./BuilderView";
 import type { ClassDetails } from "../../services/api/classes";
+import { useSession } from "../../session/provider";
+import type { TeacherLesson, TeacherQuestion } from "../../services/api/teacherLessons";
+import { LessonEditor } from "../teacher-lessons/LessonEditor";
+import { newQuestion, prepareQuestion, questionError, QuestionAuthor, TeacherQuestionPreview } from "../teacher-lessons/QuestionAuthor";
+import { LessonButton, LessonNote, l } from "../teacher-lessons/LessonUI";
 
 export function Picker<T>({ fetch, render, renderHeader, emptyTitle = "No eligible records", emptyDescription = "No sample content is added. Adjust filters or ask your content administrator." }: { fetch: (offset: number) => Promise<AssignmentPage<T>>; render: (row: T, index: number) => React.ReactNode; renderHeader?: (page: AssignmentPage<T>) => React.ReactNode; emptyTitle?: string; emptyDescription?: string }) {
   const [offset, setOffset] = useState(0), [retry, setRetry] = useState(0), [page, setPage] = useState<AssignmentPage<T> | null>(null), [error, setError] = useState("");
@@ -27,9 +32,14 @@ export function Picker<T>({ fetch, render, renderHeader, emptyTitle = "No eligib
   </>}</View>;
 }
 
-export function AssignmentEditor({ initial, classId, classroom, api, active = true }: { initial: AssignmentDraft | null; classId: string; classroom: ClassDetails; api: AssignmentAccess; active?: boolean }) {
+export function AssignmentEditor({ initial, initialLesson, classId, classroom, api, active = true }: { initial: AssignmentDraft | null; initialLesson?: LessonContext | null; classId: string; classroom: ClassDetails; api: AssignmentAccess; active?: boolean }) {
+  const { teacherLessons } = useSession();
+  const [ownLesson, setOwnLesson] = useState<TeacherLesson | null>(null), [resumeQuestions, setResumeQuestions] = useState(false);
+  const [author, setAuthor] = useState<TeacherQuestion | null>(null), [authorPreview, setAuthorPreview] = useState(false);
+  const [questionRequest, setQuestionRequest] = useState<{ lessonId: string; question: TeacherQuestion; key: string } | null>(null);
+  const [catalogEpoch, setCatalogEpoch] = useState(0);
   const [row, setRow] = useState(initial), [title, setTitle] = useState(initial?.title ?? ""), [instructions, setInstructions] = useState(initial?.instructions ?? "");
-  const [lesson, setLesson] = useState<LessonContext | null>(initial?.context ?? null), [items, setItems] = useState<AssignmentItem[]>(initial?.questions ?? []);
+  const [lesson, setLesson] = useState<LessonContext | null>(initial?.context ?? initialLesson ?? null), [items, setItems] = useState<AssignmentItem[]>(initial?.questions ?? []);
   const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [query, setQuery] = useState(""), [filters, setFilters] = useState({ q: "", method: "" }), [method, setMethod] = useState("");
   const [preview, setPreview] = useState<AssignmentItem | null>(null), [confirm, setConfirm] = useState<BuilderConfirmation | null>(null);
@@ -37,12 +47,65 @@ export function AssignmentEditor({ initial, classId, classroom, api, active = tr
   const lock = useRef(false), alive = useRef(true), [uncertain, setUncertain] = useState(false);
   const [publication, setPublication] = useState<{ row: AssignmentDraft; key: string } | null>(null);
   useEffect(() => { alive.current = active; return () => { alive.current = false; }; }, [active]);
-  const prevent = usePreventRemove(active && (dirty || busy || !!submission.pending), ({ repeat }) => {
+  useEffect(() => {
+    if (Platform.OS !== "web" || (!dirty && !busy && !author && !ownLesson && !questionRequest)) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, busy, author, ownLesson, questionRequest]);
+  const prevent = usePreventRemove(active && !ownLesson && (dirty || busy || !!submission.pending || !!author), ({ repeat }) => {
     if (!lock.current) setConfirm({ title: "Leave this assignment?", label: "Leave without saving", message: "Your unsaved changes will be lost. If a save was interrupted, check your assignments before creating another draft.", accept: () => { setDirty(false); submission.pending = null; repeat(); } });
   });
   const editable = !row || row.editable, frozen = busy || !!submission.pending || uncertain || !editable;
   const fetchLessons = useCallback((offset: number) => api.lessons(classId, "", offset), [api, classId]);
-  const fetchQuestions = useCallback((offset: number) => api.questions(classId, lesson!.lesson_id, filters.q, filters.method, offset), [api, classId, lesson, filters]);
+  const fetchQuestions = useCallback((offset: number) => { void catalogEpoch; return api.questions(classId, lesson!.lesson_id, filters.q, filters.method, offset); }, [api, classId, lesson, filters, catalogEpoch]);
+  function closeAuthor() {
+    if (busy) return;
+    setConfirm({ title: questionRequest ? "Leave an uncertain question publication?" : "Discard question edits?", label: "Back to assignment", message: questionRequest ? "This question may already be published. Your retry details will be cleared. Check the question list before creating another." : "These question edits will be discarded. Your assignment title, instructions and selections will stay.", accept: () => { setAuthor(null); setQuestionRequest(null); setAuthorPreview(false); setCatalogEpoch(value => value + 1); } });
+  }
+  async function openAuthor() {
+    if (frozen || !lesson || lock.current || items.length >= 200) return;
+    if (lesson.source !== "teacher") { setAuthor(newQuestion()); setError(""); return; }
+    lock.current = true; setBusy(true); setError("");
+    try {
+      const current = await api.lesson(classId, lesson.lesson_id);
+      if (!current.teacher_lesson_id) throw new Error("Reload this lesson before adding questions.");
+      const owned = await teacherLessons.get(current.teacher_lesson_id);
+      if (alive.current) { setResumeQuestions(true); setOwnLesson(owned); }
+    } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "Couldn’t open your lesson."); }
+    finally { lock.current = false; if (alive.current) setBusy(false); }
+  }
+  async function publishQuestion() {
+    if (!author || !lesson || lock.current) return;
+    const question = prepareQuestion(author), invalid = questionError(question);
+    if (!questionRequest && invalid) { setError(invalid); return; }
+    const request = questionRequest ?? { lessonId: lesson.lesson_id, question, key: Crypto.randomUUID() };
+    setQuestionRequest(request); lock.current = true; setBusy(true); setError("");
+    try {
+      const created = await api.createQuestion(classId, request.lessonId, request.question, request.key);
+      if (alive.current) {
+        setItems(previous => addItem(previous, created)); setDirty(true); setAuthor(null); setAuthorPreview(false); setQuestionRequest(null);
+        setQuery(""); setMethod(""); setFilters({ q: "", method: "" }); setCatalogEpoch(value => value + 1);
+        setNotice("Question published and selected. Save your assignment draft to keep this selection.");
+      }
+    } catch (cause) {
+      if (alive.current) {
+        setError(cause instanceof Error ? cause.message : "We couldn’t confirm the question publication.");
+        const status = (cause as { status?: number }).status;
+        if (status && status !== 408 && status < 500) setQuestionRequest(null);
+      }
+    } finally { lock.current = false; if (alive.current) setBusy(false); }
+  }
+  async function returnFromLesson(saved: TeacherLesson | null) {
+    setOwnLesson(null);
+    if (!saved || saved.status !== "published" || !saved.shares.some(share => share.class_id === classId && share.version_id === saved.version_id) || saved.lesson_id === lesson?.lesson_id) return;
+    lock.current = true; setBusy(true);
+    try {
+      const updated = await api.lesson(classId, saved.lesson_id);
+      if (alive.current) setConfirm({ title: "Use the updated lesson?", label: "Use updated lesson", message: "Your assignment title and instructions will stay. Any previously selected questions will be cleared so you can choose from this lesson version.", accept: () => { setLesson(updated); setItems([]); setFilters({ q: "", method: "" }); setQuery(""); setMethod(""); setError(""); changed(); } });
+    } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "Couldn’t load the updated lesson."); }
+    finally { lock.current = false; if (alive.current) setBusy(false); }
+  }
   function changed() { setDirty(true); setNotice(""); setPreview(null); }
   function restore(saved: AssignmentDraft) { setRow(saved); setTitle(saved.title); setInstructions(saved.instructions ?? ""); setLesson(saved.context); setItems(saved.questions); setDirty(false); setPreview(null); setUncertain(false); }
   async function save() {
@@ -85,7 +148,18 @@ export function AssignmentEditor({ initial, classId, classroom, api, active = tr
       if (alive.current) { setError(cause instanceof Error ? cause.message : "Publish outcome unknown. Retry the same publication or reload."); setUncertain(true); }
     } finally { lock.current = false; if (alive.current) setBusy(false); }
   }
-  return <BuilderView classroom={classroom} row={row} title={title} instructions={instructions} lesson={lesson} items={items}
+  if (ownLesson) return <LessonEditor initial={ownLesson} subjects={[{ id: ownLesson.subject_id, name: ownLesson.subject_name }]} api={teacherLessons} classId={classId} classroom={classroom} initialStep="Quiz" active={active} onReturnToAssignment={saved => void returnFromLesson(saved)} />;
+  const authorContent = author ? <View style={l.stack}>
+    <Text accessibilityRole="header" style={l.heading}>Create a question</Text>
+    <Text style={l.body}>For {lesson?.lesson_name}. Your assignment details are kept here.</Text>
+    {!!error && <LessonNote error>{error}</LessonNote>}
+    {questionRequest && !busy && <LessonNote>The publication may have completed. Editing is paused. Retry with the original details to avoid duplicates.</LessonNote>}
+    {authorPreview ? <TeacherQuestionPreview question={prepareQuestion(author)} onClose={() => setAuthorPreview(false)} /> : <QuestionAuthor value={author} disabled={busy || !!questionRequest} onChange={value => { if (!busy && !questionRequest) { setAuthor(value); setError(""); } }} />}
+    {!authorPreview && <LessonButton label="Preview as a student" disabled={busy || !!questionRequest} onPress={() => { const invalid = questionError(prepareQuestion(author)); if (invalid) setError(invalid); else setAuthorPreview(true); }} />}
+    <LessonButton label={busy ? "Publishing…" : questionRequest ? "Retry original publication" : "Publish question"} primary disabled={busy} onPress={() => { const invalid = questionError(prepareQuestion(author)); if (!questionRequest && invalid) { setError(invalid); return; } setConfirm({ title: "Publish this question?", label: "Publish question", message: "This freezes the question and makes it available for assignments in this class. It won’t change the shared lesson or publish your assignment.", accept: () => void publishQuestion() }); }} />
+    <LessonButton label="Back to assignment" disabled={busy} onPress={closeAuthor} />
+  </View> : undefined;
+  return <BuilderView authorContent={authorContent} initialStep={resumeQuestions ? 1 : 0} onCreateQuestions={() => void openAuthor()} questionsFiltered={!!(filters.q || filters.method)} classroom={classroom} row={row} title={title} instructions={instructions} lesson={lesson} items={items}
     busy={busy} frozen={frozen} editable={editable} dirty={dirty} error={error} notice={notice} uncertain={uncertain}
     pending={!!submission.pending} publication={!!publication} preview={preview} confirm={confirm}
     query={query} method={method} filterKey={JSON.stringify([lesson?.lesson_id, filters])}
@@ -109,7 +183,7 @@ export function AssignmentEditor({ initial, classId, classroom, api, active = tr
     }}
     onArchive={() => setConfirm({ title: "Archive this draft?", label: "Archive draft", message: "This draft will become read-only. Its saved details will be retained.", accept: () => void archive() })}
     onPublish={() => setConfirm({ title: "Share with your class?", label: publication ? "Retry original publication" : "Publish assignment", message: `Eligible current and later members of this class will be able to open the assignment. Once published, it cannot be edited or archived.${row?.requires_subject ? ` Publishing also sets the class subject to ${row.context.subject_name}.` : ""}`, accept: () => void publish() })}
-    onBack={() => { if (!dirty && !submission.pending) prevent(); router.replace({ pathname: "/assignments", params: { classId } }); }}
+    onBack={() => { if (author) { if (authorPreview) setAuthorPreview(false); else closeAuthor(); return; } if (!dirty && !submission.pending) prevent(); router.replace({ pathname: "/assignments", params: { classId } }); }}
     onCancelConfirm={() => setConfirm(null)} onAcceptConfirm={() => { const action = confirm?.accept; setConfirm(null); action?.(); }}
   />;
 }

@@ -138,10 +138,8 @@ def test_eligibility_safe_history_and_role_ownership(draft_case):
     for endpoint in [path, f"/api/v1/classes/{class_id}/assignments", f"/api/v1/classes/{class_id}/assignment-lessons"]:
         assert client.get(endpoint, headers=outsider).status_code == 404
         assert client.get(endpoint).status_code == 401
-    student = client.post(
-        "/api/v1/users", json={"password": "SyntheticPass123!", "username": "Student_" + uuid4().hex[:12], "role": "school_student"}
-    ).json()
-    learner = {"Authorization": "Bearer " + student["session"]["credential"]}
+    from tests.integration.test_enrollment_postgresql import account
+    learner, _ = account(client, "school_student")
     assert client.get(path, headers=learner).status_code == 403
     assert client.patch(path, headers=outsider | {"If-Match": row["revision"]}, json=body).status_code == 404
     with Session(engine) as db, db.begin():

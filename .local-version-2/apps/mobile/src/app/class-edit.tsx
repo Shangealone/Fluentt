@@ -7,12 +7,12 @@ import type { ClassDetails } from "../services/api/classes";
 import { useSession } from "../session/provider";
 import { usePagedList } from "../features/dashboard/usePagedList";
 
-const emptyFields: CreateClassFields = { class_name: "", grade_level: null, language: null, description: "" };
+const emptyFields: CreateClassFields = { class_name: "", proficiency_level: null, language: null, description: "" };
 
 function EditClassForm({ row }: { row: ClassDetails }) {
   const { classes, profile } = useSession();
   const [fields, setFields] = useState<CreateClassFields>(() => ({
-    class_name: row.class_name, grade_level: row.grade_level,
+    class_name: row.class_name, proficiency_level: row.proficiency_level,
     language: row.language, description: row.description ?? "",
   }));
   const [saving, setSaving] = useState(false);
@@ -39,14 +39,14 @@ function EditClassForm({ row }: { row: ClassDetails }) {
   }
   async function submit() {
     if (lock.current || !scope.current.active || role !== "instructor") return;
-    const invalid = classFormError(fields.class_name, fields.grade_level, fields.language, fields.description);
+    const invalid = classFormError(fields.class_name, fields.proficiency_level, fields.language, fields.description);
     if (invalid) { setError(invalid); return; }
     const generation = scope.current.generation;
     const current = () => scope.current.active && scope.current.generation === generation;
     lock.current = true; setSaving(true); setError("");
     try {
       const saved = await classes.update(row.id, {
-        class_name: fields.class_name.trim(), grade_level: fields.grade_level!,
+        class_name: fields.class_name.trim(), proficiency_level: fields.proficiency_level,
         language: fields.language!, description: fields.description.trim() || null,
       });
       if (current()) router.replace({ pathname: "/class-details", params: { id: saved.id } });

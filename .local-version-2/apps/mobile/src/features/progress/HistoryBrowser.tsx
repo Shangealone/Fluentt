@@ -1,3 +1,5 @@
+import { lessonLevelLabel } from "../../services/api/lessonLevel";
+import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { useCallback, useState } from "react";
 import { View } from "react-native";
 import { Text } from "../../accessibility/Primitives";
@@ -14,8 +16,8 @@ import { ProgressOverview } from "./ProgressSummary";
 export function HistoryCard({ row, onOpen }: { row: HistoryItem; onOpen?: (() => void) | null }) {
   return <View style={s.card}>
     <Text accessibilityRole="header" style={s.heading}>{row.title}</Text>
-    <Text style={s.body}>{row.class_name} · Grade {row.context.grade} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text>
-    <Text style={s.body}>Subject: {row.context.subject_name} · Lesson: {row.context.lesson_name} · Edition: {row.context.curriculum_name}</Text>
+    <Text style={s.body}>{row.class_name} · {lessonLevelLabel(row.context)} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text>
+    <Text style={s.body}>Subject: {row.context.subject_name} · Lesson: {row.context.lesson_name} · Edition: {row.context.curriculum_name ?? "Teacher lesson"}</Text>
     <Text style={s.body}>Submission: {row.submission_status === "not_started" ? "Not started" : row.submission_status === "in_progress" ? "In progress" : "Submitted"}</Text>
     <Text style={s.body}>Published: {new Date(row.published_at).toLocaleString()}</Text>
     {!!row.started_at && <Text style={s.body}>Started: {new Date(row.started_at).toLocaleString()}</Text>}
@@ -46,7 +48,7 @@ export function HistoryBrowser({ api, initialClassId, personal = false }: { api:
       <Button secondary label="Choose history class" onPress={() => setChoosing(value => !value)} />
       <Button secondary label="Use all eligible classes" onPress={() => { setSelected(undefined); setChoosing(false); }} />
       {choosing && <Picker fetch={classes} emptyTitle="No eligible classes" emptyDescription="Join a class to see its published assignments."
-        render={row => <Button key={row.id} label={`Choose ${row.class_name} · Grade ${row.grade} · ${row.language}`} onPress={() => { setSelected(row.id); setChoosing(false); }} />} />}
+        render={row => <Button key={row.id} label={`Choose ${row.class_name} · ${classProficiencyLabel(row.proficiency_level)} · ${row.language}`} onPress={() => { setSelected(row.id); setChoosing(false); }} />} />}
       <Text accessibilityRole="header" style={s.heading}>Submission filter</Text>
       <Choices values={["all", "not_started", "in_progress", "submitted"]} value={status} onChange={value => setStatus(value as typeof status)} label={value => value.replaceAll("_", " ")} />
       <Input accessibilityLabel="History start date" placeholder="Start date YYYY-MM-DD (optional)" value={from} onChangeText={setFrom} autoCapitalize="none" autoCorrect={false} />

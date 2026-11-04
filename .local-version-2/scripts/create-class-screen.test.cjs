@@ -65,7 +65,7 @@ for (const ext of ['.ts','.tsx']) Module._extensions[ext] = (module, filename) =
   module._compile(result.code, filename);
 };
 const FirstClass = local(path.join(mobile, 'src/app/first-class.tsx')).default;
-const fields = { class_name:'  Science 7  ', grade_level:7, language:'english', description:'  Morning class  ' };
+const fields = { class_name:'  Science 7  ', proficiency_level:'beginner', language:'english', description:'  Morning class  ' };
 const row = { id:'confirmed-class' };
 function start(create = async () => row) {
   events.length = 0;
@@ -92,7 +92,7 @@ test('create class validates and uses only the confirmed server id after one req
   app.render().onBack();
   app.render().onAccount();
   assert.equal(calls.length,1);
-  assert.deepEqual(calls[0].draft,{class_name:'Science 7',grade_level:7,language:'english',description:'Morning class'});
+  assert.deepEqual(calls[0].draft,{class_name:'Science 7',proficiency_level:'beginner',language:'english',description:'Morning class'});
   assert.deepEqual(events,[]);
   request.resolve(row); await submit;
   assert.deepEqual(events,[{pathname:'/class-details',params:{id:'confirmed-class',created:'1'}}]);
@@ -132,10 +132,10 @@ test('checking classes blocks creation and ignores a response after session loss
 test('invalid fields never issue a request and normal navigation retains its routes', async () => {
   let created = 0;
   const app = start(async () => { created++; return row; });
-  app.render().onChange({...fields,grade_level:null});
+  app.render().onChange({...fields,proficiency_level:'invalid'});
   await app.render().onSubmit();
   assert.equal(created,0);
-  assert.match(app.render().error,/Grade/);
+  assert.match(app.render().error,/Beginner/);
   app.render().onBack(); app.render().onAccount();
   assert.deepEqual(events,['/instructor','/account']);
 });

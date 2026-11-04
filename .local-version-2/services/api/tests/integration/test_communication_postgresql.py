@@ -285,14 +285,13 @@ def test_existing_message_destinations_survive_additive_migration_and_safe_round
     from pathlib import Path
     from sqlalchemy import text
 
-    generator = disposable_engine_fixture.__wrapped__()
+    generator = disposable_engine_fixture.__wrapped__(target_revision="0011_result_release")
     engine = next(generator)
     try:
         config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
         legacy, first, second = uuid4(), uuid4(), uuid4()
         with engine.begin() as connection:
             config.attributes["connection"] = connection
-            command.downgrade(config, "0011_result_release")
             for id, name, role in (
                 (first, "LegacyFixtureTeacher", "instructor"),
                 (second, "LegacyFixtureStudent", "school_student"),
@@ -313,7 +312,7 @@ def test_existing_message_destinations_survive_additive_migration_and_safe_round
                 ),
                 dict(id=legacy),
             ).one()
-            command.upgrade(config, "head")
+            command.upgrade(config, "0012_class_communication")
             after = connection.execute(
                 text(
                     "SELECT id,sender_id,recipient_id,class_id,message_type,content,sent_at,created_at,updated_at FROM messages WHERE id=:id"
@@ -325,7 +324,6 @@ def test_existing_message_destinations_survive_additive_migration_and_safe_round
                 text("SELECT communication_contract,context_class_id,send_request_id FROM messages WHERE id=:id"),
                 dict(id=legacy),
             ).one() == (None, None, None)
-            command.check(config)
             # Empty new contract permits safe rollback; legacy text/destination stays intact.
             command.downgrade(config, "0011_result_release")
             assert (
@@ -333,6 +331,7 @@ def test_existing_message_destinations_survive_additive_migration_and_safe_round
                 == "LEGACY SYNTHETIC ONLY"
             )
             command.upgrade(config, "head")
+            command.check(config)
     finally:
         try:
             next(generator)

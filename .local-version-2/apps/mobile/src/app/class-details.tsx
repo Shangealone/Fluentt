@@ -18,6 +18,7 @@ export default function ClassDetail() {
   const row = state.phase === "ready" ? state.rows.find(item => item.id === classId) ?? null : null;
   function open(action: ClassAction) {
     if (!row || (action !== "assignments" && row.status !== "active")) return;
+    if (action === "lessons") { router.push({ pathname: "/instructor-lessons", params: { classId: row.id } }); return; }
     if (action === "edit") router.push({ pathname: "/class-edit", params: { id: row.id } });
     else router.push({ pathname: action === "assignments" ? "/assignments" : action === "overview" ? "/instructor-monitoring" : "/communication", params: { classId: row.id } });
   }

@@ -4,7 +4,7 @@ import { monitoringApi, monitoringAccess, validateMean, validateOverview } from 
 import { routeAllowed } from '../apps/mobile/src/session/routing.ts';
 const counts={available:2,not_started:1,in_progress:0,submitted:1,pending:1};
 const results={awaiting_evaluation:0,awaiting_manual_review:0,withheld:0,released:1,not_applicable:0};
-const overview={classroom:{id:'class',class_name:'Synthetic class',grade:5,language:'tagalog'},as_of:'2026-10-19T00:00:00Z',available_assignments:1,eligible_students:2,counts,results,progress_policy:'submission-counts-v1'};
+const overview={classroom:{id:'class',class_name:'Synthetic class',grade:5,proficiency_level:'beginner',language:'tagalog'},as_of:'2026-10-19T00:00:00Z',available_assignments:1,eligible_students:2,counts,results,progress_policy:'submission-counts-v1'};
 const mean={status:'available',eligible_results:1,mean_points:'0.00',max_points:'9.00',engine_version:'v1',policy_version:'p1',mean_policy:'released-assignment-mean-v1'};
 test('monitoring counts validate denominators and means preserve zero/unknown states',()=>{
  assert.equal(validateOverview(overview),overview);

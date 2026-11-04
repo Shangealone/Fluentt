@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="FLUENTT_", extra="forbid", hide_input_in_errors=True)
     environment: Literal["development", "test", "production"] = "development"
     serve_web: bool = False
+    personal_learner_registration_enabled: bool = False
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8081"]
     mobile_web_origins: list[str] = []
     mobile_web_csrf_secret: SecretStr | None = None

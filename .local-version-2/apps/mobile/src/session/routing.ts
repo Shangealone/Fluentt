@@ -34,6 +34,7 @@ export function usernameError(value: string): string | null {
 export const validClassCode = (value: string) => /^[0-9]{6}$/.test(value);
 
 export function routeAllowed(profile: Profile | null, route: string, pending = false): boolean {
+  if (route === "privacy-policy" || route === "terms") return true;
   if (!profile) return ["auth", "username", "login"].includes(route) || (!pending && ["index", "school-role"].includes(route));
   if (route === "set-password") return profile.has_password === false;
   if (profile.has_password === false) return false;
@@ -41,7 +42,10 @@ export function routeAllowed(profile: Profile | null, route: string, pending = f
   if (route === "question-practice" || route === "personal-stats") return profile.role === "personal_student" && destination(profile) === "/student";
   if (["conversation", "pronunciation"].includes(route)) return profile.role !== "instructor" && destination(profile) === "/student";
   if (route === "research") return profile.role === "school_student" && destination(profile) === "/student";
+  if (route === "vocabulary-review") return profile.role === "school_student" && destination(profile) === "/student";
   if (route === "my-classes") return profile.role === "school_student" && destination(profile) === "/student";
+  if (route === "class-lessons") return profile.role === "school_student" && destination(profile) === "/student";
+  if (route === "instructor-lessons" || route === "instructor-lesson") return profile.role === "instructor";
   if (route === "communication") return profile.role === "instructor" || (profile.role === "school_student" && destination(profile) === "/student");
   if (route === "account" || route === "notifications") return true;
   if (route === "learning-materials") return destination(profile) === "/student" || profile.role === "instructor";

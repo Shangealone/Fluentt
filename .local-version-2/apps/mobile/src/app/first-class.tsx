@@ -6,7 +6,7 @@ import { ClassSubmission, classFormError } from "../features/classes/state";
 import { CreateClassView, type CreateClassFields } from "../features/classes/CreateClassView";
 import { useSession } from "../session/provider";
 
-const emptyFields = (): CreateClassFields => ({ class_name: "", grade_level: null, language: null, description: "" });
+const emptyFields = (): CreateClassFields => ({ class_name: "", proficiency_level: null, language: null, description: "" });
 export default function FirstClass() {
   const session = useSession();
   const [fields, setFields] = useState(emptyFields);
@@ -36,7 +36,7 @@ export default function FirstClass() {
   }, []);
   async function submit() {
     if (!scope.current.active || busy.current || session.profile?.role !== "instructor") return;
-    const invalid = classFormError(fields.class_name, fields.grade_level, fields.language, fields.description);
+    const invalid = classFormError(fields.class_name, fields.proficiency_level, fields.language, fields.description);
     if (invalid) { setError(invalid); return; }
     const generation = scope.current.generation;
     const current = () => scope.current.active && scope.current.generation === generation;
@@ -44,7 +44,7 @@ export default function FirstClass() {
     busy.current = "save"; setOperation("save"); setError("");
     try {
       const row = await request.submit({
-        class_name: fields.class_name.trim(), grade_level: fields.grade_level!,
+        class_name: fields.class_name.trim(), proficiency_level: fields.proficiency_level,
         language: fields.language!, description: fields.description.trim() || null,
       }, session.classes.create, randomUUID);
       if (current()) router.replace({ pathname: "/class-details", params: { id: row.id, created: "1" } });

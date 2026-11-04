@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import { usePreventRemove } from "expo-router";
+import { router, usePreventRemove } from "expo-router";
 import { Text } from "../../accessibility/Primitives";
 import { useSession } from "../../session/provider";
 import type { BlindedExperimentStatus, ConsentDocument, EnrollmentReceipt, ParticipantEligibility, ParticipantStatus, ResearchAssessmentDetail, ResearchAssessmentListItem, ResearchStudy, SubmitAssessmentReceipt, WithdrawalReceipt } from "../../services/api/research";
@@ -158,7 +158,7 @@ export function ResearchParticipationView({ onDone, onAccount }: { onDone: () =>
       {!!busy && <ResearchNotice>{busy === "start" ? "Opening study activity…" : busy === "enroll" ? "Submitting your choice…" : busy === "withdraw" ? "Leaving study…" : "Submitting responses…"}</ResearchNotice>}
       {problem && <><ResearchNotice error>{problem.message}{problem.uncertain ? " We couldn’t confirm the outcome. Check your current status before trying again." : ""}</ResearchNotice>{problem.uncertain && <ResearchButton primary label="Check current status" onPress={checkStatus} />}{problem.blocked && <ResearchButton label="Back to studies" onPress={() => requestExit(home)} />}</>}
       {!problem?.blocked && <>
-      {view === "hub" && hub && <ResearchHub data={hub} tab={tab} busy={frozen} onTab={value => { if (!lock.current && !frozen) { setTab(value); setScrollKey(key => key + 1); } }} onStudy={loadConsent} onActivities={loadActivities} onWithdraw={selectWithdraw} onRefresh={loadHub} />}
+      {view === "hub" && hub && <><ResearchButton label="Vocabulary review" disabled={frozen} onPress={() => router.push("/vocabulary-review")} /><ResearchHub data={hub} tab={tab} busy={frozen} onTab={value => { if (!lock.current && !frozen) { setTab(value); setScrollKey(key => key + 1); } }} onStudy={loadConsent} onActivities={loadActivities} onWithdraw={selectWithdraw} onRefresh={loadHub} /></>}
       {view === "consent" && study && <ResearchConsent study={study} document={document} eligibility={eligibility} affirmed={affirmed} disabled={frozen} onAffirm={() => { if (!lock.current && !frozen) setAffirmed(value => !value); }} onEnroll={enroll} onRetry={() => loadConsent(study)} />}
       {view === "activities" && participant && <ResearchActivities participant={participant} experiment={experiment} assessments={assessments} disabled={frozen} onStart={begin} onRefresh={() => loadActivities(participant)} onWithdraw={() => selectWithdraw(participant)} />}
       {assessment && ["assessment", "review", "submit"].includes(view) && <ResearchAssessment assessment={assessment.detail} position={position} responses={responses} mode={view === "assessment" ? "question" : view === "review" ? "review" : "submit"} disabled={frozen} onPosition={selectPosition} onResponse={(id, text) => { if (!lock.current && !frozen) setResponses(value => ({ ...value, [id]: text })); }} onReview={() => { if (!lock.current && !frozen) move("review"); }} onConfirm={() => { if (!lock.current && !frozen) move("submit"); }} onSubmit={submit} onLeave={() => requestExit(goActivities)} />}

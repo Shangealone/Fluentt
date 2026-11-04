@@ -7,6 +7,36 @@ from threading import RLock
 from app.core.usernames import normalize_username
 
 
+def existing_school_account(client, username):
+    """Seed a legacy unenrolled student for authorization/enrollment tests, not signup tests."""
+    from datetime import datetime, timedelta, timezone
+    from uuid import uuid4
+    from app.core.security import hash_password, issue_credential
+    from app.models.users import User, UserSession
+    from app.modules.identity.dependencies import get_identity_repository
+    from app.modules.identity.schemas import CreatedUser, MobileProfile, IssuedSession
+
+    app = client.app
+    while not hasattr(app, "dependency_overrides"):
+        app = app.app
+    repo = app.dependency_overrides[get_identity_repository]()
+    now = datetime.now(timezone.utc)
+    user = User(id=uuid4(), username=username, role="school_student", profile_status="onboarding",
+                onboarding_step="class_enrollment", password_hash=hash_password("SyntheticPass123!"),
+                created_at=now, updated_at=now)
+    credential = issue_credential()
+    session = UserSession(id=uuid4(), user_id=user.id, credential_digest=credential.digest,
+                          created_at=now, updated_at=now, expires_at=now + timedelta(days=30),
+                          absolute_expires_at=now + timedelta(days=90))
+    with repo.transaction():
+        repo.add_user(user)
+        repo.add_profile(user)
+        repo.add_session(session)
+    return CreatedUser(user=MobileProfile.model_validate(user), session=IssuedSession(
+        credential=credential.raw, expires_at=session.expires_at,
+        absolute_expires_at=session.absolute_expires_at)).model_dump(mode="json")
+
+
 class MemoryIdentityRepository:
     def __init__(self):
         self.users = {}

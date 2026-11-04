@@ -20,6 +20,7 @@ from app.modules.grading.router import router as grading_router
 from app.modules.assignments.results_router import router as results_router
 from app.modules.progress.router import router as progress_router
 from app.modules.spaced_repetition.router import router as spaced_repetition_router
+from app.modules.vocabulary_review.router import router as vocabulary_review_router, admin_router as vocabulary_admin_router
 
 from app.modules.monitoring.router import router as monitoring_router
 
@@ -35,6 +36,10 @@ from app.modules.research.classroom_router import (
 )
 
 router = APIRouter()
+from app.modules.monitoring.proficiency import router as proficiency_router
+router.include_router(proficiency_router)
+from app.modules.teacher_lessons.router import router as teacher_lessons_router
+router.include_router(teacher_lessons_router)
 router.include_router(personal_practice_router)
 router.include_router(research_student_router)
 router.include_router(research_admin_router)
@@ -43,6 +48,8 @@ router.include_router(research_classroom_mobile_router)
 router.include_router(conversation_router)
 router.include_router(material_router)
 router.include_router(spaced_repetition_router)
+router.include_router(vocabulary_review_router)
+router.include_router(vocabulary_admin_router)
 router.include_router(pronunciation_router)
 router.include_router(whole_phrase_router)
 router.include_router(personal_history_router)

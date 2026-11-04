@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type Ref } from "react";
+import { type ComponentRef, useState, type ReactNode, type Ref } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
@@ -7,7 +7,7 @@ import { PersonalIcon } from "../../components/PersonalIcon";
 import { homeColors as c } from "../../theme/personal";
 
 export function AttemptFrame({ children, onBack, onAccount, disabled = false, scrollRef }: {
-  children: ReactNode; onBack: () => void; onAccount: () => void; disabled?: boolean; scrollRef?: Ref<ScrollView>;
+  children: ReactNode; onBack: () => void; onAccount: () => void; disabled?: boolean; scrollRef?: Ref<ComponentRef<typeof ScrollView>>;
 }) {
   const { width } = useWindowDimensions();
   return <SafeAreaView edges={["top", "left", "right", "bottom"]} style={a.screen}>

@@ -20,7 +20,7 @@ HEADERS = {"Origin": ORIGIN, "X-Fluentt-Web": "1"}
 
 @pytest.fixture
 def browser_api(pg_engine):
-    settings = Settings(_env_file=None, environment="test",
+    settings = Settings(personal_learner_registration_enabled=True, _env_file=None, environment="test",
         database_url=pg_engine.url.render_as_string(hide_password=False),
         mobile_web_origins=[ORIGIN], mobile_web_csrf_secret="test-only-cookie-secret-with-more-than-32-bytes",
         user_creation_limit=1000, mobile_session_request_limit=1000)

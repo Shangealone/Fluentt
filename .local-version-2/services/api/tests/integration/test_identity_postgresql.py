@@ -59,7 +59,7 @@ def test_spaced_username_creation_login_and_case_insensitive_collision(live_iden
 
 @pytest.fixture
 def live_identity(pg_engine):
-    settings = Settings(
+    settings = Settings(personal_learner_registration_enabled=True,
         _env_file=None,
         environment="test",
         database_url=pg_engine.url.render_as_string(hide_password=False),
@@ -126,7 +126,7 @@ def test_real_session_expiration_and_account_disable(pg_engine, live_identity, r
 def test_racing_case_variant_registration_is_atomic(pg_engine):
     name = unique_name()
     barrier = Barrier(2)
-    settings = Settings(_env_file=None, environment="test")
+    settings = Settings(personal_learner_registration_enabled=True, _env_file=None, environment="test")
 
     class RacingRepository(IdentityRepository):
         def username_exists(self, canonical):
@@ -166,7 +166,7 @@ def test_session_write_failure_rolls_back_user_and_profile(pg_engine):
             create_user(
                 BrokenSessionRepository(db),
                 CreateUserRequest(username=name, role="instructor"),
-                Settings(_env_file=None),
+                Settings(personal_learner_registration_enabled=True, _env_file=None),
             )
     with Session(pg_engine) as db:
         assert db.scalar(select(User.id).where(User.canonical_username == name.lower())) is None

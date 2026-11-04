@@ -2,6 +2,7 @@ from uuid import UUID
 from typing import Literal, Generic, TypeVar
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.modules.questions.schemas import Preview, Method
+from app.modules.teacher_lessons.schemas import QuestionInput
 
 
 class Model(BaseModel):
@@ -27,7 +28,21 @@ class DraftInput(Model):
         return value
 
 
+class InstructorQuestionPublication(Model):
+    lesson_id: UUID
+    question: QuestionInput
+    confirm: bool = Field(strict=True)
+
+    @field_validator("confirm")
+    @classmethod
+    def explicit_confirmation(cls, value):
+        if not value:
+            raise ValueError("Explicit question publication confirmation is required")
+        return value
+
+
 class Query(Model):
+    source: Literal["curriculum"] | None = None
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0, le=100000)
     q: str = Field(default="", max_length=200)
@@ -45,9 +60,13 @@ class Item(Model):
 class Context(Model):
     lesson_id: UUID
     lesson_name: str
-    curriculum_version_id: UUID
-    curriculum_name: str
-    grade: int
+    curriculum_version_id: UUID | None
+    curriculum_name: str | None
+    source: Literal["curriculum", "teacher"] = "curriculum"
+    lesson_version: int | None = None
+    teacher_lesson_id: UUID | None = None
+    grade: int | None
+    proficiency_level: Literal["beginner", "intermediate", "advanced"] | None = None
     subject_id: UUID
     subject_name: str
 

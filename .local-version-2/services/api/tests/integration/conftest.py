@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture(scope="session")
-def pg_engine():
+def pg_engine(target_revision="head"):
     raw = os.environ.get("FLUENTT_TEST_DATABASE_URL")
     if not raw:
         pytest.skip(
@@ -45,7 +45,7 @@ def pg_engine():
             config = Config(str(ROOT / "alembic.ini"))
             config.attributes["connection"] = connection
             config.attributes["repair_initial_names"] = True
-            command.upgrade(config, "head")
+            command.upgrade(config, target_revision)
         yield engine
     except Exception as exc:
         pytest.fail(f"Disposable PostgreSQL setup/check failed ({type(exc).__name__}); connection details redacted")

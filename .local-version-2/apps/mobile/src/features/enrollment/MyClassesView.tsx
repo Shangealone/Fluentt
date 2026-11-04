@@ -1,3 +1,4 @@
+import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
@@ -12,6 +13,7 @@ type Props = {
   state: ListState<Membership>;
   onRefresh: () => void; onMore: () => void; onJoin: () => void; onBack: () => void; onAccount: () => void;
   onAssignments: (row: Membership) => void; onMessages: (row: Membership) => void;
+  onLessons: (row: Membership) => void;
 };
 
 /** Decorative class pinboard, drawn with native shapes to match the approved preview. */
@@ -27,7 +29,7 @@ function ClassPinboard({ compact }: { compact: boolean }) {
   </View>;
 }
 
-export function MyClassesView({ state, onRefresh, onMore, onJoin, onBack, onAccount, onAssignments, onMessages }: Props) {
+export function MyClassesView({ state, onRefresh, onMore, onJoin, onBack, onAccount, onAssignments, onMessages, onLessons }: Props) {
   const { width, fontScale } = useWindowDimensions();
   const compact = width < 360;
   const enlarged = fontScale > 1.2;
@@ -75,10 +77,11 @@ export function MyClassesView({ state, onRefresh, onMore, onJoin, onBack, onAcco
           <View style={[s.classTop, stackedCard && s.stacked]}>
             <SchoolbagIllustration /><View style={[s.classCopy, stackedCard && s.stackedCopy]}>
               <Text accessibilityRole="header" style={h.subheading}>{row.class_name}</Text>
-              <Text style={h.small}>Grade {row.grade_level} · {row.language === "english" ? "English" : "Tagalog"}</Text>
+              <Text style={h.small}>{classProficiencyLabel(row.proficiency_level)} · {row.language === "english" ? "English" : "Tagalog"}</Text>
             </View>
           </View>
           <View style={s.teacher}><PersonalIcon name="account" size={16} color={c.muted} /><Text style={[h.small, s.teacherName]}>{row.instructor_display_name || "Instructor"}</Text></View>
+          <HomeAction label="Class lessons" icon="learn" variant="secondary" onPress={() => onLessons(row)} />
           <View style={[s.classActions, enlarged && s.stacked]}>
             <Pressable accessibilityRole="button" accessibilityLabel={`View assignments for ${row.class_name}`} onPress={() => onAssignments(row)}
               style={({ pressed }) => [h.action, h.primary, !enlarged && s.primarySlot, pressed && h.dimmed]}><Text style={[h.actionLabel, h.primaryLabel]}>View assignments</Text></Pressable>

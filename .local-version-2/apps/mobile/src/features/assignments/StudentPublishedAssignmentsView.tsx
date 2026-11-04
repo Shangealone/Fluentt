@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { lessonLevelLabel } from "../../services/api/lessonLevel";
+import { type ComponentRef, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
@@ -23,7 +24,7 @@ const methodLabels: Record<AssignmentMethod, string> = {
 
 export function StudentPublishedAssignmentsView({ detail, canLoad, fetch, onRefresh, onBack, onAccount, onView, onOpen, onResults }: Props) {
   const { width, fontScale } = useWindowDimensions();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const [offset, setOffset] = useState(0);
   const [retry, setRetry] = useState(0);
   const [loaded, setLoaded] = useState<{
@@ -125,7 +126,7 @@ export function StudentPublishedAssignmentsView({ detail, canLoad, fetch, onRefr
           <StudentAssignmentButton label="View results" icon="stats" onPress={() => onResults(row)} />
         </View>
         <StudentAssignmentDisclosure>
-          <Text style={a.body}>Curriculum: {row.context.curriculum_name}</Text><Text style={a.body}>Grade: {row.context.grade}</Text><Text style={a.body}>Subject: {row.context.subject_name}</Text>
+          <Text style={a.body}>Curriculum: {row.context.curriculum_name ?? "Teacher lesson"}</Text><Text style={a.body}>{lessonLevelLabel(row.context)}</Text><Text style={a.body}>Subject: {row.context.subject_name}</Text>
           <Text style={a.small}>You have one attempt. You can return to your saved work. Your answers aren’t saved automatically, so save them as you go. There is no timer.</Text>
           <Text style={a.small}>Open assignment takes you to your available attempt or submission receipt. Available results are shown separately in View results.</Text>
           <StudentAssignmentButton label="Refresh assignment" icon="refresh" onPress={onRefresh} />

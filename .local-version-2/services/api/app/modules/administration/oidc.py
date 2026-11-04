@@ -1,5 +1,6 @@
 """Confidential OIDC code flow. No provider tokens are persisted or returned to the browser."""
 
+import ssl
 import time
 from urllib.parse import urlparse
 
@@ -51,6 +52,8 @@ class OIDCProvider:
             timeout=10,
             follow_redirects=False,
             trust_env=False,
+            # Use the operating system trust store for locally trusted IdP roots.
+            verify=ssl.create_default_context(),
         )
 
     def authorization_url(self, state, binding):

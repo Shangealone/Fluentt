@@ -1,13 +1,16 @@
+import { isClassProficiency, isLegacyClassGrade, type ClassProficiency } from "./classProficiency";
 import type { AuthContext } from "./client";
 import { request, ApiError } from "./client.ts";
 import type { Language } from "./identity";
 export type ClassDraft = {
   class_name: string;
-  grade_level: number;
+  proficiency_level?: ClassProficiency | null;
   language: Language;
   description: string | null;
 };
 export type ClassDetails = ClassDraft & {
+  grade_level: number | null;
+  proficiency_level: ClassProficiency | null;
   id: string;
   join_code: string | null;
   status: "active" | "archived";
@@ -20,9 +23,8 @@ function validate(value: ClassDetails): ClassDetails {
     !value ||
     typeof value.id !== "string" ||
     typeof value.class_name !== "string" ||
-    !Number.isInteger(value.grade_level) ||
-    value.grade_level < 1 ||
-    value.grade_level > 12 ||
+    !isLegacyClassGrade(value.grade_level) ||
+    !isClassProficiency(value.proficiency_level) ||
     !["english", "tagalog"].includes(value.language) ||
     !["active", "archived"].includes(value.status) ||
     !(

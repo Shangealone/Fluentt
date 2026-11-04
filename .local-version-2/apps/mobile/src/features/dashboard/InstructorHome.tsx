@@ -1,3 +1,4 @@
+import { messageNavigation } from "../communications/state";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
 
@@ -18,16 +19,16 @@ const tabs = [
   { route: "/instructor-monitoring", label: "Overview", icon: "overview" },
 ] as const satisfies readonly { route: string; label: string; icon: PersonalIconName }[];
 
-/** Homepage-only navigation; forms and other role portals retain their own boundaries. */
-export function InstructorHomeNavigation() {
+/** Shared teaching navigation; hosts retain their unsaved-navigation boundaries. */
+export function InstructorHomeNavigation({ activeRoute = "/instructor" }: { activeRoute?: string } = {}) {
   const { width, fontScale } = useWindowDimensions();
   const largeText = fontScale > 1.2 && width < 400;
   return <SafeAreaView edges={["bottom"]} style={styles.navSurface}>
     <View accessibilityRole="tablist" accessibilityLabel="Teaching navigation" style={[styles.navRow, largeText && styles.largeTextNav]}>
       {tabs.map(tab => {
-        const selected = tab.route === "/instructor";
+        const selected = tab.route === activeRoute;
         return <Pressable key={tab.route} accessibilityRole="tab" accessibilityLabel={tab.label}
-          accessibilityState={{ selected }} aria-selected={selected} onPress={() => { if (!selected) router.navigate(tab.route); }}
+          accessibilityState={{ selected }} aria-selected={selected} onPress={() => { if (!selected) messageNavigation.request(() => router.navigate(tab.route)); }}
           style={({ pressed }) => [styles.tab, largeText && styles.largeTextTab, pressed && styles.pressed]}>
           <View style={[styles.tabIcon, largeText && styles.largeTextIcon, selected && styles.selectedIcon]}><PersonalIcon name={tab.icon} size={19} color={selected ? colors.teal : colors.muted} /></View>
           <Text style={[styles.tabLabel, largeText && styles.largeTextLabel, selected && styles.selectedLabel]}>{tab.label}</Text>
@@ -60,6 +61,7 @@ export function InstructorHome({ username, state, onRefresh, onMore }: HomeProps
       <Pressable accessibilityRole="button" onPress={() => router.push("/first-class")} style={({ pressed }) => [styles.create, pressed && styles.pressed]}>
         <PersonalIcon name="plus" size={18} color="#FFFFFF" /><Text style={styles.createText}>Create a class</Text>
       </Pressable>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/instructor-lessons")} style={({ pressed }) => [styles.loadMore, pressed && styles.pressed]}><Text style={styles.retryText}>My lessons</Text></Pressable>
       <View style={styles.sectionHeader}>
         <Text accessibilityRole="header" style={styles.heading}>Your classes</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Refresh classes" accessibilityState={{ disabled: loading }} disabled={loading} onPress={onRefresh}

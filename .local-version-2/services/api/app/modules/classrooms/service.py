@@ -32,8 +32,8 @@ def create_class(repo: ClassroomRepository, raw: str, settings: Settings, payloa
         existing = repo.by_request(user.id, request_id)
         if existing is not None:
             result = repo.describe(existing)
-            expected = (payload.class_name, payload.grade_level, payload.language, payload.description)
-            if expected != (result.class_name, result.grade_level, result.language, result.description):
+            expected = (payload.class_name, payload.grade_level, payload.language, payload.description, payload.proficiency_level)
+            if expected != (result.class_name, result.grade_level, result.language, result.description, result.proficiency_level):
                 raise IdentityError(
                     409,
                     "idempotency_conflict",
@@ -46,7 +46,8 @@ def create_class(repo: ClassroomRepository, raw: str, settings: Settings, payloa
                 id=uuid4(),
                 instructor_id=user.id,
                 class_name=payload.class_name,
-                grade_level_id=repo.ensure_grade(payload.grade_level),
+                grade_level_id=repo.ensure_grade(payload.grade_level) if payload.grade_level is not None else None,
+                proficiency_level=payload.proficiency_level,
                 language=payload.language,
                 description=payload.description,
                 creation_request_id=request_id,
@@ -128,6 +129,8 @@ def update_class(repo, raw, settings, class_id, payload: ClassUpdate):
             classroom.description = payload.description
         if payload.grade_level is not None:
             classroom.grade_level_id = repo.ensure_grade(payload.grade_level)
+        if "proficiency_level" in payload.model_fields_set:
+            classroom.proficiency_level = payload.proficiency_level
         if payload.language is not None:
             classroom.language = payload.language
         repo.flush()

@@ -19,7 +19,7 @@ export function SetupFrame({ title, description, art, step, busy, exiting = fals
   backRef?: Ref<ComponentRef<typeof Pressable>>; onBack: () => void; onAccount: () => void; children: ReactNode;
 }) {
   const { width, fontScale } = useWindowDimensions();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   useEffect(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, [scrollKey]);
   return <SafeAreaView edges={["top", "left", "right", "bottom"]} style={u.screen}>
     <View style={[u.header, width < 360 && u.compact]}>

@@ -1,10 +1,12 @@
+import { isClassProficiency, isLegacyClassGrade, type ClassProficiency } from "./classProficiency";
 import type { AuthContext } from "./client";
 import { request, ApiError } from "./client.ts";
 import type { Language } from "./identity";
 
 export type StudentClass = {
   class_name: string;
-  grade_level: number;
+  grade_level: number | null;
+  proficiency_level: ClassProficiency | null;
   language: Language;
   instructor_display_name: string | null;
 };
@@ -23,7 +25,7 @@ export type EnrollmentAccess = {
 };
 function studentClass(value: StudentClass): boolean {
   return !!value && typeof value.class_name === "string" &&
-    Number.isInteger(value.grade_level) && value.grade_level >= 1 && value.grade_level <= 12 &&
+    isLegacyClassGrade(value.grade_level) && isClassProficiency(value.proficiency_level) &&
     ["english", "tagalog"].includes(value.language) &&
     (value.instructor_display_name === null || typeof value.instructor_display_name === "string");
 }

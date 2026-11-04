@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { LegalLinks } from "../legal/LegalDocument";
+import { AssessedProficiency } from "../monitoring/AssessedProficiency";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BackHandler, Image, Pressable, Switch, Text as SampleText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import Constants from "expo-constants";
@@ -50,7 +52,7 @@ export function AccountSettings() {
     if (panel !== "home") setPanel("home");
     else if (profile) router.replace(destination(profile));
   }
-  backRef.current = back;
+  useLayoutEffect(() => { backRef.current = back; });
   function open(next: Panel) {
     if (lock.current || !scope.current.active || !profile) return;
     setError(""); setSuccess("");
@@ -121,6 +123,7 @@ export function AccountSettings() {
       {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}{!!success && <Text accessibilityLiveRegion="polite" style={s.success}>{success}</Text>}
       <View style={[s.profile, contrastBorder]}><View style={s.avatar}><Text accessible={false} style={s.avatarText}>{initial}</Text></View><View style={s.profileCopy}><Text style={s.username}>{profile.username}</Text><View style={s.role}><Text style={s.roleText}>{role}</Text></View></View></View>
       {profile.profile_status !== "active" && <View style={[s.card, contrastBorder, { marginTop: 14 }]}><Text accessibilityRole="header" style={s.cardTitle}>Finish setting up</Text><Text style={[s.body, { marginTop: 7, marginBottom: 12 }]}>A few more choices will get your account ready.</Text><SettingsAction label="Continue setup" secondary disabled={busy} onPress={() => router.push(destination(profile))} /></View>}
+      {profile.role === "school_student" && <AssessedProficiency key={profile.id} />}
       {profile.role === "personal_student" && <>
         <Text accessibilityRole="header" style={s.heading}>Your learning</Text><SettingsGroup>
           <SettingsRow title="Learning language" subtitle={profile.language === "english" ? "English" : profile.language === "tagalog" ? "Tagalog" : "Not selected"} icon="learn" disabled={busy} onPress={() => open("learning")} />
@@ -132,7 +135,9 @@ export function AccountSettings() {
         <SettingsRow title="Accessibility" subtitle={reading.loading ? "Loading your preferences…" : "Text size, contrast & motion"} icon="settings" tone="aqua" disabled={busy || reading.loading} onPress={() => open("accessibility")} />
         <View style={s.divider}><SettingsRow title="Notifications" subtitle="View your updates" icon="notifications" tone="peach" disabled={busy} onPress={() => router.push("/notifications")} /></View>
       </SettingsGroup>
-      <Text accessibilityRole="header" style={s.heading}>Help & information</Text><SettingsGroup>
+      <Text accessibilityRole="header" style={s.heading}>Help & information</Text>
+      <LegalLinks disabled={busy} />
+      <SettingsGroup>
         <SettingsRow title="Quick guide" subtitle="Find your way around Fluentt" icon="tutor" tone="lavender" disabled={busy} onPress={() => open("guide")} />
         <View style={s.divider}><SettingsRow title="About Fluentt" subtitle={`Version ${version}`} icon="brand" disabled={busy} onPress={() => open("about")} /></View>
       </SettingsGroup>

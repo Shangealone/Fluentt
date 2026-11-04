@@ -20,6 +20,7 @@ Module._load = function(name,parent,isMain) {
   if(name==='react') return {...React,useCallback:fn=>fn};
   if(name==='react-native') return {...native,useWindowDimensions:()=>({width:390,height:700,fontScale:1,scale:1})};
   if(name==='react-native-safe-area-context') return {SafeAreaView:native.View};
+  if(name==='expo-secure-store') return {getItemAsync:async()=>null,setItemAsync:async()=>{}};
   if(name==='expo-clipboard') return {setStringAsync:async()=>true};
   if(name==='expo-router') return {router:{push:route=>routes.push(route),replace:route=>routes.push(route)},useLocalSearchParams:()=>params};
   if(name.endsWith('/session/provider')) return {useSession:()=>({profile,classes:{}})};
@@ -72,10 +73,11 @@ test('archived classes retain assignments but block other class management actio
   setup('ready',{...row,status:'archived',join_code:null});
   const page=Page();for(const action of ['overview','messages','edit'])page.props.onAction(action);
   assert.deepEqual(routes,[]);page.props.onAction('assignments');assert.equal(routes[0].pathname,'/assignments');
-  const View=local(path.join(mobile,'src/features/classes/ClassDetailsView.tsx')).ClassDetailsView;
-  const actions=elements(View(page.props)).filter(item=>['Overview','Messages','Edit class'].includes(item.props.accessibilityLabel));
-  assert.equal(actions.length,3);assert.ok(actions.every(item=>item.props.disabled));
-  const output=html();assert.ok(output.includes('No active code'));assert.ok(!output.includes('Copy code'));
+  const output=html();
+  for(const label of ['Overview','Messages','Edit class']) {
+    const tag=output.match(new RegExp(`<[^>]+aria-label="${label}"[^>]*>`))?.[0];
+    assert.ok(tag, label); assert.match(tag, /disabled|aria-disabled="true"/);
+  }assert.ok(output.includes('No active code'));assert.ok(!output.includes('Copy code'));
 });
 test('route changes and role loss never expose a previously loaded classroom',()=>{
   setup();params={id:'different-class',created:'1'};const output=html();

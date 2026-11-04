@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Image, Pressable, View } from "react-native";
+import { Image, Modal, Pressable, View } from "react-native";
 import { Text, TextInput, useWindowDimensions } from "../../accessibility/Primitives";
 
-import { router, usePreventRemove } from "expo-router";
+import { router as expoRouter, useFocusEffect, usePreventRemove } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { PersonalIcon } from "../../components/PersonalIcon";
 import { homeColors as c } from "../../theme/personal";
 import { messageError, type CommunicationAccess, type CommunicationContext, type Message } from "../../services/api/communications";
-import { MessageSubmission } from "./state";
+import { messageNavigation, MessageSubmission } from "./state";
 import { AboutMessages, Action, classroomArt, CommunicationPage, Hero, m, SearchField, SectionHeading } from "./CommunicationUI";
+
+// Explicit navigation also covers pushes, which do not trigger usePreventRemove.
+const router = {
+  push: (...args: Parameters<typeof expoRouter.push>) => messageNavigation.request(() => expoRouter.push(...args)),
+  replace: (...args: Parameters<typeof expoRouter.replace>) => messageNavigation.request(() => expoRouter.replace(...args)),
+};
 
 function messageDate(value: string) {
   const date = new Date(value), now = new Date(), yesterday = new Date(now);
@@ -42,7 +48,16 @@ export function MessageComposer({ api, classId, studentId, onSent, onUnavailable
   const [leaving, setLeaving] = useState<(() => void) | null>(null), [expanded, setExpanded] = useState(!collapsible);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  usePreventRemove(!!text || !!submission.pending || busy, ({ repeat }) => setLeaving(() => repeat));
+  const [approved, setApproved] = useState<(() => void) | null>(null);
+  useEffect(() => { if (approved && !text && !busy && !submission.pending) { setApproved(null); approved(); } }, [approved, text, busy, submission]);
+  useFocusEffect(useCallback(() => messageNavigation.register(action => {
+    if (submission.busy || busy) return;
+    if (text || submission.pending) setLeaving(() => action);
+    else action();
+  }), [submission, text, busy]));
+  usePreventRemove(!!text || !!submission.pending || busy, ({ repeat }) => {
+    if (!submission.busy && !busy) setLeaving(() => repeat);
+  });
   async function send() {
     if (submission.busy) return;
     if (messageError(submission.pending?.content ?? text)) { setError("Write a plain-text message using 1–4,000 characters."); return; }
@@ -59,19 +74,22 @@ export function MessageComposer({ api, classId, studentId, onSent, onUnavailable
     } finally { if (alive.current) setBusy(false); }
   }
   function toggle() {
+    if (submission.busy || busy) return;
     if (!expanded) { setExpanded(true); return; }
     if (text || submission.pending || busy) setLeaving(() => () => setExpanded(false));
     else setExpanded(false);
   }
   return <View style={m.composerHost}>
-    {collapsible && <Action label={expanded ? "Close announcement" : "Write an announcement"} primary expanded={expanded} onPress={toggle} />}
+    {collapsible && <Action label={expanded ? "Close announcement" : "Write an announcement"} primary disabled={busy} expanded={expanded} onPress={toggle} />}
     {!!notice && <Text accessibilityLiveRegion="polite" style={m.success}>{notice}</Text>}
-    {leaving && <View accessibilityRole="alert" style={[m.card, m.leave]}>
+    {leaving && <Modal transparent animationType="fade" visible onRequestClose={() => setLeaving(null)}>
+      <View style={{ flex: 1, justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.35)" }}>
+      <View accessibilityViewIsModal accessibilityRole="alert" style={[m.card, m.leave]}>
       <Text accessibilityRole="header" style={m.cardTitle}>Leave this message?</Text>
       <Text style={m.caption}>Your unsent text will be cleared. If a send was interrupted, check your messages before sending it again.</Text>
       <Action label="Keep writing" onPress={() => setLeaving(null)} />
-      <Action label="Leave message" quiet disabled={busy} onPress={() => { const repeat = leaving; setText(""); submission.discard(); setLeaving(null); repeat(); }} />
-    </View>}
+      <Action label="Discard and leave" quiet disabled={busy} onPress={() => { const repeat = leaving; setText(""); submission.discard(); setLeaving(null); setApproved(() => repeat); }} />
+    </View></View></Modal>}
     {expanded && <View style={[m.card, m.composer]}>
       <Text accessibilityRole="header" style={m.cardTitle}>{studentId ? "Write a message" : "Write an announcement"}</Text>
       <View><Text style={m.label}>{studentId ? "Your message" : "What would you like your class to know?"}</Text>
@@ -120,6 +138,8 @@ export function ClassCommunication({ api, context, studentId, initialMode }: { a
   const { fontScale } = useWindowDimensions();
   const [tab] = useState<"announcements" | "direct">(studentId || initialMode === "direct" ? "direct" : "announcements");
   const [refresh, setRefresh] = useState(0), [search, setSearch] = useState(""), [q, setQ] = useState("");
+  // Refresh server lists on focus without remounting the local composer.
+  useFocusEffect(useCallback(() => { setRefresh(value => value + 1); }, []));
   const [denied, setDenied] = useState(false), alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const onUnavailable = useCallback((cause: unknown) => { if (alive.current && [403, 404].includes((cause as { status?: number }).status ?? 0)) setDenied(true); }, []);
@@ -170,6 +190,7 @@ export function ClassCommunication({ api, context, studentId, initialMode }: { a
 
 export function CommunicationBrowser({ api, classId, studentId, mode }: { api: CommunicationAccess; classId?: string; studentId?: string; mode?: string }) {
   const [search, setSearch] = useState(""), [q, setQ] = useState(""), [refresh, setRefresh] = useState(0);
+  useFocusEffect(useCallback(() => { if (!classId) setRefresh(value => value + 1); }, [classId]));
   const classes = useCallback((offset: number) => api.classes(q, offset), [api, q]);
   const context = useCallback(async () => ({ items: [await api.context(classId!, studentId)], offset: 0, limit: 1, has_more: false }), [api, classId, studentId]);
   return !classId ? <View>

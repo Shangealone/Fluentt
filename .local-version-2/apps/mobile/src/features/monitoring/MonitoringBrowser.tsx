@@ -1,3 +1,5 @@
+import { AssessedProficiency } from "./AssessedProficiency";
+import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { useCallback, useState } from "react";
 import { Image, Pressable, ScrollView, View } from "react-native";
 import { Text, TextInput, useWindowDimensions } from "../../accessibility/Primitives";
@@ -23,7 +25,7 @@ export function CountSummary({ counts, results, denominator, unit = "class" }: {
 
 export function ClassOverview({ row }: { row: Overview }) {
   return <View style={[m.card, m.summary]}>
-    <View style={m.titleRow}><Text style={m.kicker}>At a glance</Text><Text style={m.note}>{row.classroom.language === "tagalog" ? "Tagalog" : "English"} · Grade {row.classroom.grade}</Text></View>
+    <View style={m.titleRow}><Text style={m.kicker}>At a glance</Text><Text style={m.note}>{row.classroom.language === "tagalog" ? "Tagalog" : "English"} · {classProficiencyLabel(row.classroom.proficiency_level)}</Text></View>
     <View style={m.totals}><View style={m.total}><Text style={m.totalValue}>{row.eligible_students}</Text><Text style={m.totalLabel}>Current students</Text></View><View style={[m.total, m.secondTotal]}><Text style={m.totalValue}>{row.available_assignments}</Text><Text style={m.totalLabel}>Published assignments</Text></View></View>
     <CountSummary counts={row.counts} results={row.results} denominator="student–assignment combinations" />
   </View>;
@@ -43,7 +45,7 @@ export function AssignmentSummary({ row, compact = false, onOpen }: { row: Monit
     {!compact && <Text style={m.subline}>Published {new Date(row.published_at).toLocaleString()}</Text>}
     <CountsRow counts={row.counts} /><AssignmentMean row={row} />
     {!compact && <AboutNumbers counts={row.counts} results={row.results} unit="assignment">
-      <Text style={m.note}>Lesson: {row.context.lesson_name}{"\n"}Subject: {row.context.subject_name}{"\n"}Edition: {row.context.curriculum_name}</Text>
+      <Text style={m.note}>Lesson: {row.context.lesson_name}{"\n"}Subject: {row.context.subject_name}{"\n"}Edition: {row.context.curriculum_name ?? "Teacher lesson"}</Text>
       <Text style={m.note}>This average uses released objective points from this assignment version only. Missing, pending, withheld, review-required and unscored outcomes are excluded.</Text>
       {row.mean.status === "available" && <Text style={m.note}>Engine: {row.mean.engine_version}{"\n"}Policy: {row.mean.policy_version}. Rounded once to two decimal places, half up.</Text>}
     </AboutNumbers>}
@@ -66,7 +68,7 @@ function StudentHistoryCard({ row }: { row: HistoryItem }) {
   return <View style={m.card}>
     <View style={m.rowTop}><View style={m.tile}><PersonalIcon name="assignments" size={21} color="#7863A4" /></View><View style={m.rowCopy}><Text accessibilityRole="header" style={m.cardTitle}>{row.title}</Text></View></View>
     <View style={m.lesson}><PersonalIcon name="learn" size={15} color={c.muted} /><Text style={m.lessonText}>{row.context.lesson_name}</Text></View>
-    <Text style={m.subline}>{row.context.subject_name} · {row.context.curriculum_name}</Text>
+    <Text style={m.subline}>{row.context.subject_name} · {row.context.curriculum_name ?? "Teacher lesson"}</Text>
     <ResultStatus state={row.result_state} submission={row.submission_status} />
     <Text style={m.subline}>Published {new Date(row.published_at).toLocaleString()}</Text>
     {!!row.started_at && <Text style={m.subline}>Started {new Date(row.started_at).toLocaleString()}</Text>}
@@ -153,7 +155,7 @@ export function MonitoringBrowser({ api, classId = "", studentId, assignmentId, 
   function hero(row?: Overview) {
     if (!classId) return <Hero title="Choose a class" subtitle="A closer look at your students’ activity." />;
     return <Hero title={studentId ? "Student history" : assignmentId ? "Assignment overview" : "Class overview"} subtitle={row?.classroom.class_name}
-      illustration={studentId ? "student" : assignmentId ? "assignment" : "classroom"} grade={row?.classroom.grade} language={row?.classroom.language} />;
+      illustration={studentId ? "student" : assignmentId ? "assignment" : "classroom"} proficiency={row?.classroom.proficiency_level} language={row?.classroom.language} />;
   }
   function tabs() {
     return <View style={m.tabs}>
@@ -169,8 +171,8 @@ export function MonitoringBrowser({ api, classId = "", studentId, assignmentId, 
       <Pressable accessibilityRole="button" accessibilityLabel="My account" onPress={() => router.push("/account")} style={({ pressed }) => [m.circle, pressed && m.pressed]}><PersonalIcon name="account" size={20} /></Pressable>
     </View>
     {!classId ? <MonitoringPage key={key} fetch={classes} renderHeader={() => <>{hero()}{controls()}</>} filtered={!!q} onClear={clear} emptyTitle="Your classes will appear here" emptyDescription="Create an active class to see its overview."
-      render={row => <View key={row.id} style={m.card}><View style={m.rowTop}><View style={[m.tile, m.avatar]}><Image accessible={false} source={classroomArt} resizeMode="contain" style={m.tileImage} /></View><View style={m.rowCopy}><Text accessibilityRole="header" style={m.cardTitle}>{row.class_name}</Text><Text style={m.subline}>Grade {row.grade} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text></View></View><Action label="Open overview" icon="arrow" onPress={() => open(row.id)} /></View>} />
-    : studentId ? <MonitoringPage<StudentDetail> key={key} fetch={student} renderHeader={page => <>{hero(page?.overview)}{page && <StudentSummary row={page.summary} />}<Text accessibilityRole="header" style={[m.heading, m.sectionTitle]}>Assignments</Text>{controls()}</>}
+      render={row => <View key={row.id} style={m.card}><View style={m.rowTop}><View style={[m.tile, m.avatar]}><Image accessible={false} source={classroomArt} resizeMode="contain" style={m.tileImage} /></View><View style={m.rowCopy}><Text accessibilityRole="header" style={m.cardTitle}>{row.class_name}</Text><Text style={m.subline}>{classProficiencyLabel(row.proficiency_level)} · {row.language === "tagalog" ? "Tagalog" : "English"}</Text></View></View><Action label="Open overview" icon="arrow" onPress={() => open(row.id)} /></View>} />
+    : studentId ? <MonitoringPage<StudentDetail> key={key} fetch={student} renderHeader={page => <>{hero(page?.overview)}{page && <><StudentSummary row={page.summary} /><AssessedProficiency classId={classId} studentId={studentId} /></>}<Text accessibilityRole="header" style={[m.heading, m.sectionTitle]}>Assignments</Text>{controls()}</>}
       filtered={filtered} onClear={clear} emptyTitle="No assignments yet" emptyDescription="Published class assignments will appear here." render={row => <StudentHistoryCard key={row.id} row={row} />} renderFooter={page => <Updated value={page.overview.as_of} />} />
     : assignmentId ? <MonitoringPage<AssignmentDetail> key={key} fetch={assignment} renderHeader={page => <>{hero(page?.overview)}{page && <AssignmentSummary row={page.summary} />}<Text accessibilityRole="header" style={[m.heading, m.sectionTitle]}>Student submissions</Text>{controls()}</>}
       filtered={filtered} onClear={clear} emptyTitle="No current students" emptyDescription="Students appear here when they are eligible for this assignment." render={row => <OutcomeCard key={row.id} row={row} classId={classId} assignmentId={assignmentId} scope={routeScope} />} renderFooter={page => <Updated value={page.overview.as_of} />} />

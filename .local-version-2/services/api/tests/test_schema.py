@@ -2,6 +2,7 @@ import importlib.util
 from io import StringIO
 from pathlib import Path
 
+import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy.dialects.postgresql import dialect
@@ -26,7 +27,7 @@ def migration_module():
 def test_mapper_configuration_and_unchanged_frozen_tables_match():
     configure_mappers()
     snapshot = {repair_statement(statement) for statement in migration_module().SCHEMA_SQL}
-    assert len(Base.metadata.tables) == 71
+    assert len(Base.metadata.tables) == 85
     for table in Base.metadata.sorted_tables:
         if table.name in {
             "admin_browser_sessions",
@@ -42,6 +43,21 @@ def test_mapper_configuration_and_unchanged_frozen_tables_match():
             "classroom_clearances",
             "classroom_events",
             "personal_activity_events",
+            # Frozen 0019 teacher-owned content and 0021 private ESR evidence.
+            "teacher_lessons",
+            "teacher_lesson_versions",
+            "teacher_lesson_questions",
+            "teacher_lesson_shares",
+            "teacher_lesson_mutations",
+            "instructor_lesson_questions",
+            "student_proficiency_events",
+            "esr_vocabulary_packs",
+            "esr_protocols",
+            "esr_allocations",
+            "esr_approvals",
+            "esr_review_states",
+            "esr_reviews",
+            "esr_mutations",
         }:
             continue  # Additive tables; original-table comparison uses the explicit name-only bootstrap adapter.
         if table.name not in {
@@ -54,10 +70,12 @@ def test_mapper_configuration_and_unchanged_frozen_tables_match():
             "messages",
             "learner_profiles",
             "users",
+            "lessons",  # 0019 permits explicit teacher-owned leaves without a curriculum topic.
+            "questions",  # 0019 adds the nullable teacher lesson owner reference.
         }:
             assert str(CreateTable(table).compile(dialect=dialect())).strip() in snapshot
         for index in table.indexes:
-            if index.name in {"ix_messages_context_class_id", "ix_messages_context_time"}:
+            if index.name in {"ix_messages_context_class_id", "ix_messages_context_time", "ix_questions_teacher_lesson_id"}:
                 continue
             assert str(CreateIndex(index).compile(dialect=dialect())).strip() in snapshot
         assert table.c.id.primary_key
@@ -71,13 +89,19 @@ def test_learning_focus_is_additive_and_retains_grade_history():
     table = Base.metadata.tables["learner_profiles"]
     assert table.c.learning_focus.nullable
     assert table.c.preferred_grade_id.nullable
-    assert set(table.c.keys()) == {"id", "created_at", "updated_at", "user_id", "preferred_grade_id", "preferred_language", "learning_focus"}
+    assert table.c.learning_experience.nullable
+    assert set(table.c.keys()) == {"id", "created_at", "updated_at", "user_id", "preferred_grade_id", "preferred_language", "learning_focus", "learning_experience"}
     output = StringIO()
     config = Config(str(ROOT / "alembic.ini"), output_buffer=output)
     command.upgrade(config, "0012_class_communication:0013_learning_focus", sql=True)
     sql = output.getvalue()
     assert "ADD COLUMN learning_focus JSONB" in sql
     assert "DROP" not in sql and "UPDATE learner_profiles" not in sql
+    output.seek(0)
+    output.truncate()
+    command.upgrade(config, "0015_username_spaces:0016_learning_experience", sql=True)
+    assert "ADD COLUMN learning_experience JSONB" in output.getvalue()
+    assert "DROP" not in output.getvalue() and "UPDATE learner_profiles" not in output.getvalue()
 
 
 def test_assignment_draft_additions_are_explicit_and_preserve_lock_requirements():
@@ -107,12 +131,22 @@ def test_private_identity_boundary_and_no_plaintext_credentials():
     assert normalize_username("  Shan123 ") == normalize_username("shan123") == "shan123"
 
 
-def test_offline_upgrade_and_downgrade_compile():
+def test_offline_upgrade_through_0019_and_initial_downgrade_compile():
     output = StringIO()
     config = Config(str(ROOT / "alembic.ini"), output_buffer=output)
-    command.upgrade(config, "head", sql=True)
+    command.upgrade(config, "0019_teacher_lessons", sql=True)
     upgrade = output.getvalue()
-    assert upgrade.count("CREATE TABLE ") == len(Base.metadata.tables) + 1  # Alembic version table
+    assert upgrade.count("CREATE TABLE ") == 77  # 76 domain tables through 0019 + Alembic.
+    assert "CREATE TABLE teacher_lesson_shares" in upgrade
+    assert "ALTER TABLE lessons ADD COLUMN teacher_owned" in upgrade
+    assert "ALTER TABLE questions ADD COLUMN teacher_lesson_id" in upgrade
+    assert "CREATE TABLE research_private.esr_" not in upgrade  # Added later by frozen 0021.
+    lessons = Base.metadata.tables["lessons"]
+    assert lessons.c.topic_id.nullable and not lessons.c.teacher_owned.nullable
+    assert "ck_lessons_lesson_source" in {constraint.name for constraint in lessons.constraints}
+    teacher_owner = Base.metadata.tables["questions"].c.teacher_lesson_id
+    assert teacher_owner.nullable
+    assert {key.target_fullname for key in teacher_owner.foreign_keys} == {"teacher_lessons.id"}
     assert "CREATE SCHEMA research_private" in upgrade
     assert "uq_class_join_codes_active_code" in upgrade
     assert "ADD CONSTRAINT uq_class_join_codes_code UNIQUE (code)" in upgrade
@@ -123,6 +157,15 @@ def test_offline_upgrade_and_downgrade_compile():
     output.truncate()
     command.downgrade(config, "0001_initial:base", sql=True)
     assert output.getvalue().count("DROP TABLE ") == 59  # Frozen 0001: 58 domain tables + Alembic.
+
+
+def test_offline_head_requires_online_function_introspection():
+    output = StringIO()
+    config = Config(str(ROOT / "alembic.ini"), output_buffer=output)
+    with pytest.raises(RuntimeError, match="live PostgreSQL function introspection.*online"):
+        command.upgrade(config, "head", sql=True)
+    assert "Running upgrade 0019_teacher_lessons -> 0020_teacher_trigger_dispatch" in output.getvalue()
+    assert "UPDATE alembic_version SET version_num='0022_class_proficiency'" not in output.getvalue()
 
 
 def test_admin_revision_compiles_and_keeps_occupied_tables_on_downgrade():

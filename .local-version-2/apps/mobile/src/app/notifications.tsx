@@ -1,3 +1,5 @@
+import { View } from "react-native";
+import { InstructorHomeNavigation } from "../features/dashboard/InstructorHome";
 import { useCallback, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { NotificationsView, type NotificationsState } from "../features/notifications/NotificationsView";
@@ -81,8 +83,10 @@ export default function NotificationsScreen() {
   }
 
   if (!profile) return null;
-  return <NotificationsView state={state} operation={operation} actionError={actionError}
+  return <View style={{ flex: 1 }}><NotificationsView state={state} operation={operation} actionError={actionError}
     onBack={() => router.replace(destination(profile))} onAccount={() => router.push("/account")}
     onRefresh={() => { if (!lock.current) void load(); }}
-    onRead={item => void handleRead(item)} onReadAll={() => void handleReadAll()} />;
+    onRead={item => void handleRead(item)} onReadAll={() => void handleReadAll()} />
+    {profile.role === "instructor" && <InstructorHomeNavigation activeRoute="/notifications" />}
+  </View>;
 }

@@ -18,3 +18,14 @@ export class MessageSubmission {
     } finally { this.busy = false; }
   }
 }
+
+/** Only the focused composer guards navigation; no message text is stored globally. */
+export class MessageNavigationGate {
+  private guard: ((action: () => void) => void) | null = null;
+  register(guard: (action: () => void) => void) {
+    this.guard = guard;
+    return () => { if (this.guard === guard) this.guard = null; };
+  }
+  request(action: () => void) { if (this.guard) this.guard(action); else action(); }
+}
+export const messageNavigation = new MessageNavigationGate();

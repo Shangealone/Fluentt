@@ -6,13 +6,13 @@ from fastapi.testclient import TestClient
 from app.core.config import Settings
 from app.core.security import credential_digest
 from app.main import create_app
-from app.modules.identity.dependencies import get_identity_repository
+from app.modules.identity.dependencies import get_identity_repository, get_registration_repository
 from tests.identity_support import MemoryIdentityRepository
 
 
 @pytest.fixture
 def identity_api():
-    settings = Settings(
+    settings = Settings(personal_learner_registration_enabled=True,
         _env_file=None,
         environment="test",
         database_url=None,
@@ -23,11 +23,15 @@ def identity_api():
     app = create_app(settings)
     repository = MemoryIdentityRepository()
     app.app.dependency_overrides[get_identity_repository] = lambda: repository
+    app.app.dependency_overrides[get_registration_repository] = lambda: repository
     with TestClient(app) as client:
         yield client, repository
 
 
 def register(client, username="SyntheticLearner", role="personal_student"):
+    if role == "school_student":
+        from tests.identity_support import existing_school_account
+        return existing_school_account(client, username)
     response = client.post("/api/v1/users", json={"password": "SyntheticPass123!", "username": username, "role": role})
     assert response.status_code == 201
     return response.json()
@@ -37,7 +41,7 @@ def bearer(created):
     return {"Authorization": "Bearer " + created["session"]["credential"]}
 
 
-@pytest.mark.parametrize("role", ["personal_student", "school_student", "instructor"])
+@pytest.mark.parametrize("role", ["personal_student", "instructor"])
 def test_public_creation_profiles_and_secure_issuance(identity_api, role):
     client, repository = identity_api
     created = register(client, role=role)
@@ -188,10 +192,11 @@ def test_identity_routes_have_no_password_or_role_mutation(identity_api):
 
 def test_creation_and_checks_throttled_and_forwarded_header_not_trusted():
     app = create_app(
-        Settings(_env_file=None, environment="test", database_url=None, username_check_limit=1, user_creation_limit=1)
+        Settings(personal_learner_registration_enabled=True, _env_file=None, environment="test", database_url=None, username_check_limit=1, user_creation_limit=1)
     )
     repository = MemoryIdentityRepository()
     app.app.dependency_overrides[get_identity_repository] = lambda: repository
+    app.app.dependency_overrides[get_registration_repository] = lambda: repository
     with TestClient(app) as client:
         assert client.get("/api/v1/usernames/check?username=first").status_code == 200
         limited = client.get("/api/v1/usernames/check?username=second", headers={"X-Forwarded-For": "192.0.2.77"})
@@ -201,14 +206,14 @@ def test_creation_and_checks_throttled_and_forwarded_header_not_trusted():
 
 
 def test_session_attempts_throttled():
-    app = create_app(Settings(_env_file=None, environment="test", database_url=None, mobile_session_request_limit=1))
+    app = create_app(Settings(personal_learner_registration_enabled=True, _env_file=None, environment="test", database_url=None, mobile_session_request_limit=1))
     with TestClient(app) as client:
         assert client.get("/api/v1/sessions/me").status_code == 401
         assert client.get("/api/v1/sessions/me").status_code == 429
 
 
 def test_no_database_returns_503_and_public_role_validation_still_runs():
-    with TestClient(create_app(Settings(_env_file=None, environment="test", database_url=None))) as client:
+    with TestClient(create_app(Settings(personal_learner_registration_enabled=True, _env_file=None, environment="test", database_url=None))) as client:
         assert client.post("/api/v1/users", json={"password": "SyntheticPass123!", "username": "learner", "role": "administrator"}).status_code == 422
         assert client.post("/api/v1/users", json={"password": "SyntheticPass123!", "username": "learner", "role": "personal_student"}).status_code == 503
         assert client.get("/api/v1/sessions/me").status_code == 401
@@ -218,7 +223,7 @@ def test_no_database_returns_503_and_public_role_validation_still_runs():
     "payload", [None, [], {}, {"username": "missingrole"}, {"username": 123, "role": "personal_student"}]
 )
 def test_malformed_creation_payload_is_rejected_without_database(payload):
-    with TestClient(create_app(Settings(_env_file=None, environment="test", database_url=None))) as client:
+    with TestClient(create_app(Settings(personal_learner_registration_enabled=True, _env_file=None, environment="test", database_url=None))) as client:
         assert client.post("/api/v1/users", json=payload).status_code == 422
 
 
@@ -241,8 +246,9 @@ def test_openapi_declares_mobile_only_role_and_bearer_security(identity_api):
 
 
 def test_production_identity_requires_https():
-    app = create_app(Settings(_env_file=None, environment="production", database_url=None))
+    app = create_app(Settings(personal_learner_registration_enabled=True, _env_file=None, environment="production", database_url=None))
     app.app.dependency_overrides[get_identity_repository] = lambda: MemoryIdentityRepository()
+    app.app.dependency_overrides[get_registration_repository] = lambda: MemoryIdentityRepository()
     with TestClient(app) as client:
         response = client.post("/api/v1/users", json={"password": "SyntheticPass123!", "username": "learner", "role": "personal_student"})
         assert response.status_code == 400 and response.json()["error"]["code"] == "https_required"

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select, text, func
 from sqlalchemy.exc import DBAPIError
 from app.models.assessments import Assignment, AssignmentVersion, AssignmentQuestion, Question, QuestionRevision
-from app.models.curriculum import Lesson, CurriculumGrade, CurriculumSubject, CurriculumVersion, GradeLevel, Subject
+from app.models.curriculum import Lesson, CurriculumSubject, CurriculumVersion, GradeLevel, Subject
 from app.models.operations import AuditLog
 from app.modules.classrooms.repository import ClassroomRepository
 from app.modules.classrooms.service import require_instructor
@@ -24,13 +24,19 @@ def fail(status=409, message="This draft or its content changed. Reload before t
 def lesson_path(db, classroom, lesson_id, current=True):
     statement = path_statement(5).where(Lesson.id == lesson_id)
     if current:
-        statement = statement.where(*visible(5), CurriculumGrade.grade_level_id == classroom.grade_level_id)
+        statement = statement.where(*visible(5))
         if classroom.subject_id is not None:
             statement = statement.where(CurriculumSubject.subject_id == classroom.subject_id)
-    return db.execute(statement.execution_options(populate_existing=True)).first()
+    path = db.execute(statement.execution_options(populate_existing=True)).first()
+    if path is not None:
+        return path
+    from app.modules.teacher_lessons.source import teacher_context
+    return teacher_context(db, classroom, lesson_id, current)
 
 
 def context_for(path):
+    if isinstance(path, Context):
+        return path
     m = path._mapping
     return Context(
         lesson_id=m[Lesson].id,
@@ -44,6 +50,9 @@ def context_for(path):
 
 
 def eligible(db, classroom, row):
+    from app.modules.assignments.question_authoring import class_question_scope
+    if db.scalar(select(Question.id).where(Question.id == row.question_id, class_question_scope(classroom))) is None:
+        return False
     item = db.get(Question, row.question_id, populate_existing=True)
     return bool(
         row.locked_at
@@ -233,24 +242,24 @@ def execute(
                 from app.modules.assignments.publication import publish
 
                 result = publish(db, classroom, item, user, payload, expected, request_key, request_id)
-            elif action in {"lessons", "questions"}:
+            elif action in {"lessons", "lesson", "questions"}:
                 if classroom.status != "active" or classroom.archived_at is not None:
                     raise fail(409, "Archived classes cannot select assignment content.")
                 statement = path_statement(5).where(
-                    *visible(5), CurriculumGrade.grade_level_id == classroom.grade_level_id
+                    *visible(5)
                 )
                 if classroom.subject_id is not None:
                     statement = statement.where(CurriculumSubject.subject_id == classroom.subject_id)
-                if action == "lessons":
-                    if query.q:
-                        statement = statement.where(Lesson.name.icontains(query.q, autoescape=True))
-                    paths = db.execute(
-                        statement.order_by(CurriculumVersion.created_at.desc(), Lesson.id)
-                        .limit(query.limit + 1)
-                        .offset(query.offset)
-                    ).all()
+                if action == "lesson":
+                    path = lesson_path(db, classroom, lesson_id)
+                    if path is None:
+                        raise fail(404, "This lesson is not available for a new assignment in this class.")
+                    result = context_for(path)
+                elif action == "lessons":
+                    from app.modules.teacher_lessons.source import lesson_catalog
+                    paths = lesson_catalog(db, classroom, query)
                     result = Page(
-                        items=[context_for(path) for path in paths[: query.limit]],
+                        items=[context_for(lesson_path(db, classroom, path.id)) for path in paths[: query.limit]],
                         has_more=len(paths) > query.limit,
                         limit=query.limit,
                         offset=query.offset,
@@ -258,10 +267,12 @@ def execute(
                 else:
                     if not lesson_path(db, classroom, lesson_id):
                         raise fail(404, "Eligible lesson not found.")
+                    from app.modules.assignments.question_authoring import class_question_scope
                     statement = (
                         select(QuestionRevision)
                         .join(Question)
                         .where(
+                            class_question_scope(classroom),
                             Question.status == "published",
                             Question.archived_at.is_(None),
                             QuestionRevision.locked_at.is_not(None),
@@ -323,7 +334,7 @@ def execute(
                         raise fail(409, "Archived classes cannot create or edit assignment drafts.")
                     path = lesson_path(db, classroom, payload.lesson_id)
                     if path is None:
-                        raise fail(422, "Choose a published lesson compatible with this class grade and subject.")
+                        raise fail(422, "Choose a published lesson compatible with this class learning language and subject.")
                     selected = []
                     identities = set()
                     for row_id in payload.question_revision_ids:

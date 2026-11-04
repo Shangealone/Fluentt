@@ -123,8 +123,8 @@ def execute(repo, token, settings, *, action, class_id=None, query=None):
         if action == "classes":
             options = (
                 db.execute(
-                    select(Classroom.id, Classroom.class_name, Classroom.language, GradeLevel.number.label("grade"))
-                    .join(GradeLevel, Classroom.grade_level_id == GradeLevel.id)
+                    select(Classroom.id, Classroom.class_name, Classroom.language, Classroom.proficiency_level, GradeLevel.number.label("grade"))
+                    .outerjoin(GradeLevel, Classroom.grade_level_id == GradeLevel.id)
                     .where(Classroom.id.in_(ids))
                     .order_by(Classroom.class_name, Classroom.id)
                     .limit(query.limit + 1)

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type ComponentRef, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
@@ -42,7 +42,7 @@ function ResultButton({ label, onPress, primary = false, disabled = false }: { l
 
 export function StudentResultView(p: Props) {
   const { width, fontScale } = useWindowDimensions();
-  const scroll = useRef<ScrollView>(null), reviewY = useRef(0), scrollPending = useRef(false);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null), reviewY = useRef(0), scrollPending = useRef(false);
   const [position, setPosition] = useState(0), [about, setAbout] = useState(false);
   const row = p.row, item = row?.released ? row.items[position] : undefined;
   useEffect(() => {

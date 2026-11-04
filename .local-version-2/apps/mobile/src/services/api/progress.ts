@@ -1,3 +1,4 @@
+import { isClassProficiency, isLegacyClassGrade, type ClassProficiency } from "./classProficiency";
 import type { AuthContext } from "./client";
 import { request, ApiError } from "./client.ts";
 import type { AssignmentPage, LessonContext } from "./assignments.ts";
@@ -5,7 +6,7 @@ export type SubmissionStatus = "not_started" | "in_progress" | "submitted";
 export type HistoryFilters = { class_id?: string; status?: "all" | SubmissionStatus; since?: string; before?: string };
 export type ProgressSummary = { availability: "available" | "unavailable"; as_of: string; class_id: string | null; class_name: string | null;
   class_count: number | null; counts: { available: number; not_started: number; in_progress: number; submitted: number; pending: number } | null; policy_version: "submission-counts-v1" };
-export type ProgressClass = { id: string; class_name: string; grade: number; language: "english" | "tagalog" };
+export type ProgressClass = { id: string; class_name: string; grade: number | null; proficiency_level: ClassProficiency | null; language: "english" | "tagalog" };
 export type HistoryItem = { id: string; version_id: string; class_id: string; class_name: string; language: "english" | "tagalog"; title: string;
   context: LessonContext; submission_status: SubmissionStatus; result_state: "not_submitted" | "submitted" | "awaiting_manual_review" | "withheld" | "released" | "not_applicable";
   attempt_id: string | null; published_at: string; started_at: string | null; last_activity_at: string | null; submitted_at: string | null; sort_at: string;
@@ -31,7 +32,7 @@ export function validateHistory(page: LearningHistory): LearningHistory {
   for (const row of page.items) {
     if (!row || typeof row.id !== "string" || ids.has(row.id) || typeof row.version_id !== "string" || typeof row.class_id !== "string"
       || typeof row.title !== "string" || typeof row.class_name !== "string" || !["english", "tagalog"].includes(row.language)
-      || !row.context || typeof row.context.lesson_id !== "string" || typeof row.context.lesson_name !== "string" || typeof row.context.curriculum_version_id !== "string"
+      || !row.context || typeof row.context.lesson_id !== "string" || typeof row.context.lesson_name !== "string" || (row.context.source !== "teacher" && typeof row.context.curriculum_version_id !== "string")
       || !["not_started", "in_progress", "submitted"].includes(row.submission_status)
       || !["not_submitted", "submitted", "awaiting_manual_review", "withheld", "released", "not_applicable"].includes(row.result_state)
       || !date(row.sort_at) || !date(row.published_at) || [row.started_at, row.last_activity_at, row.submitted_at].some(value => value !== null && !date(value))
@@ -42,6 +43,10 @@ export function validateHistory(page: LearningHistory): LearningHistory {
   }
   return page;
 }
+export function validateProgressClass(row: ProgressClass): ProgressClass {
+  if (!row || typeof row.id !== "string" || typeof row.class_name !== "string" || !isLegacyClassGrade(row.grade) || !isClassProficiency(row.proficiency_level) || !["english", "tagalog"].includes(row.language)) invalid();
+  return row;
+}
 const params = (filters: HistoryFilters) => {
   const query = new URLSearchParams();
   for (const key of ["class_id", "status", "since", "before"] as const) if (filters[key]) query.set(key, filters[key]!);
@@ -51,7 +56,8 @@ export const progressApi = {
   summary: async (secret: AuthContext, classId?: string) => validateSummary(await request<ProgressSummary>(`/me/progress${classId ? `?class_id=${encodeURIComponent(classId)}` : ""}`, "GET", undefined, secret)),
   classes: async (secret: AuthContext, offset = 0) => {
     const page = await request<AssignmentPage<ProgressClass>>(`/me/progress/classes?offset=${offset}`, "GET", undefined, secret);
-    if (!page || !Array.isArray(page.items) || typeof page.has_more !== "boolean" || !natural(page.offset) || page.items.some(row => typeof row.id !== "string" || typeof row.class_name !== "string" || !natural(row.grade) || row.grade < 1 || row.grade > 12 || !["english", "tagalog"].includes(row.language))) invalid();
+    if (!page || !Array.isArray(page.items) || typeof page.has_more !== "boolean" || !natural(page.offset)) invalid();
+    page.items.forEach(validateProgressClass);
     return page;
   },
   history: async (secret: AuthContext, filters: HistoryFilters, offset = 0) => {

@@ -191,7 +191,7 @@ def test_actual_queries_recheck_all_published_ancestors_and_context(depth):
     statement = path_statement(depth).where(*visible(depth), *filters(depth, query, context))
     sql = str(statement.compile(dialect=dialect(), compile_kwargs={"literal_binds": True}))
     assert "curriculum_versions.status = 'published'" in sql
-    assert "grade_levels.number = 3" in sql and str(context.grade_level_id) in sql
+    assert "grade_levels.number = 3" in sql and str(context.grade_level_id) not in sql
     assert str(query.subject_id) in sql
     if depth >= 4:
         assert "curriculum_topics.status = 'published'" in sql

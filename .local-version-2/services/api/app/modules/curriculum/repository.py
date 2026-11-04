@@ -78,8 +78,6 @@ def filters(depth, query, context):
             )
             if query.grade is not None:
                 branch = branch.where(GradeLevel.number == query.grade)
-            if context:
-                branch = branch.where(CurriculumGrade.grade_level_id == context.grade_level_id)
             if subject_ids:
                 branch = branch.join(CurriculumSubject, CurriculumSubject.curriculum_grade_id == CurriculumGrade.id)
                 for subject_id in subject_ids:
@@ -88,8 +86,6 @@ def filters(depth, query, context):
     else:
         if query.grade is not None:
             conditions.append(GradeLevel.number == query.grade)
-        if context:
-            conditions.append(CurriculumGrade.grade_level_id == context.grade_level_id)
         if depth == 1 and subject_ids:
             branch = select(CurriculumSubject.id).where(CurriculumSubject.curriculum_grade_id == CurriculumGrade.id)
             for subject_id in subject_ids:
