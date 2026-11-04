@@ -1,3 +1,5 @@
+import { View } from "react-native";
+import { InstructorHomeNavigation } from "../features/dashboard/InstructorHome";
 import { ProficiencyScreen } from "../features/monitoring/AssessedProficiency";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -31,6 +33,9 @@ export default function InstructorMonitoring() {
   if (scopeConflict) return null;
   if (profile?.role !== "instructor") return null;
   if (assessment === "1" && activeClassId && activeStudentId) return focused ? <ProficiencyScreen key={`${profile.id}:${activeClassId}:${activeStudentId}`} classId={activeClassId} studentId={activeStudentId} /> : null;
-  return focused ? <MonitoringBrowser key={`${profile.id}:${activeClassId}:${activeStudentId}:${activeAssignmentId}`} api={monitoring} classId={activeClassId} studentId={activeStudentId} assignmentId={activeAssignmentId} scope={scope} scopeLabel={activeScopeLabel} /> : null;
+  return <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>{focused ? <MonitoringBrowser key={`${profile.id}:${activeClassId}:${activeStudentId}:${activeAssignmentId}`} api={monitoring} classId={activeClassId} studentId={activeStudentId} assignmentId={activeAssignmentId} scope={scope} scopeLabel={activeScopeLabel} /> : null}</View>
+    <InstructorHomeNavigation activeRoute="/instructor-monitoring" />
+  </View>;
 }
 

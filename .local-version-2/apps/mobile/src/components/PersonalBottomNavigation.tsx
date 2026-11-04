@@ -21,7 +21,7 @@ export function PersonalBottomNavigation() {
   const path = usePathname();
   // Preserve the existing onboarding and busy preference-form boundaries.
   if (loading || error || profile?.role !== "personal_student" || destination(profile) !== "/student"
-    || (!tabs.some(tab => tab.route === path) && path !== "/account")) return null;
+    || (!tabs.some(tab => tab.route === path) && path !== "/account" && path !== "/notifications")) return null;
   return <SafeAreaView edges={["bottom", "left", "right"]} style={styles.surface}>
     <View accessibilityRole="tablist" accessibilityLabel="Personal learning navigation" style={styles.row}>
       {tabs.map(tab => {
