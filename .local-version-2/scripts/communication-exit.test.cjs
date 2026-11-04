@@ -1,0 +1,32 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { createRequire } = require('node:module');
+const local = createRequire(path.resolve(__dirname, '../apps/mobile/package.json'));
+const ts = local('typescript');
+const filename = path.resolve(__dirname, '../apps/mobile/src/features/communications/state.ts');
+const mod = { exports: {} };
+new Function('exports', 'module', ts.transpile(fs.readFileSync(filename, 'utf8'), { module: ts.ModuleKind.CommonJS }))(mod.exports, mod);
+const { MessageNavigationGate } = mod.exports;
+test('navigation waits for composer approval and unregisters cleanly', () => {
+  const gate = new MessageNavigationGate();
+  let approved, visits = 0;
+  const unregister = gate.register(action => { approved = action; });
+  gate.request(() => visits++);
+  assert.equal(visits, 0);
+  approved();
+  assert.equal(visits, 1);
+  unregister();
+  gate.request(() => visits++);
+  assert.equal(visits, 2);
+});
+test('old composer cleanup cannot unregister the current composer', () => {
+  const gate = new MessageNavigationGate();
+  const old = gate.register(() => assert.fail('stale guard'));
+  let blocked = false;
+  gate.register(() => { blocked = true; });
+  old();
+  gate.request(() => assert.fail('unguarded exit'));
+  assert.equal(blocked, true);
+});

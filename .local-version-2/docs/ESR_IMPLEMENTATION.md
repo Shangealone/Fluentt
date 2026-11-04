@@ -1,5 +1,7 @@
 # ESR implementation checkpoint
 
+2026-11-04 training follow-up: `ESR_PUBLIC_DATA_PILOT_RESULTS.md` records a completed, bounded public-data CPU engineering pilot. It is not a genuine validated study provider and does not remove either study-activation dependency below.
+
 Updated: 2026-11-02
 
 Training follow-up: the user confirmed that no checkpoint exists and requested training preparation next. See `ESR_TRAINING_PREPARATION.md` and the deliberately untrained example manifest/integrity checker in `services/api/training/esr/`.

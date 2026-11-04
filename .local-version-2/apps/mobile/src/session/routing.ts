@@ -34,6 +34,7 @@ export function usernameError(value: string): string | null {
 export const validClassCode = (value: string) => /^[0-9]{6}$/.test(value);
 
 export function routeAllowed(profile: Profile | null, route: string, pending = false): boolean {
+  if (route === "privacy-policy" || route === "terms") return true;
   if (!profile) return ["auth", "username", "login"].includes(route) || (!pending && ["index", "school-role"].includes(route));
   if (route === "set-password") return profile.has_password === false;
   if (profile.has_password === false) return false;

@@ -1,5 +1,7 @@
 # FIFAKT training preparation
 
+2026-11-04 follow-up: a bounded real-data CPU pilot has now completed. See `ESR_PUBLIC_DATA_PILOT_RESULTS.md`. Earlier checkpoint statements below describe preparation at that time; the pilot does not constitute paper reproduction or a study-ready, format-aware model.
+
 Updated: 2026-11-02
 
 The user confirmed that no checkpoint is available and selected preparation for training as the next step. No training run, dataset download or model-validity claim has been made.

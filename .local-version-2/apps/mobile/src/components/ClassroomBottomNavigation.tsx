@@ -1,3 +1,4 @@
+import { messageNavigation } from "../features/communications/state";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "../accessibility/Primitives";
 
@@ -28,7 +29,7 @@ export function ClassroomBottomNavigation() {
         const selected = path === tab.route || (path === "/class-code" && tab.route === "/my-classes");
         return <Pressable key={tab.route} accessibilityRole="tab" accessibilityLabel={tab.name}
           accessibilityState={{ selected }} aria-selected={selected}
-          onPress={() => { if (path !== tab.route) router.navigate(tab.route); }} style={({ pressed }) => [styles.tab, { opacity: pressed ? 0.65 : 1 }]}>
+          onPress={() => { if (path !== tab.route) messageNavigation.request(() => router.navigate(tab.route)); }} style={({ pressed }) => [styles.tab, { opacity: pressed ? 0.65 : 1 }]}>
           <View style={[styles.icon, selected && { backgroundColor: homeColors.selected }]}><PersonalIcon name={tab.icon as PersonalIconName} size={21} color={selected ? homeColors.teal : "#5B7064"} /></View>
           <Text style={[styles.label, selected && { color: homeColors.teal, fontWeight: "700" }]}>{tab.label}</Text>
         </Pressable>;

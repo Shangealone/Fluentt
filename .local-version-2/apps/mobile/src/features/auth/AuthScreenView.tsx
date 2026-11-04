@@ -1,3 +1,4 @@
+import { LegalLinks } from "../legal/LegalDocument";
 import { classProficiencyLabel } from "../../services/api/classProficiency";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
@@ -67,6 +68,7 @@ export function AuthScreenView(p: Props) {
             <AuthButton primary label={p.operation === "auth" ? creating ? "Creating your account…" : "Signing in…" : creating ? "Create account" : "Sign in"} disabled={locked || (creating && p.uncertain)} onPress={p.onSubmit} />
           </View>}
         {!p.pending && <View style={s.switchRow}><Text style={s.help}>{creating ? "Already have an account?" : "New to Fluentt?"}</Text><Pressable accessibilityRole="button" accessibilityState={{ disabled: locked }} disabled={locked} onPress={() => p.onMode(creating ? "signin" : "create")} style={[s.link, locked && s.disabled]}><Text style={s.linkText}>{creating ? "Sign in" : "Create account"}</Text></Pressable></View>}
+        <LegalLinks disabled={locked} />
         <Text style={s.footer}>Small steps. More confidence.</Text>
       </ScrollView>
     </KeyboardAvoidingView>

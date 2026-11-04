@@ -1,3 +1,4 @@
+import { LegalLinks } from "../legal/LegalDocument";
 import { AssessedProficiency } from "../monitoring/AssessedProficiency";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BackHandler, Image, Pressable, Switch, Text as SampleText, View } from "react-native";
@@ -134,7 +135,9 @@ export function AccountSettings() {
         <SettingsRow title="Accessibility" subtitle={reading.loading ? "Loading your preferences…" : "Text size, contrast & motion"} icon="settings" tone="aqua" disabled={busy || reading.loading} onPress={() => open("accessibility")} />
         <View style={s.divider}><SettingsRow title="Notifications" subtitle="View your updates" icon="notifications" tone="peach" disabled={busy} onPress={() => router.push("/notifications")} /></View>
       </SettingsGroup>
-      <Text accessibilityRole="header" style={s.heading}>Help & information</Text><SettingsGroup>
+      <Text accessibilityRole="header" style={s.heading}>Help & information</Text>
+      <LegalLinks disabled={busy} />
+      <SettingsGroup>
         <SettingsRow title="Quick guide" subtitle="Find your way around Fluentt" icon="tutor" tone="lavender" disabled={busy} onPress={() => open("guide")} />
         <View style={s.divider}><SettingsRow title="About Fluentt" subtitle={`Version ${version}`} icon="brand" disabled={busy} onPress={() => open("about")} /></View>
       </SettingsGroup>

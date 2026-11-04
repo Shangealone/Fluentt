@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Platform, View } from "react-native";
 import { Text } from "../accessibility/Primitives";
 
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SessionProvider, useSession } from "../session/provider";
@@ -13,8 +13,10 @@ import { ClassroomBottomNavigation } from "../components/ClassroomBottomNavigati
 import { ReadingPreferencesProvider, useReadingPreferences } from "../accessibility/provider";
 function Navigator() {
   const session = useSession();
+  const pathname = usePathname();
+  const publicNotice = pathname === "/privacy-policy" || pathname === "/terms";
   const { reduceMotion } = useReadingPreferences();
-  if (session.loading || session.error) return <Screen>
+  if ((session.loading || session.error) && !publicNotice) return <Screen>
     <Text style={s.brand}>FLUENTT</Text>
     <Text accessibilityRole="header" style={s.heading}>
       {session.recovery === "logout" ? "Signing out safely" : session.recovery === "clear" ? "Clearing an invalid session" : "Restoring your learning space"}
@@ -27,6 +29,8 @@ function Navigator() {
   const target = session.profile ? destination(session.profile) : "/";
   const allowed = (route: string) => routeAllowed(session.profile, route, session.pending);
   return <Stack screenOptions={{ headerShown: false, ...(reduceMotion ? { animation: "none" as const } : {}) }}>
+    <Stack.Screen name="privacy-policy" />
+    <Stack.Screen name="terms" />
     <Stack.Protected guard={!session.profile} redirectTo={target}>
       <Stack.Protected guard={!session.pending}>
         <Stack.Screen name="index" />

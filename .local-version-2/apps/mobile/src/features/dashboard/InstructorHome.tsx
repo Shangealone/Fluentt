@@ -1,3 +1,4 @@
+import { messageNavigation } from "../communications/state";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
 
@@ -27,7 +28,7 @@ export function InstructorHomeNavigation({ activeRoute = "/instructor" }: { acti
       {tabs.map(tab => {
         const selected = tab.route === activeRoute;
         return <Pressable key={tab.route} accessibilityRole="tab" accessibilityLabel={tab.label}
-          accessibilityState={{ selected }} aria-selected={selected} onPress={() => { if (!selected) router.navigate(tab.route); }}
+          accessibilityState={{ selected }} aria-selected={selected} onPress={() => { if (!selected) messageNavigation.request(() => router.navigate(tab.route)); }}
           style={({ pressed }) => [styles.tab, largeText && styles.largeTextTab, pressed && styles.pressed]}>
           <View style={[styles.tabIcon, largeText && styles.largeTextIcon, selected && styles.selectedIcon]}><PersonalIcon name={tab.icon} size={19} color={selected ? colors.teal : colors.muted} /></View>
           <Text style={[styles.tabLabel, largeText && styles.largeTextLabel, selected && styles.selectedLabel]}>{tab.label}</Text>
