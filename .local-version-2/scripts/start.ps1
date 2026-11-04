@@ -19,6 +19,8 @@ try {
             if (!(Test-Path -LiteralPath $python)) { throw 'Create services/api/.venv and install requirements.lock.txt first; see docs/TEAM_SETUP.md.' }
             & $python scripts/check_runtime.py
             if ($LASTEXITCODE -ne 0) { throw 'Resolve the startup preflight above before starting the API; see docs/TEAM_SETUP.md.' }
+            & $python -m app.modules.curriculum.library_bundle import
+            if ($LASTEXITCODE -ne 0) { throw 'Shared lesson library was not loaded. Existing data was preserved; see docs/LESSON_LIBRARY.md.' }
             & $python -m uvicorn app.main:app --reload --host $ApiHost --port 8001 --no-access-log
         }
     }

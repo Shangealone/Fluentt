@@ -1,11 +1,11 @@
 # Team setup and checkpoint updates
 
-This is the current integrated app on `fluentt/main`. Run commands from `.local-version-2`, not the older top-level backend/mobile folders. Commands below target Windows PowerShell. Node 22.18+ (or Node 24 LTS), npm 11, Python 3.12, and PostgreSQL 17 are supported by this checkpoint's local checks. Android device builds also need the Android SDK/JDK; a browser setup does not require them.
+This checkpoint is on `version-5`. Run commands from `.local-version-2`, not the older top-level backend/mobile folders. Commands below target Windows PowerShell. Node 22.18+ (or Node 24 LTS), npm 11, Python 3.12, and PostgreSQL 17 are supported by this checkpoint's local checks. Android device builds also need the Android SDK/JDK; a browser setup does not require them.
 
 ## 1. Clone and install
 
 ```powershell
-git clone --branch fluentt/main https://github.com/BlackKaiser1121/FLUENTT.git
+git clone --branch version-5 https://github.com/BlackKaiser1121/FLUENTT.git
 Set-Location FLUENTT/.local-version-2
 npm --prefix apps/mobile ci
 npm --prefix apps/admin ci
@@ -59,7 +59,7 @@ For an **existing Fluentt database**, preserve a private backup and run the norm
 .\.venv\Scripts\python.exe -m alembic upgrade head
 ```
 
-Confirm the revision is `0022_class_proficiency`. The initial adapter rejects a populated database. Never reset/stamp an existing database or edit frozen migrations to bypass an error. Current head includes migrations that inspect existing PostgreSQL functions; a successful online fresh migration is the relevant check. Startup does not silently run migrations. [MIGRATIONS.md](MIGRATIONS.md) contains the historical naming explanation and maintenance guidance.
+Confirm the revision is `0023_teacher_lesson_proficiency`. The initial adapter rejects a populated database. Never reset/stamp an existing database or edit frozen migrations to bypass an error. Current head includes migrations that inspect existing PostgreSQL functions; a successful online fresh migration is the relevant check. Startup does not silently run migrations. [MIGRATIONS.md](MIGRATIONS.md) contains the historical naming explanation and maintenance guidance.
 
 ## 4. Start the services
 
@@ -79,7 +79,7 @@ A listening health endpoint establishes API liveness. `check_database.py` separa
 
 Create a Teacher account at `/auth`, create a class, and share its server-issued code with students. Student registration verifies the class code before creating/joining the account. Proficiency is the school's external Beginner/Intermediate/Advanced assessment label; existing classes are not automatically classified. New personal-learner signup is disabled by default; existing personal accounts keep sign-in. [PERSONAL_LEARNER_REGISTRATION.md](PERSONAL_LEARNER_REGISTRATION.md) explains restoration.
 
-A fresh database has no copy of the author's accounts, join codes, published lessons, assignments, administrator mappings, or research participants. These records are not in Git. Empty lists are expected until your team creates/imports/publishes its own content. Teacher lesson authoring works through My lessons; publishing and class sharing are separate explicit actions. Existing content packages are versioned in `services/api/app/modules/questions/*_content.py`; the operator import command is `python -m app.modules.questions.school_clubs_import --administrator YOUR_PROVISIONED_ADMIN --pack PACK_NAME`. It creates administrator drafts, not automatic publication. Follow [TEACHER_LESSONS.md](TEACHER_LESSONS.md) and [CONTENT_SOURCE_REGISTER.md](CONTENT_SOURCE_REGISTER.md).
+A fresh database has no copy of the author's accounts, join codes, assignments, administrator mappings, or research participants. The administrator lesson library is bundled separately: after migration, `scripts/start.ps1 api` automatically loads it in development, preserving its publication status and avoiding duplicates. See [LESSON_LIBRARY.md](LESSON_LIBRARY.md) for direct-Uvicorn startup, conflict handling, and refreshing the shared content. Each groupmate still configures their own accounts and administrator access. Teacher-owned lessons remain separate; publishing and class sharing are explicit actions. Original source packs also remain versioned in `services/api/app/modules/questions/*_content.py`; `python -m app.modules.questions.school_clubs_import --administrator YOUR_PROVISIONED_ADMIN --pack PACK_NAME` creates drafts for new source packs. Follow [TEACHER_LESSONS.md](TEACHER_LESSONS.md) and [CONTENT_SOURCE_REGISTER.md](CONTENT_SOURCE_REGISTER.md).
 
 Real administrator access requires your own OIDC provider/MFA configuration and operator-provisioned identity/permissions; see [ADMIN_AUTH.md](ADMIN_AUTH.md). An absent provider should show a configuration-required sign-in state. It is not solved by sharing a teammate's API keys or session cookies. Optional mock administrator UI is explicitly development-only and off by default; it does not create real backend accounts or publish real content.
 
@@ -87,7 +87,7 @@ Speech/conversation providers, local model assets, and a trained FIFAKT artifact
 
 ## Pulling later checkpoints
 
-Commit/stash your own source edits, pull `fluentt/main`, and preserve your ignored environment/database files. Run `npm ci` in a client if its lockfile changed; reinstall the pinned API requirements if its lock changed. Back up an existing database before `alembic upgrade head`, then restart all affected servers. Run migrations before using screens that depend on new columns.
+Commit/stash your own source edits, switch to `version-5`, pull `origin version-5`, and preserve your ignored environment/database files. Run `npm ci` in a client if its lockfile changed; reinstall the pinned API requirements if its lock changed. Back up an existing database before `alembic upgrade head`, then restart all affected servers. Run migrations before using screens that depend on new columns. Start the API with `scripts/start.ps1 api` to load the shared administrator lesson library.
 
 ## Verification and known limits
 
