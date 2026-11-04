@@ -9,3 +9,4 @@ from app.models import research_classrooms  # noqa: F401, E402
 from app.models import personal_history  # noqa: F401, E402
 from app.models import teacher_lessons  # noqa: F401, E402
 from app.models import vocabulary_review  # noqa: F401, E402
+from app.models import instructor_questions  # noqa: F401, E402

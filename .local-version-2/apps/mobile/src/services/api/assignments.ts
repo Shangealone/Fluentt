@@ -1,8 +1,9 @@
+import type { TeacherQuestion } from "./teacherLessons";
 import type { AuthContext } from "./client";
 import { request, ApiError } from "./client.ts";
 export const assignmentMethods = ["multiple_choice", "true_false", "identification", "fill_in_the_blank", "multiple_select", "flashcards", "error_identification", "word_arrangement", "sentence_arrangement", "matching_type"] as const;
 export type AssignmentMethod = typeof assignmentMethods[number];
-export type LessonContext = { lesson_id: string; lesson_name: string; curriculum_version_id: string | null; curriculum_name: string | null; source?: "curriculum" | "teacher"; lesson_version?: number | null; grade: number | null; proficiency_level?: "beginner" | "intermediate" | "advanced" | null; subject_id: string; subject_name: string };
+export type LessonContext = { lesson_id: string; lesson_name: string; curriculum_version_id: string | null; curriculum_name: string | null; source?: "curriculum" | "teacher"; lesson_version?: number | null; teacher_lesson_id?: string | null; grade: number | null; proficiency_level?: "beginner" | "intermediate" | "advanced" | null; subject_id: string; subject_name: string };
 export type AssignmentItem = { id: string; question_id: string; version: number; eligible: boolean;
   definition: { lesson_id: string; method: AssignmentMethod; prompt: string; instructions: string | null; content: Record<string, unknown> } };
 export type AssignmentInput = { lesson_id: string; title: string; instructions: string | null; question_revision_ids: string[] };
@@ -40,12 +41,13 @@ function page<T>(value: AssignmentPage<T>, validate: (row: T) => T): AssignmentP
   return { ...value, items: value.items.map(validate) };
 }
 export const assignmentApi = {
+  createQuestion: async (secret: AuthContext, classId: string, lessonId: string, question: TeacherQuestion, key: string) => validateItem(await request<AssignmentItem>(`/classes/${encodeURIComponent(classId)}/assignment-questions`, "POST", { lesson_id: lessonId, question, confirm: true }, secret, { "Idempotency-Key": key })),
   lesson: (secret: AuthContext, classId: string, lessonId: string) => request<LessonContext>(`/classes/${encodeURIComponent(classId)}/assignment-lessons/${encodeURIComponent(lessonId)}`, "GET", undefined, secret),
   list: async (secret: AuthContext, classId: string, offset = 0) => page(await request<AssignmentPage<AssignmentSummary>>(`/classes/${encodeURIComponent(classId)}/assignments?limit=20&offset=${offset}`, "GET", undefined, secret), row => {
     if (!row || typeof row.id !== "string" || typeof row.title !== "string" || !row.context || !Number.isInteger(row.question_count) || row.question_count < 0) invalid(); return row;
   }),
   get: async (secret: AuthContext, id: string) => validateAssignment(await request<AssignmentDraft>(`/assignments/${encodeURIComponent(id)}`, "GET", undefined, secret)),
-  lessons: async (secret: AuthContext, classId: string, q = "", offset = 0) => page(await request<AssignmentPage<LessonContext>>(`/classes/${encodeURIComponent(classId)}/assignment-lessons?${new URLSearchParams({ q, offset: String(offset), limit: "20" })}`, "GET", undefined, secret), row => {
+  lessons: async (secret: AuthContext, classId: string, q = "", offset = 0, source?: "curriculum") => page(await request<AssignmentPage<LessonContext>>(`/classes/${encodeURIComponent(classId)}/assignment-lessons?${new URLSearchParams({ q, offset: String(offset), limit: "20", ...(source ? { source } : {}) })}`, "GET", undefined, secret), row => {
     if (!row || typeof row.lesson_id !== "string" || typeof row.lesson_name !== "string" || typeof row.subject_name !== "string") invalid(); return row;
   }),
   questions: async (secret: AuthContext, classId: string, lessonId: string, q = "", method = "", offset = 0) => page(await request<AssignmentPage<AssignmentItem>>(`/classes/${encodeURIComponent(classId)}/assignment-questions?${new URLSearchParams({ lesson_id: lessonId, q, offset: String(offset), limit: "20", ...(method ? { method } : {}) })}`, "GET", undefined, secret), validateItem),
@@ -57,9 +59,9 @@ export const assignmentApi = {
   publishedDetail: async (secret: AuthContext, id: string) => validatePublished(await request<PublishedAssignment>(`/assignments/${encodeURIComponent(id)}/published`, "GET", undefined, secret)),
 };
 export function assignmentAccess(run: <T>(operation: (secret: AuthContext) => Promise<T>) => Promise<T>) {
-  return { list: (id: string, offset?: number) => run(s => assignmentApi.list(s, id, offset)), get: (id: string) => run(s => assignmentApi.get(s, id)),
+  return { createQuestion: (classId: string, lessonId: string, question: TeacherQuestion, key: string) => run(s => assignmentApi.createQuestion(s, classId, lessonId, question, key)), list: (id: string, offset?: number) => run(s => assignmentApi.list(s, id, offset)), get: (id: string) => run(s => assignmentApi.get(s, id)),
     lesson: (id: string, lessonId: string) => run(s => assignmentApi.lesson(s, id, lessonId)),
-    lessons: (id: string, q?: string, offset?: number) => run(s => assignmentApi.lessons(s, id, q, offset)),
+    lessons: (id: string, q?: string, offset?: number, source?: "curriculum") => run(s => assignmentApi.lessons(s, id, q, offset, source)),
     questions: (id: string, lesson: string, q?: string, method?: string, offset?: number) => run(s => assignmentApi.questions(s, id, lesson, q, method, offset)),
     create: (id: string, body: AssignmentInput, key: string) => run(s => assignmentApi.create(s, id, body, key)),
     save: (row: AssignmentDraft, body: AssignmentInput) => run(s => assignmentApi.save(s, row, body)), archive: (row: AssignmentDraft) => run(s => assignmentApi.archive(s, row)),

@@ -16,7 +16,7 @@ def context_for_version(db, version, leaf=None):
     from app.modules.assignments.schemas import Context
     leaf = leaf or db.get(Lesson, version.lesson_id, populate_existing=True)
     return Context(lesson_id=leaf.id, lesson_name=leaf.name, curriculum_version_id=None, curriculum_name=None,
-                   source="teacher", lesson_version=version.version, grade=db.get(GradeLevel, version.grade_level_id).number if version.grade_level_id else None,
+                   source="teacher", lesson_version=version.version, teacher_lesson_id=version.teacher_lesson_id, grade=db.get(GradeLevel, version.grade_level_id).number if version.grade_level_id else None,
                    proficiency_level=version.proficiency_level,
                    subject_id=version.subject_id, subject_name=db.get(Subject, version.subject_id).name)
 
@@ -55,5 +55,5 @@ def lesson_catalog(db, classroom, query):
     if query.q:
         official = official.where(Lesson.name.icontains(query.q, autoescape=True))
         teacher = teacher.where(Lesson.name.icontains(query.q, autoescape=True))
-    catalog = union_all(official, teacher).subquery()
+    catalog = official.subquery() if getattr(query, "source", None) == "curriculum" else union_all(official, teacher).subquery()
     return db.execute(select(catalog).order_by(catalog.c.created_at.desc(), catalog.c.id).offset(query.offset).limit(query.limit + 1)).all()

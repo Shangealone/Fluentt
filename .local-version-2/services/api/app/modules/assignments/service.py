@@ -50,6 +50,9 @@ def context_for(path):
 
 
 def eligible(db, classroom, row):
+    from app.modules.assignments.question_authoring import class_question_scope
+    if db.scalar(select(Question.id).where(Question.id == row.question_id, class_question_scope(classroom))) is None:
+        return False
     item = db.get(Question, row.question_id, populate_existing=True)
     return bool(
         row.locked_at
@@ -264,10 +267,12 @@ def execute(
                 else:
                     if not lesson_path(db, classroom, lesson_id):
                         raise fail(404, "Eligible lesson not found.")
+                    from app.modules.assignments.question_authoring import class_question_scope
                     statement = (
                         select(QuestionRevision)
                         .join(Question)
                         .where(
+                            class_question_scope(classroom),
                             Question.status == "published",
                             Question.archived_at.is_(None),
                             QuestionRevision.locked_at.is_not(None),

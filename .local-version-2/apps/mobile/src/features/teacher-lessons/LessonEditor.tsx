@@ -26,7 +26,7 @@ function draftError(body: TeacherLessonInput) {
   return null;
 }
 
-export function LessonEditor({ initial, subjects, api, classId, classroom, initialStep = "Details", initialSection = 0, active = true }: { initial: TeacherLesson | null; subjects: { id: string; name: string }[]; api: TeacherLessonAccess; classId: string; classroom?: ClassDetails | null; initialStep?: LessonStep; initialSection?: number; active?: boolean }) {
+export function LessonEditor({ initial, subjects, api, classId, classroom, initialStep = "Details", initialSection = 0, active = true, onReturnToAssignment }: { initial: TeacherLesson | null; subjects: { id: string; name: string }[]; api: TeacherLessonAccess; classId: string; classroom?: ClassDetails | null; initialStep?: LessonStep; initialSection?: number; active?: boolean; onReturnToAssignment?: (saved: TeacherLesson | null) => void }) {
   const [row, setRow] = useState(initial), [draft, setDraft] = useState(() => initial ? fromRow(initial) : blank(classroom));
   const [step, setStep] = useState<LessonStep>(initial?.status === "published" || initial?.status === "archived" ? "Review" : initialStep);
   const [busy, setBusy] = useState(false), [reading, setReading] = useState(false), [dirty, setDirty] = useState(false);
@@ -43,8 +43,9 @@ export function LessonEditor({ initial, subjects, api, classId, classroom, initi
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [hasUnsaved, busy, pending, mustReload]);
-  const prevent = usePreventRemove(active && (hasUnsaved || busy || !!pending || mustReload), ({ repeat }) => {
+  const prevent = usePreventRemove(active && (hasUnsaved || busy || !!pending || mustReload || !!onReturnToAssignment), ({ repeat }) => {
     if (lock.current) return;
+    if (onReturnToAssignment) { setConfirm({ title: "Return to your assignment first", message: "Leaving this lesson editor discards unsaved lesson edits and retry details. Your assignment stays here until you return to it.", label: "Return to assignment", accept: () => onReturnToAssignment(row) }); return; }
     setConfirm({ title: pending || mustReload ? "Leave an uncertain request?" : "Leave with unsaved changes?", message: pending || mustReload ? "This request may have completed. Your retry details will be cleared when you leave. Check your lesson library before creating another lesson or repeating a change." : "Your latest edits haven’t been saved. Stay here to save your draft, or leave and discard them.", label: "Leave lesson", accept: () => { setPending(null); setDirty(false); setQuestionDirty(false); repeat(); } });
   });
   const editable = !row || row.status === "draft", frozen = busy || !!pending || mustReload || !editable;
@@ -66,7 +67,7 @@ export function LessonEditor({ initial, subjects, api, classId, classroom, initi
       const destination = operation.returnStep ?? (operation.action === "new_version" ? "Details" : "Review");
       restore(saved); setShareMode(null); setStep(destination);
       setNotice(operation.action === "publish" ? "Version published. Choose classes separately to share it." : operation.action === "share" ? "Lesson shared with the selected classes." : operation.action === "unshare" ? "Selected class shares stopped. Existing assignments are retained." : operation.action === "new_version" ? "Your new draft is ready. Existing shared lessons and assignments keep their original versions." : operation.action === "archive" ? "Lesson archived. Its history and existing class shares are retained." : "Draft saved. Students can’t see this draft.");
-      if (!initial || initial.version_id !== saved.version_id) {
+      if (!onReturnToAssignment && (!initial || initial.version_id !== saved.version_id)) {
         prevent(); router.replace({ pathname: "/instructor-lesson", params: { id: saved.id, versionId: saved.version_id, step: destination, ...(destination === "Content" ? { section: String(operation.section ?? -1) } : {}), ...(classId ? { classId } : {}) } });
       }
     } catch (cause) {
@@ -107,11 +108,18 @@ export function LessonEditor({ initial, subjects, api, classId, classroom, initi
     finally { lock.current = false; if (live.current && current === epoch.current) { setBusy(false); setReading(false); } }
   }
   function confirmReload() { setConfirm({ title: "Reload the saved lesson?", message: "This discards local edits and reads the current saved version. If another device changed the lesson, you’ll see that version. Interrupted publication or sharing should first be retried with its original request.", label: "Reload saved lesson", accept: () => void reload() }); }
-  function leave() { router.replace(classId ? { pathname: "/instructor-lessons", params: { classId } } : "/instructor-lessons"); }
+  function leave() {
+    if (onReturnToAssignment) {
+      if (hasUnsaved || pending || mustReload) setConfirm({ title: "Return to your assignment?", message: "Unsaved lesson edits and retry details will be discarded. Your assignment details will stay.", label: "Return to assignment", accept: () => onReturnToAssignment(row) });
+      else onReturnToAssignment(row);
+      return;
+    }
+    router.replace(classId ? { pathname: "/instructor-lessons", params: { classId } } : "/instructor-lessons"); }
   function cancelQuestion() { const cancel = () => { setQuestion(null); setQuestionDirty(false); setPreview(null); setContentPreview(false); setContentValidation(false); }; if (questionDirty) setConfirm({ title: "Discard question changes?", message: "These question edits haven’t been added to your lesson. Your other lesson details will stay.", label: "Discard question edits", accept: cancel }); else cancel(); }
   const onBack = () => { if (contentPreview) setContentPreview(false); else if (preview) setPreview(null); else if (question) cancelQuestion(); else if (shareMode) setShareMode(null); else leave(); };
   const account = () => {
     if (lock.current) return;
+    if (onReturnToAssignment) { leave(); return; }
     if (hasUnsaved || pending || mustReload) {
       setConfirm({ title: pending || mustReload ? "Leave an uncertain request?" : "Leave with unsaved changes?", message: pending || mustReload ? "The request may have completed. Leaving clears this screen’s retry details. Check your library before repeating the operation." : "Opening your account will discard these unsaved lesson and question edits. Stay here to save them first.", label: "Open my account", accept: () => { setPending(null); setDirty(false); setQuestionDirty(false); prevent(); router.push("/account"); } });
     } else router.push("/account");
@@ -140,7 +148,7 @@ export function LessonEditor({ initial, subjects, api, classId, classroom, initi
     {row?.status === "published" && <><LessonButton label="Share with a class" primary disabled={busy || !!pending || mustReload} onPress={() => setShareMode("share")} /><LessonButton label="Create a new version" disabled={busy || !!pending || mustReload || row.versions.some(v => !v.published_at)} onPress={() => setConfirm({ title: "Create a new draft version?", message: "Your published lesson, existing class readings, assignments, and student work will stay unchanged. Share the new version separately when it’s ready.", label: "Create new version", accept: () => command("new_version") })} /><LessonNote>This published version stays unchanged. Make a new version to update your lesson.</LessonNote><LessonButton label="Archive lesson" quiet disabled={busy || !!pending || mustReload} onPress={() => setConfirm({ title: "Archive this lesson?", message: "This blocks new selection and sharing. Existing shared versions, assignments, and student answers are retained.", label: "Archive lesson", accept: () => command("archive") })} /></>}
     {row?.status === "archived" && <LessonNote>This lesson is archived. Its existing class shares and published assignments retain their original content.</LessonNote>}
     {!!row?.published_at && <LessonButton label="Stop sharing with a class" quiet disabled={busy || !!pending || mustReload} onPress={() => setShareMode("unshare")} />}
-    {row && !dirty && !pending && !mustReload && <View style={l.stack}><LessonButton label="Version history" quiet disabled={busy} onPress={() => setAbout(v => !v)} />{about && row.versions.map(v => <LessonButton key={v.version_id} label={`Open version ${v.version} · ${v.published_at ? "Published" : "Draft"}`} disabled={busy || v.version_id === row.version_id} onPress={() => router.push({ pathname: "/instructor-lesson", params: { id: row.id, versionId: v.version_id, ...(classId ? { classId } : {}) } })} />)}</View>}
+    {!onReturnToAssignment && row && !dirty && !pending && !mustReload && <View style={l.stack}><LessonButton label="Version history" quiet disabled={busy} onPress={() => setAbout(v => !v)} />{about && row.versions.map(v => <LessonButton key={v.version_id} label={`Open version ${v.version} · ${v.published_at ? "Published" : "Draft"}`} disabled={busy || v.version_id === row.version_id} onPress={() => router.push({ pathname: "/instructor-lesson", params: { id: row.id, versionId: v.version_id, ...(classId ? { classId } : {}) } })} />)}</View>}
     {row && <LessonButton label="Reload saved lesson" quiet disabled={busy} onPress={confirmReload} />}
     <LessonButton label="About your lessons" quiet disabled={busy} onPress={() => setAbout(v => !v)} />{about && <Text style={l.small}>Your lesson library belongs to you. Sharing is explicit and limited to compatible classes you own. Quiz work uses class assignments. Reading lessons does not measure ability or record completion.</Text>}
   </>);

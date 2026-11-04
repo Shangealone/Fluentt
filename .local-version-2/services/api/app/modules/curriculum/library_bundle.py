@@ -1,3 +1,4 @@
+from app.models.instructor_questions import InstructorLessonQuestion
 """Operator-only, content-only curriculum transfer. Never export account records."""
 import argparse
 import hashlib
@@ -54,7 +55,7 @@ def export_bundle(connection):
     revision = tables["question_revisions"]
     lesson_ids = sa.select(lesson.c.id).where(lesson.c.teacher_owned.is_(False), lesson.c.topic_id.is_not(None))
     revisions = sa.select(revision.c.id).join(question, revision.c.question_id == question.c.id).where(
-        revision.c.lesson_id.in_(lesson_ids), question.c.teacher_lesson_id.is_(None))
+        revision.c.lesson_id.in_(lesson_ids), question.c.teacher_lesson_id.is_(None), question.c.id.not_in(sa.select(InstructorLessonQuestion.question_id)))
     filters = {
         "grade_levels": tables["grade_levels"].c.id.in_(sa.select(grade.c.grade_level_id)),
         "subjects": tables["subjects"].c.id.in_(sa.select(subject.c.subject_id)),

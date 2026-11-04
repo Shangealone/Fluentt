@@ -746,6 +746,7 @@ export function createDemoEnrollmentApi(): EnrollmentAccess {
 
 export function createDemoAssignmentApi(): AssignmentAccess {
   return {
+    async createQuestion() { throw new Error("Question publication is unavailable in the demo. Use a signed-in instructor account."); },
     async list(classId: string) {
       const items: AssignmentSummary[] = [
         {

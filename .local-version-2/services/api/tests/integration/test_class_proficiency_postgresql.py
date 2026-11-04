@@ -33,7 +33,7 @@ def test_fresh_head_supports_no_grade_class_edit_and_published_lesson_share(prof
         return Session(bind=proficiency_database, join_transaction_mode="create_savepoint")
 
     with session() as db, db.begin():
-        assert db.scalar(text("SELECT version_num FROM alembic_version")) == "0023_teacher_lesson_proficiency"
+        assert db.scalar(text("SELECT version_num FROM alembic_version")) == "0024_instructor_questions"
         actual_unique = {row["name"] for row in inspect(proficiency_database).get_unique_constraints("teacher_lesson_shares")}
         mapped_unique = {row.name for row in TeacherLessonShare.__table__.constraints
                          if row.__class__.__name__ == "UniqueConstraint"}

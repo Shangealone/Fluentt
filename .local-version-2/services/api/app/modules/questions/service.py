@@ -1,3 +1,4 @@
+from app.models.instructor_questions import InstructorLessonQuestion
 """Question/key writes and live admin authorization share one PostgreSQL transaction."""
 
 import hashlib
@@ -179,7 +180,7 @@ def execute(
             )
             statement = (
                 select(Question)
-                .where(Question.teacher_lesson_id.is_(None))
+                .where(Question.teacher_lesson_id.is_(None), Question.id.not_in(select(InstructorLessonQuestion.question_id)))
                 .outerjoin(latest, latest.c.question_id == Question.id)
                 .outerjoin(
                     QuestionRevision,

@@ -5,12 +5,20 @@ from app.modules.classrooms.router import Repo, Credential, Config
 from app.modules.identity.dependencies import require_secure_transport, throttle_sessions
 from app.modules.assignments.schemas import DraftInput, DraftView, DraftSummary, Page, Query, Context, Item
 from app.modules.assignments.service import execute
-from app.modules.assignments.schemas import PublishInput, PublishedView
+from app.modules.assignments.schemas import PublishInput, PublishedView, InstructorQuestionPublication
 from app.modules.assignments.publication import student_read
 
 router = APIRouter(
     tags=["instructor assignment drafts"], dependencies=[Depends(require_secure_transport), Depends(throttle_sessions)]
 )
+
+
+@router.post("/classes/{class_id}/assignment-questions", response_model=Item, status_code=201)
+def create_question(class_id: UUID, payload: InstructorQuestionPublication, repo: Repo,
+                    credential: Credential, settings: Config, request: Request,
+                    key: Annotated[UUID, Header(alias="Idempotency-Key")]):
+    from app.modules.assignments.question_authoring import publish_question
+    return publish_question(repo, credential, settings, class_id, payload, key, request.state.request_id)
 
 
 @router.get("/classes/{class_id}/assignment-lessons/{lesson_id}", response_model=Context)
