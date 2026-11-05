@@ -11,5 +11,6 @@ export function AdminNav({ profile, current }: { profile: AdminProfile; current:
       <Link href="/questions" aria-current={current === "questions" ? "page" : undefined}><span aria-hidden="true">✎ </span>Question Bank</Link>}
     {profile.permissions.includes("research.read") &&
       <Link href="/research" aria-current={current === "research" ? "page" : undefined}><span aria-hidden="true">🔬 </span>Research Management</Link>}
+    {profile.permissions.includes("research.read") && <Link href="/parallel-study">Parallel study preparation</Link>}
   </nav>;
 }

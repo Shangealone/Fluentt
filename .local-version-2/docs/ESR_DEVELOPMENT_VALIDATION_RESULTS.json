@@ -1,0 +1,119 @@
+{
+  "status": "PASS",
+  "research_ready": false,
+  "deployment": "BLOCKED",
+  "prediction_contract": "observed-session-recall-proportion-v2",
+  "dataset": {
+    "scanned_rows": 2000000,
+    "english_rows": 783086,
+    "bounded_rows_skipped": 504209,
+    "learners": {
+      "train": 2963,
+      "calibration": 419,
+      "validation": 434,
+      "test": 416
+    },
+    "examples": {
+      "train": 22725,
+      "calibration": 3252,
+      "validation": 3343,
+      "test": 3211
+    },
+    "cohort_sha256": {
+      "train": "1efe318c2bbc14a461a1d542606cf8145c571fa89087ec84973181218424db8e",
+      "calibration": "a7532fc9bc3a0c70c0aa0c5bc57d1cd033152e4091e30e61be5a85a3f44e6dfc",
+      "validation": "1c8a65352b4ffe29420667d8cd376a5a5953a8458c6831a7961f79f99eddb850",
+      "test": "c63e6e285beca03e36b04479d7dffaf620d36ed8f83747cec2c8eb609c1647b8"
+    },
+    "corpus_sha256": "26cf9b33f2e9b2e8aa9a8f262a017b30699ca2f625c56a12ce699d4ea7076873"
+  },
+  "selected_seed": 20261106,
+  "calibration": {
+    "temperature": 2.1324708461761475,
+    "intercept": 1.2144138813018799,
+    "identity_bce": 0.28470379114151,
+    "selected_bce": 0.28168225288391113
+  },
+  "metrics": {
+    "model": {
+      "examples": 3211,
+      "mae": 0.15248596739821504,
+      "rmse": 0.25428716069943846,
+      "soft_target_bce": 0.3328079764243513,
+      "descriptive_binned_reliability_gap": 0.021264455892275453
+    },
+    "uncalibrated": {
+      "examples": 3211,
+      "mae": 0.14739420864486222,
+      "rmse": 0.2554856516565348,
+      "soft_target_bce": 0.3393732213493731,
+      "descriptive_binned_reliability_gap": 0.028690507293766
+    },
+    "constant": {
+      "examples": 3211,
+      "mae": 0.16376721580433307,
+      "rmse": 0.2541477097189628,
+      "soft_target_bce": 0.3319574241870103,
+      "descriptive_binned_reliability_gap": 0.005002359801276582
+    },
+    "item_mean": {
+      "examples": 3211,
+      "mae": 0.16116909163937013,
+      "rmse": 0.25886068676680307,
+      "soft_target_bce": 0.4141712713464853,
+      "descriptive_binned_reliability_gap": 0.021373658864488644
+    }
+  },
+  "paired_learner_intervals": {
+    "constant": {
+      "delta_mae": -0.011281248406118006,
+      "percentile_95": [
+        -0.012418950024809887,
+        -0.010238031632474817
+      ],
+      "learners": 416,
+      "bootstrap_replicates": 500
+    },
+    "item_mean": {
+      "delta_mae": -0.008683124241155074,
+      "percentile_95": [
+        -0.010986005495900647,
+        -0.0063863604808615335
+      ],
+      "learners": 416,
+      "bootstrap_replicates": 500
+    }
+  },
+  "unknown_word_fraction": 0.004360012457178449,
+  "unknown_item_fraction": 0.0071628776082217375,
+  "split_overlap": 0,
+  "checkpoint_round_trip": "EXACT",
+  "checkpoint_sha256": "2d0f81cd16c83c094b82e8d65e3f56c6a4affe3edcd7810a14affc4d640a84e5",
+  "checkpoint_bytes": 512437,
+  "total_seconds": 221.88635810000414,
+  "peak_process_working_set_bytes": 540962816,
+  "cpu_seconds": 425.015625,
+  "runtime": {
+    "python": "3.12.10",
+    "torch": "2.11.0+cpu",
+    "psutil": "7.2.2",
+    "threads": 2
+  },
+  "limitations": [
+    "Bounded English prefix cohort",
+    "Reduced architecture without pretrained semantic vectors",
+    "Session recall proportions, not individual answer labels",
+    "No FLUENTT format labels",
+    "No calibrated arbitrary future-horizon prediction",
+    "Not an app provider or retention experiment"
+  ],
+  "source_sha256": {
+    "development_worker.py": "8d807a86266881ab00c715e02dca2fd4ba4becebd9621acad8637d5020ddbab5",
+    "development_data.py": "23dd5e6f83aa8d70eb5dc0160a100737e81d168d1fcffdd08ff840e434e3851f",
+    "development_metrics.py": "3a8a6fb03c606b880d107d93d4a62b71bd8a68f299d7a74d044bf544faef12e5",
+    "public_pilot_model.py": "37b6234f91d5bc91e348d78e3f10183f7a488ed19d25bb7186797878e9cadfda",
+    "public_pilot_worker.py": "199144bb10c8b662295d3762efeec3565a9ce491cf56471d2a338a92efed5264",
+    "run_development_validation.py": "f8e7d6743b3dd9f2d90936a496dd944750ddc7f407228bb7043a81081b5e60f6",
+    "DEVELOPMENT_VALIDATION.md": "40ce68e67dd95735a904b7d14737a276db6a5b87cd78ecfc12da8be29c464e0c"
+  }
+}

@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     environment: Literal["development", "test", "production"] = "development"
     serve_web: bool = False
     personal_learner_registration_enabled: bool = False
+    parallel_research_enabled: bool = False
+    parallel_test_workflows_enabled: bool = False
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8081"]
     mobile_web_origins: list[str] = []
     mobile_web_csrf_secret: SecretStr | None = None

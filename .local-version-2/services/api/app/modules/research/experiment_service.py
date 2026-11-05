@@ -360,7 +360,9 @@ ENGLISH_PRONUNCIATION_ITEMS = [
 
 
 def ensure_study_experiment_infrastructure(db: Session, study: ResearchStudy):
-    """Guarantees scheduler configurations, groups, levels, and assessment instruments exist for the study."""
+    """Guarantees legacy infrastructure only; never reinterprets parallel records."""
+    if (study.conditions or {}).get("research_contract") == "esr-parallel-foundation-v1":
+        raise fail(409, "parallel_execution_blocked", "Parallel studies must not use historical SM-2 infrastructure.")
     if study.locked_at is not None or (study.conditions or {}).get("research_contract") == "research-classrooms-v1":
         return
 

@@ -11,3 +11,5 @@ from app.models import teacher_lessons  # noqa: F401, E402
 from app.models import vocabulary_review  # noqa: F401, E402
 from app.models import instructor_questions  # noqa: F401, E402
 from app.models import student_proficiency  # noqa: F401, E402
+from app.models import parallel_study  # noqa: F401, E402
+from app.models import parallel_workflow  # noqa: F401, E402

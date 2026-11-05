@@ -482,3 +482,22 @@ The client groups learners into Beginner, Intermediate, Advanced after its own E
 ## Version 5 combination — 2026-11-05
 
 The user requested a GitHub backup before combining the current WavLM app with Kaiser version-5, keeping client-focused registration and adding FSRS-6 + FIFAKT. Backup 2aebe91 was pushed as backup-before-version5-2026-11-05. The combined app is in versions/fluentt-version5-combined/.local-version-2 on codex/version5-wavlm-integration. Merge version-5 at d49a239 while retaining actual Voice processing and current administrator monitoring. Preserve the version-5 new-personal-registration-disabled policy and existing account history. Import the ESR review foundation without bypassing missing trained-provider and study-workflow guards. Source combination is complete; trained hybrid activation remains blocked. See VERSION5_COMBINATION.md for tests, changed files and next requirements.
+
+
+## FIFAKT-derived public development validation — 2026-11-05
+
+The user selected preparing and validating a trained FIFAKT model. A separate Python 3.12.10/Torch 2.11.0 CPU environment trained three reduced-size development candidates on verified, licensed public Duolingo traces, with fixed learner-disjoint training/calibration/selection/test partitions. Selected checkpoint 2d0f81cd16c83c094b82e8d65e3f56c6a4affe3edcd7810a14affc4d640a84e5 passed the prespecified held-out paired-MAE criterion against constant/item-mean baselines; constant baseline RMSE/BCE were slightly better. This is mixed public-data development evidence, not a full FIFAKT reproduction, format-aware FLUENTT model, validated future-horizon provider or retention-effect result. Preserve observed-session-recall-proportion-v2/research_ready=false and all live activation guards. No application changes, production-data use, commit or push. See ESR_DEVELOPMENT_VALIDATION.md and its aggregate JSON companion for exact metrics, protocol, resources and remaining data/workflow dependencies.
+
+
+## Hybrid audit and offline shadow prototype — 2026-11-05
+
+The user requested phased FIFAKT validation and safe FSRS integration. Saved development evidence was reverified without retraining or test-set tuning. Add an offline-only shadow comparator with hash/contract/history checks and exact baseline fallback; no API/writer or live provider activation. Parallel 15/15 design in the new prompt conflicts with existing esr-counterbalanced-v1; preserve allocations and require an approved versioned protocol before changes. Missing format/horizon evidence and participant workflow keep deployment BLOCKED. See ESR_THESIS1_DEFENSE_SUMMARY.md and the six accompanying reports for actual checks and remaining work.
+
+
+## Inactive parallel foundation — 2026-11-05
+
+The user authorized a separate inactive 15/15 foundation, not live research. Add esr-parallel-foundation-v1 and five additive private tables after 0025, secure immutable 30-slot assignment, prepared calendar/assessment metadata and explicit admin/class guards. Flag defaults off and only enables preparation. Legacy SM-2 seeding/enrollment must reject the new contract/conflicts; preserve historical meanings. No real participation/assessment writer or live FIFAKT route exists. Model/instrument/consent/window/publication decisions remain blockers, with status notices rather than invented activity outcomes. See six PARALLEL_GROUP reports for exact implementation/tests and activation requirements.
+
+## Track 1 isolated Class Learning workflows — 2026-11-05
+
+The complete replacement Track 1 prompt authorizes synthetic development/test workflows only. Add 0027 and guarded enrollment, frozen assessment instruments, instructor publication, resumable/final immutable attempts and separate per-allocation FSRS memory. Require test environment, both flags and server-verified disposable loopback UUID database; SYNTHETIC clearance cannot allocate elsewhere. Reuse existing 15/15 allocation, objective vocabulary checks and exact FSRS calculator, preserving raw responses/outcomes/ratings separately. Experimental learning stays blocked before attempts; no control substitution under ESR. Development all-item/one-attempt/same-pool assessment defaults are explicitly unapproved research policies. Existing model/speech/Tutor/Personal and scheduler implementations remain unchanged. See CLASS_LEARNING_WORKFLOW_IMPLEMENTATION.md and six companion reports for files, tests, limitations and live NO-GO. No production migration/enrollment, commit, push or deployment.

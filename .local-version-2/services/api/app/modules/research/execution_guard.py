@@ -17,7 +17,19 @@ def unavailable():
 
 
 def assert_no_managed_execution(study):
-    if study and (study.conditions or {}).get("research_contract") in {CONTRACT, "esr-counterbalanced-v1"}:
+    if study and (study.conditions or {}).get("research_contract") in {CONTRACT, "esr-counterbalanced-v1", "esr-parallel-foundation-v1"}:
+        raise unavailable()
+
+
+def assert_no_parallel_enrollment_conflict(db, user_id):
+    from app.models.research import ResearchParticipant
+    conflict = db.scalar(select(ResearchStudy.id).join(ResearchIdentityLink,
+                         ResearchIdentityLink.study_id == ResearchStudy.id)
+                         .join(ResearchParticipant, ResearchParticipant.id == ResearchIdentityLink.participant_id)
+                         .where(ResearchIdentityLink.user_id == user_id,
+                                ResearchParticipant.enrollment_status == "enrolled",
+                                ResearchStudy.conditions["research_contract"].as_string() == "esr-parallel-foundation-v1").limit(1))
+    if conflict is not None:
         raise unavailable()
 
 
@@ -42,7 +54,7 @@ def guard_managed_review(db, user, context_type, *, study_id=None, class_id=None
         )
         .where(
             ResearchIdentityLink.user_id == user.id,
-            ResearchStudy.conditions["research_contract"].as_string().in_([CONTRACT, "esr-counterbalanced-v1"]),
+            ResearchStudy.conditions["research_contract"].as_string().in_([CONTRACT, "esr-counterbalanced-v1", "esr-parallel-foundation-v1"]),
         )
         .limit(1)
     )

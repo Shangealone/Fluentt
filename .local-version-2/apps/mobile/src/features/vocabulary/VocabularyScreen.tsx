@@ -6,6 +6,8 @@ import { Text } from "../../accessibility/Primitives";
 import { type RecallRating, type VocabularyAccess, type VocabularyReview } from "../../services/api/vocabulary";
 import { LessonButton, LessonChoice, LessonField, LessonFrame, LessonHero, LessonLoading, LessonNote, l } from "../teacher-lessons/LessonUI";
 import { useLessonData } from "../teacher-lessons/useLessonData";
+import { ParallelPreparationNotice } from "../research/ParallelPreparationNotice";
+import { ParallelWorkflowPanel } from "../research/ParallelWorkflowPanel";
 
 type Props = { api: VocabularyAccess; studyId: string; onBack: () => void; onAccount: () => void };
 type Pending = { key: string; kind: "start" | "answer" | "rate"; target: string; response?: string; rating?: RecallRating };
@@ -22,6 +24,8 @@ function Directory({ api, onBack, onAccount }: Props) {
   const fetch = useCallback(() => api.studies(), [api]);
   const state = useLessonData(fetch);
   return <LessonFrame onBack={onBack} onAccount={onAccount}><LessonHero title="Vocabulary review" description="A little practice to help words stay familiar." />
+    <ParallelPreparationNotice />
+    <ParallelWorkflowPanel />
     {state.phase === "loading" && <LessonLoading label="Loading your study activities…" />}
     {state.phase === "error" && <><LessonNote error>{state.error}</LessonNote><LessonButton label="Try again" onPress={state.reload} /></>}
     {state.phase === "ready" && <>{!state.value?.items.length && <View style={l.card}><Text style={l.heading}>No study reviews yet</Text><Text style={l.body}>Your review activities will appear here when your approved study participation is ready.</Text></View>}

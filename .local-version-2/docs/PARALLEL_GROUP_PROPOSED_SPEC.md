@@ -1,0 +1,30 @@
+# Proposed parallel-group specification
+
+2026-11-05. Documentation-only audit. VERIFIED = source/artifact observation; PROPOSED = requires approval; BLOCKED = unmet prerequisite. No application/schema/configuration/participant changes. Existing uncommitted work preserved. No live database inspected; statements about behavior describe code, not actual enrollment counts.
+
+
+Everything below is PROPOSED, not an activation instruction. Model and full participant workflow remain BLOCKED.
+
+## Frozen protocol and allocation
+
+Introduce a NEW versioned contract, e.g. esr-parallel-v1 (name subject to approval), with explicit fsrs6_control/esr_experimental identities, pinned implementation/model/feature/checking/calendar versions and outcome instruments. Do not relabel SM-2 rows or reinterpret mapping 1/2. Record protocol revision/hash and verified approval evidence.
+
+Recommended allocation procedure: freeze a roster of 30 eligible consenting school learners after baseline, generate one concealed random permutation assigning exactly 15 to each arm under independent operator custody. For rolling enrollment, an approved concealed blocked sequence with hard quotas is an alternative, not the existing predictable UUID-derived seed algorithm. Prespecify any baseline/class stratification; avoid excessive strata in 30 learners. Store algorithm/RNG version, private seed or randomness provenance, sequence commitment/hash, authorized generator, generation timestamp and assignment ordinal/timestamp. Keep unrevealed sequence/seed out of instructor/student DTOs. Lock protocol/roster before allocation; unique participant/protocol constraint, atomic capacity checks and UUID retries prevent rerandomization. Assignment immutable across devices/retries/class rejoin. Withdrawals retain allocation/history with access revoked; no post-outcome replacement or reallocation. A replacement policy, if allowed before intervention, needs a separately dated rule and transparent reporting; 15 completers per arm cannot be guaranteed.
+
+## Classroom boundary and content
+
+Reuse existing instructor-owned classes, six-digit invitation codes, ClassMembership and ordinary activity records unchanged. Separate eligibility/consent/assent/guardian/site evidence from class joining. Live study authorization requires both research enrollment and current authorized membership. Personal Learning is excluded without changes. Class loss/withdrawal revokes research access immediately and retains permitted history under approved policy.
+
+One common pinned vocabulary pool (or approved equivalent matched bank with explicit evidence) is offered to both arms; same objectives, question-format policy, reference feedback and non-scheduling features. Algorithm alone selects intervals/queues within the protocol. Do not force equal sequences or automatically equalize review counts. Log offered opportunities, presentations, objective outcomes, ratings, completed exposure and versions. If frozen content has an error, follow a documented protocol amendment/deviation procedure rather than silently editing snapshots.
+
+## Calendar and activity windows
+
+Freeze start/end dates for ONE calendar month, timezone (proposed Asia/Manila), included weekdays and holiday decisions. Do not substitute 30 days or four weeks. Resolve month-end dates explicitly. For each assigned local day authorize [00:00:00, next local midnight), equivalent to the entire 12:00 AM–11:59 PM day including seconds; store converted UTC boundaries and server timestamps. Server rejects future-day starts and reconciles retries at boundaries. Prespecify whether a recording/review started before midnight can finalize after it; no hidden grace rule.
+
+Materialize an opportunity before classifying it missed: distinguish not offered/no due content, not started, partial, finalized, excused and technical failure. Future locked is not missed. Close outcomes at the approved cutoff with idempotent event identity; do not label a transient disconnect a missed activity. Missed reviews must not silently reschedule catch-up or reset memory; carryover/expiry policy requires approval. Target 5–10 minutes/day is not an implemented timer or measured active time. Pilot burden; log server response duration separately from time-on-task. If there are no due items, do not fabricate work to meet minutes or create unequal exposure without approval.
+
+## Assessments and data
+
+Pretest must finish before allocation/intervention under the approved incomplete-baseline policy. Freeze immediate-posttest anchor after scheduled intervention end and seven-day delayed anchor; recommend a shared planned posttest anchor plus seven calendar days, recording actual elapsed time and deviation windows. Decide explicitly whether seven days instead means individual posttest completion; do not let completion delays choose the rule. Common immutable item/scoring policy, test access/feedback rules and equivalent forms across arms. No reuse of private keys in learner payloads, no automatic posttest practice feedback leaking delayed answers. Same rules for blanks, incomplete forms, late/missing tests; a missing assessment is not zero or a failed recall.
+
+Reuse coded ResearchParticipant and private identity links; preserve User/Class/owner mappings behind research permission checks. Existing assessment snapshots/results and ESRReview timestamps/response/decision overlays can inform the new contract after compatibility review. Add separate participant-level arm assignment, protocol calendar/day opportunities/adherence, assessment-anchor/version links and independent scheduler states bound to new allocation. Record source class/instructor scope, language/item/version, target and actual format, presented/answered/finalized times, raw/effective ratings, response duration semantics, baseline/proposed intervals, effective condition, model/hash/config, prediction/horizon/status and fallback. Fallback frequency is treatment fidelity, not evidence the experimental arm actually received a model effect. No ordinary classroom or personal history becomes research training data by default.

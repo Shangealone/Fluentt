@@ -36,6 +36,13 @@ from app.modules.research.classroom_router import (
 )
 
 router = APIRouter()
+from app.modules.parallel_study.router import router as parallel_admin_router, mobile_router as parallel_mobile_router
+router.include_router(parallel_admin_router)
+router.include_router(parallel_mobile_router)
+from app.modules.parallel_study.workflow_router import admin_router as test_admin, mobile_router as test_mobile, instructor_router as test_instructor
+router.include_router(test_admin)
+router.include_router(test_mobile)
+router.include_router(test_instructor)
 from app.modules.monitoring.proficiency import router as proficiency_router
 router.include_router(proficiency_router)
 from app.modules.teacher_lessons.router import router as teacher_lessons_router

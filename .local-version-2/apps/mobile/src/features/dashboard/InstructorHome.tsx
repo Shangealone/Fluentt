@@ -9,6 +9,8 @@ import { PersonalIcon, type PersonalIconName } from "../../components/PersonalIc
 import type { ClassDetails } from "../../services/api/classes";
 import { homeColors as colors } from "../../theme/personal";
 import type { ListState } from "./paging";
+import { ParallelPreparationNotice } from "../research/ParallelPreparationNotice";
+import { ParallelWorkflowPanel } from "../research/ParallelWorkflowPanel";
 import { classroomIllustration, InstructorClassCard } from "./InstructorClassCard";
 
 type HomeProps = { username: string; state: ListState<ClassDetails>; onRefresh: () => void; onMore: () => void };
@@ -48,6 +50,8 @@ export function InstructorHome({ username, state, onRefresh, onMore }: HomeProps
         style={({ pressed }) => [styles.account, pressed && styles.pressed]}><PersonalIcon name="account" size={20} /></Pressable>
     </View>
     <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, compact && styles.compactPadding]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ParallelPreparationNotice />
+      <ParallelWorkflowPanel instructor />
       <View style={styles.greeting}>
         <View style={styles.greetingCopy}>
           <Text style={styles.eyebrow}>Your teaching space</Text>

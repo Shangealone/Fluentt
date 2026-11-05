@@ -30,7 +30,7 @@ from app.models.users import User
 from app.modules.administration.service import resolve_session
 from app.modules.identity.errors import IdentityError
 from .reporting_service import assert_legacy_reporting_allowed
-from .execution_guard import assert_no_managed_execution
+from .execution_guard import assert_no_managed_execution, assert_no_parallel_enrollment_conflict
 from app.modules.research.schemas import (
     AdminAssessmentResultRowDTO,
     AdminIdentityRevealDTO,
@@ -356,6 +356,7 @@ def enroll_participant(
     payload: EnrollmentRequestDTO,
 ) -> EnrollmentReceiptDTO:
     """Atomically executes informed consent verification, pseudonymous code issuance, and enrollment."""
+    assert_no_parallel_enrollment_conflict(db, user.id)
     study = get_study_or_fail(db, study_id)
     assert_no_managed_execution(study)
     now = utcnow()
