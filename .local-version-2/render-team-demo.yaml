@@ -15,6 +15,12 @@ services:
         value: production
       - key: FLUENTT_SERVE_WEB
         value: "true"
+      - key: FLUENTT_PERSONAL_LEARNER_REGISTRATION_ENABLED
+        value: "false"
+      - key: FLUENTT_PARALLEL_RESEARCH_ENABLED
+        value: "false"
+      - key: FLUENTT_PARALLEL_TEST_WORKFLOWS_ENABLED
+        value: "false"
       - key: FLUENTT_CORS_ORIGINS
         value: "[]"
       - key: FLUENTT_MOBILE_WEB_ORIGINS

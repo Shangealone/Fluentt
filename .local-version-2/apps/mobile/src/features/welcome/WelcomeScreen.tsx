@@ -44,13 +44,13 @@ export function WelcomeScreen({ onPersonal, onTeacher, onClassroom, onSignIn }: 
             <PersonalIcon name="arrow" size={17} color="#FFFFFF" />
           </Pressable>}
 
-          <Pressable accessibilityRole="button" accessibilityLabel="Learn with my class. Join your teacher and classmates."
+          <Pressable accessibilityRole="button" accessibilityLabel="Class Learning. Join your teacher and classmates."
             onPress={onClassroom} style={({ pressed }) => [styles.choice, !onPersonal && styles.primary, pressed && styles.pressed]}>
             <View style={styles.choiceIcon}>
               <Image accessible={false} source={require("../../../assets/illustrations/activity-class.png")} resizeMode="contain" style={styles.illustration} />
             </View>
             <View style={styles.choiceCopy}>
-              <Text style={[styles.choiceTitle, !onPersonal && styles.primaryText]}>Learn with my class</Text>
+              <Text style={[styles.choiceTitle, !onPersonal && styles.primaryText]}>Class Learning</Text>
               <Text style={[styles.choiceDescription, !onPersonal && styles.primaryDescription]}>Join your teacher and classmates.</Text>
             </View>
             <PersonalIcon name="arrow" size={17} color={!onPersonal ? "#FFFFFF" : homeColors.ink} />

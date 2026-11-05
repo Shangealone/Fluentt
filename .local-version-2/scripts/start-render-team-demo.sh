@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This public team demonstration is ordinary Class Learning only.
+# Research execution is not authorized by deployment or environment toggles.
+export FLUENTT_PARALLEL_RESEARCH_ENABLED=false
+export FLUENTT_PARALLEL_TEST_WORKFLOWS_ENABLED=false
+export FLUENTT_PERSONAL_LEARNER_REGISTRATION_ENABLED=false
+
 cd services/api
 if [[ "${FLUENTT_DATABASE_URL:-}" == postgresql://* ]]; then
   export FLUENTT_DATABASE_URL="postgresql+psycopg://${FLUENTT_DATABASE_URL#postgresql://}"
