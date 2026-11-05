@@ -40,12 +40,13 @@ def publish(db, classroom, item, user, payload, expected, key, request_id):
     if len(rows) != 1:
         raise fail(409, "Publication requires one draft version; legacy versions need operator review.")
     version = rows[0]
+    assessment = payload.class_assessment.model_dump(mode="json") if payload.class_assessment else None
     if (
         item.status == "published"
         and version.publication_contract == CONTRACT
         and version.publication_request_id == key
     ):
-        if payload.bind_subject_id not in {None, classroom.subject_id}:
+        if payload.bind_subject_id not in {None, classroom.subject_id} or version.curriculum_snapshot.get("class_assessment") != assessment:
             raise fail()
         return describe(db, classroom, item)
     if expected.strip('"') != fingerprint(db, item) or item.status != "draft" or version.locked_at:
@@ -72,6 +73,15 @@ def publish(db, classroom, item, user, payload, expected, key, request_id):
         or len({row.question_id for row in selected}) != len(selected)
     ):
         raise fail(422, "Review question eligibility, unique identities and ordering before publishing.")
+    if assessment:
+        from app.models.research_classrooms import ResearchClassroomBinding
+        from app.models.vocabulary_review import ESRProtocol
+        if db.scalar(select(ResearchClassroomBinding.id).where(ResearchClassroomBinding.class_id == classroom.id).limit(1)) or db.scalar(
+            select(ESRProtocol.id).where(ESRProtocol.class_id == classroom.id).limit(1)
+        ):
+            raise IdentityError(409, "class_assessment_research_class", "This class has a separate research assessment workflow.")
+        if any(row.method not in {"multiple_choice", "true_false", "identification"} for row in selected):
+            raise IdentityError(422, "class_assessment_question_type", "Class assessments use multiple choice, True or false, and short answer questions.")
     if (
         any(
             value is not None
@@ -103,6 +113,8 @@ def publish(db, classroom, item, user, payload, expected, key, request_id):
     elif classroom.subject_id != context.subject_id or payload.bind_subject_id not in {None, classroom.subject_id}:
         raise fail(422, "The assignment must match the explicit class subject.")
     version.curriculum_snapshot = {"schema_version": 1, "context": context.model_dump(mode="json")}
+    if assessment:
+        version.curriculum_snapshot = {**version.curriculum_snapshot, "class_assessment": assessment}
     version.publication_contract = CONTRACT
     version.publication_request_id = key
     version.locked_at = datetime.now(timezone.utc)
@@ -157,6 +169,8 @@ def student_view(db, classroom, item):
             .order_by(AssignmentQuestion.position)
         )
     )
+    assessment = version.curriculum_snapshot.get("class_assessment")
+    opens_at = assessment.get("opens_at") if assessment else None
     return PublishedView(
         id=item.id,
         class_id=classroom.id,
@@ -167,6 +181,9 @@ def student_view(db, classroom, item):
         published_at=version.locked_at.isoformat(),
         question_count=len(methods),
         methods=methods,
+        class_assessment=assessment,
+        assessment_available=(opens_at is None or datetime.now(timezone.utc) >= datetime.fromisoformat(opens_at))
+        if assessment else None,
     )
 
 

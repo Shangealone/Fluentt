@@ -68,7 +68,8 @@ export function AttemptPlayerView(p: Props) {
         <View style={[a.reviewCounts, fontScale > 1.2 && a.stackedStepper]}>{[{ count: completed, label: "Answered" }, { count: p.row.question_count - completed, label: "Unanswered or incomplete" }].map(value => <View key={value.label} style={[a.reviewCount, fontScale > 1.2 && a.stackedStep]}><Text style={a.number}>{value.count}</Text><Text style={[a.small, a.centerText]}>{value.label}</Text></View>)}</View>
         <Text style={a.small}>These counts describe your responses. They don’t tell you whether an answer is correct.</Text>
         <View>{p.row.questions.map((q, index) => <View key={q.assignment_question_id} style={a.reviewRow}><View style={a.reviewCopy}><Text style={a.itemTitle}>Question {index + 1}</Text><Text style={a.small}>{responseComplete(q, p.buffers[q.assignment_question_id]) ? "✓ Answered" : "○ Unanswered or incomplete"}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={`Review question ${index + 1}`} disabled={frozen} accessibilityState={{ disabled: frozen }} style={[a.reviewLink, frozen && a.dim]} onPress={() => p.onMove(index + 1)}><Text style={a.label}>Review</Text></Pressable></View>)}</View>
-        <AttemptButton label="Submit assignment" onPress={p.onSubmit} disabled={frozen} />
+        {p.row.class_assessment && completed < p.row.question_count && <Text style={a.small}>Answer every question before submitting.</Text>}
+        <AttemptButton label={p.row.class_assessment ? "Submit assessment" : "Submit assignment"} onPress={p.onSubmit} disabled={frozen || (!!p.row.class_assessment && completed < p.row.question_count)} />
         <AttemptButton label="Keep working" secondary onPress={p.onKeepWorking} disabled={p.busy} />
         <Text style={a.small}>Your current answers are saved when submission is confirmed. You won’t be able to edit them afterwards.</Text>
       </View> : <>

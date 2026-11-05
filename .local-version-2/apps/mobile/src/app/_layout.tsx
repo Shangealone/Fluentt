@@ -51,6 +51,7 @@ function Navigator() {
       <Stack.Screen name="class-edit" options={{ gestureEnabled: false }} />
       <Stack.Screen name="assignments" />
       <Stack.Screen name="assignment-builder" />
+      <Stack.Screen name="class-assessments" />
       <Stack.Screen name="assignment-results" />
     </Stack.Protected>
     {(["grade", "learning-focus", "language", "experience", "student", "my-classes", "question-practice", "personal-stats", "conversation", "pronunciation", "research"] as const).map((name) => <Stack.Protected key={name} guard={allowed(name)} redirectTo={target}>

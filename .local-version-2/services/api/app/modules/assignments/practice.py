@@ -45,8 +45,13 @@ def review_items(view):
     return {item.result_id: item for item in eligible}
 
 
-def projected(item, saved, submitted_at, now):
-    due = saved.due_at if saved else calculate_fsrs6({}, "good" if item.correct else "again", submitted_at).due_at
+def projected(item, saved, submitted_at, now, *, baseline=False):
+    if saved:
+        due = saved.due_at
+    elif baseline and not item.correct:
+        due = submitted_at
+    else:
+        due = calculate_fsrs6({}, "good" if item.correct else "again", submitted_at).due_at
     return dict(
         result_id=item.result_id,
         assignment_question_id=item.assignment_question_id,
@@ -64,10 +69,12 @@ def practice(repo, token, settings, assignment_id, *, item_id=None, payload=None
             # The result writer locks the same attempt before changing release visibility.
             db.refresh(attempt, with_for_update=True)
         view = describe(db, classroom, root, version, attempt)
+        stage = (version.curriculum_snapshot.get("class_assessment") or {}).get("kind")
+        baseline = stage == "pre_test"
         managed = db.scalar(
             select(ResearchClassroomBinding.id).where(ResearchClassroomBinding.class_id == classroom.id).limit(1)
         ) or db.scalar(select(ESRProtocol.id).where(ESRProtocol.class_id == classroom.id).limit(1))
-        items = review_items(view) if view.released and view.submitted_at and not managed else {}
+        items = review_items(view) if view.released and view.submitted_at and not managed and stage != "post_test" else {}
         now = datetime.now(timezone.utc)
         if item_id is None:
             saved = (
@@ -80,7 +87,7 @@ def practice(repo, token, settings, assignment_id, *, item_id=None, payload=None
                 if items
                 else {}
             )
-            queue = [projected(item, saved.get(id), view.submitted_at, now) for id, item in items.items()]
+            queue = [projected(item, saved.get(id), view.submitted_at, now, baseline=baseline) for id, item in items.items()]
             return dict(items=sorted(queue, key=lambda row: row["due_at"]))
         item = items.get(item_id)
         if item is None:
@@ -90,8 +97,8 @@ def practice(repo, token, settings, assignment_id, *, item_id=None, payload=None
         if saved and saved.request_id == key:
             if saved.fingerprint != fingerprint:
                 raise fail(409)
-            return projected(item, saved, view.submitted_at, now)
-        entry = projected(item, saved, view.submitted_at, now)
+            return projected(item, saved, view.submitted_at, now, baseline=baseline)
+        entry = projected(item, saved, view.submitted_at, now, baseline=baseline)
         if payload.revision != entry["revision"] or not entry["is_due"]:
             raise IdentityError(409, "practice_not_due", "Refresh your review schedule before trying again.")
         evidence = db.get(GradingItemResult, item_id)
@@ -110,11 +117,9 @@ def practice(repo, token, settings, assignment_id, *, item_id=None, payload=None
         )
         if outcome.reason not in {"exact_match", "exact_mismatch"}:
             raise IdentityError(422, "practice_answer_invalid", "Complete the practice answer before continuing.")
-        memory = (
-            saved.memory
-            if saved
-            else calculate_fsrs6({}, "good" if item.correct else "again", view.submitted_at).resulting_state
-        )
+        memory = saved.memory if saved else {}
+        if saved is None and not baseline:
+            memory = calculate_fsrs6({}, "good" if item.correct else "again", view.submitted_at).resulting_state
         decision = calculate_fsrs6(memory, effective_rating(outcome.correct, payload.rating), now)
         if saved is None:
             saved = AssignmentPracticeState(result_id=item_id)
@@ -126,4 +131,4 @@ def practice(repo, token, settings, assignment_id, *, item_id=None, payload=None
         saved.fingerprint = fingerprint
         saved.last_correct = outcome.correct
         db.flush()
-        return projected(item, saved, view.submitted_at, now)
+        return projected(item, saved, view.submitted_at, now, baseline=baseline)

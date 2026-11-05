@@ -77,7 +77,7 @@ export function StudentResultView(p: Props) {
                 {row.released && row.earned_points !== null && row.possible_points !== null && <View><Text style={s.pointsLabel}>Assignment points</Text><Text style={s.score}>{row.earned_points}<Text style={s.scoreTotal}> / {row.possible_points} points</Text></Text></View>}
                 <Text style={s.body}>{status.body}</Text>
               </View>
-              {row.released && p.practiceApi && <AssignmentReviewQueue api={p.practiceApi} assignmentId={row.assignment_id} />}
+              {row.released && row.class_assessment_kind !== "post_test" && p.practiceApi && <AssignmentReviewQueue api={p.practiceApi} assignmentId={row.assignment_id} />}
               {item && <View style={s.card} onLayout={event => { reviewY.current = event.nativeEvent.layout.y; }}>
                 <View style={s.row}><Text accessibilityRole="header" style={s.heading}>Answer review</Text><Text style={s.small}>Question {position + 1} of {row.items.length}</Text></View>
                 <View style={[s.badge, item.correct === false && s.incorrectBadge]}><Text accessibilityLiveRegion="polite" style={[s.badgeText, item.correct === false && s.incorrectText]}>{itemOutcome(item)}{item.awarded_points !== null && item.max_points !== null ? ` · ${item.awarded_points} / ${item.max_points} points` : ""}</Text></View>

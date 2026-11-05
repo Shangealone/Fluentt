@@ -59,7 +59,7 @@ For an **existing Fluentt database**, preserve a private backup and run the norm
 .\.venv\Scripts\python.exe -m alembic upgrade head
 ```
 
-Confirm the revision is `0028_teacher_supplements`. The initial adapter rejects a populated database. Never reset/stamp an existing database or edit frozen migrations to bypass an error. Current head includes migrations that inspect existing PostgreSQL functions; a successful online fresh migration is the relevant check. Startup does not silently run migrations. [MIGRATIONS.md](MIGRATIONS.md) contains the historical naming explanation and maintenance guidance.
+Confirm the revision is `0029_online_class_assessments`. The initial adapter rejects a populated database. Never reset/stamp an existing database or edit frozen migrations to bypass an error. Current head includes migrations that inspect existing PostgreSQL functions; a successful online fresh migration is the relevant check. Startup does not silently run migrations. [MIGRATIONS.md](MIGRATIONS.md) contains the historical naming explanation and maintenance guidance.
 
 ## 4. Start the services
 

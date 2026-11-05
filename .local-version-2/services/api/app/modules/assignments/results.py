@@ -215,6 +215,7 @@ def describe(db, classroom, root, version, attempt, *, instructor=False, student
                 )
             )
     return ResultView(
+        class_assessment_kind=(version.curriculum_snapshot.get("class_assessment") or {}).get("kind"),
         assignment_id=root.id,
         class_id=classroom.id,
         version_id=version.id,

@@ -42,6 +42,69 @@ def join(case):
     return student, user_id
 
 
+def test_instructor_publishes_assessments_and_pretest_starts_class_practice(draft_case, monkeypatch):
+    client, _, _, questions, _ = draft_case
+    monkeypatch.setattr(client.app.app.state.settings, "assignment_results_on_submit", False)
+    student, _ = join(draft_case)
+    true_false = next(row for row in questions if row["definition"]["method"] == "true_false")
+    source = {"lesson_id": true_false["definition"]["lesson_id"], "title": "Baseline",
+              "question_revision_ids": [true_false["id"]]}
+    pre = create(draft_case, source)[0].json()
+    assessment = {"kind": "pre_test"}
+    request_id = uuid4()
+    published = publish(draft_case, pre, request_id, class_assessment=assessment)
+    assert published.status_code == 200, published.text
+    assert publish(draft_case, pre, request_id, class_assessment=assessment).json() == published.json()
+    assert publish(draft_case, pre, request_id).status_code == 409
+    root = f"/api/v1/assignments/{pre['id']}"
+    attempt = client.post(root + "/attempt", headers=student).json()
+    attempt_url = f"/api/v1/assignments/attempts/{attempt['id']}/submit"
+    headers = student | {"If-Match": attempt["revision"], "Idempotency-Key": str(uuid4())}
+    assert client.post(attempt_url, headers=headers, json={"position": 1, "confirm": True, "responses": []}).status_code == 422
+    question = attempt["questions"][0]["assignment_question_id"]
+    submitted = client.post(attempt_url, headers=headers, json={"position": 1, "confirm": True, "responses": [
+        {"assignment_question_id": question, "answer": {"value": False}},
+    ]})
+    assert submitted.status_code == 200, submitted.text
+    results = client.get(root + "/result", headers=student).json()
+    assert results["released"] and results["class_assessment_kind"] == "pre_test"
+    practice_url = root + "/practice"
+    item, = client.get(practice_url, headers=student).json()["items"]
+    assert item["is_due"]
+    saved = client.post(practice_url + "/" + item["result_id"], headers=student | {"Idempotency-Key": str(uuid4())},
+                        json={"answer": {"value": True}, "rating": "good", "revision": 0})
+    assert saved.status_code == 200 and saved.json()["revision"] == 1
+    assert client.get(root + "/result", headers=student).json() == results
+
+    post = create(draft_case, source | {"title": "Posttest"})[0].json()
+    future = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    scheduled = publish(draft_case, post, class_assessment={"kind": "post_test", "opens_at": future})
+    assert scheduled.status_code == 200, scheduled.text
+    path = f"/api/v1/assignments/{post['id']}"
+    detail = client.get(path + "/published", headers=student).json()
+    assert detail["class_assessment"]["kind"] == "post_test" and detail["assessment_available"] is False
+    assert client.post(path + "/attempt", headers=student).status_code == 409
+
+    opened = create(draft_case, source | {"title": "Open posttest"})[0].json()
+    past = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+    result = publish(draft_case, opened, class_assessment={"kind": "post_test", "opens_at": past})
+    assert result.status_code == 200, result.text
+    path = f"/api/v1/assignments/{opened['id']}"
+    started = client.post(path + "/attempt", headers=student)
+    assert started.status_code == 200, started.text
+    attempt = started.json()
+    question = attempt["questions"][0]["assignment_question_id"]
+    headers = student | {"If-Match": attempt["revision"], "Idempotency-Key": str(uuid4())}
+    submitted = client.post(f"/api/v1/assignments/attempts/{attempt['id']}/submit", headers=headers, json={
+        "position": 1, "confirm": True,
+        "responses": [{"assignment_question_id": question, "answer": {"value": True}}],
+    })
+    assert submitted.status_code == 200, submitted.text
+    post_result = client.get(path + "/result", headers=student).json()
+    assert post_result["released"] and post_result["class_assessment_kind"] == "post_test"
+    assert client.get(path + "/practice", headers=student).json() == {"items": []}
+
+
 def test_publication_visibility_immutable_versions_retry_and_no_attempts(draft_case):  # noqa: F811
     client, auth, class_id, _, engine = draft_case
     student, student_id = join(draft_case)

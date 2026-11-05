@@ -15,6 +15,7 @@ type Props = {
   fetch: (offset: number) => Promise<AssignmentPage<PublishedAssignment>>;
   onRefresh: () => void; onBack: (classId?: string) => void; onAccount: () => void;
   onView: (row: PublishedAssignment) => void; onOpen: (row: PublishedAssignment) => void; onResults: (row: PublishedAssignment) => void;
+  onStudyAssessments?: () => void;
 };
 const methodLabels: Record<AssignmentMethod, string> = {
   multiple_choice: "Multiple choice", true_false: "True or false", identification: "Identification",
@@ -22,7 +23,7 @@ const methodLabels: Record<AssignmentMethod, string> = {
   error_identification: "Error identification", word_arrangement: "Word arrangement", sentence_arrangement: "Sentence arrangement", matching_type: "Matching",
 };
 
-export function StudentPublishedAssignmentsView({ detail, canLoad, fetch, onRefresh, onBack, onAccount, onView, onOpen, onResults }: Props) {
+export function StudentPublishedAssignmentsView({ detail, canLoad, fetch, onRefresh, onBack, onAccount, onView, onOpen, onResults, onStudyAssessments }: Props) {
   const { width, fontScale } = useWindowDimensions();
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const [offset, setOffset] = useState(0);
@@ -73,6 +74,7 @@ export function StudentPublishedAssignmentsView({ detail, canLoad, fetch, onRefr
           <PersonalIcon name="refresh" size={20} color={c.teal} />
         </Pressable>
       </View>}
+      {onStudyAssessments && !detail && <StudentAssignmentButton label="Study assessments" onPress={onStudyAssessments} />}
       {!canLoad && <View style={[a.card, a.state]}>
         <ActivitySheetsArt /><Text accessibilityRole="header" style={[a.heading, a.center]}>{detail ? "Choose an assignment first" : "Choose a class first"}</Text>
         <Text style={[a.body, a.center]}>Open one of your classes to see its assignments.</Text>
@@ -99,6 +101,7 @@ export function StudentPublishedAssignmentsView({ detail, canLoad, fetch, onRefr
         <View style={a.list}>{page.items.map(item => <View key={item.id} style={a.card}>
           <View style={a.cardTop}><ActivitySheetsArt small /><Text style={[a.date, enlarged && a.dateLeft]}>{publishedDate(item.published_at)}</Text></View>
           <Text accessibilityRole="header" style={a.cardTitle}>{item.title}</Text>
+          {item.class_assessment && <Text style={a.small}>{item.class_assessment.kind === "pre_test" ? "Pretest" : "Posttest"}{item.class_assessment.opens_at ? ` · Opens ${new Date(item.class_assessment.opens_at).toLocaleString()}` : ""}</Text>}
           <View style={a.lessonRow}><PersonalIcon name="assignments" size={16} color={c.muted} /><Text style={[a.small, a.lessonText]}>{item.context.lesson_name}</Text></View>
           <Text style={a.count}>{item.question_count} {item.question_count === 1 ? "question" : "questions"}</Text>
           <View style={a.actions}><StudentAssignmentButton label="View assignment" accessibilityLabel={`View assignment: ${item.title}`} primary icon="arrow" onPress={() => onView(item)} />
@@ -121,7 +124,10 @@ export function StudentPublishedAssignmentsView({ detail, canLoad, fetch, onRefr
           {!!row.instructions && <View style={a.stack}><Text accessibilityRole="header" style={a.heading}>Instructions</Text><Text style={a.instructions}>{row.instructions}</Text></View>}
           <View style={a.stack}><Text style={a.label}>Question types</Text><View style={a.types}>{Array.from(new Set(row.methods)).map(method => <View key={method} style={a.type}><Text style={a.typeText}>{methodLabels[method]}</Text></View>)}</View></View>
         </View>
-        <View style={a.stack}><StudentAssignmentButton label="Open assignment" primary icon="arrow" onPress={() => onOpen(row)} />
+        <View style={a.stack}>
+          {row.class_assessment?.opens_at && row.assessment_available === false
+            ? <Text style={a.body}>Opens {new Date(row.class_assessment.opens_at).toLocaleString()}</Text>
+            : <StudentAssignmentButton label={row.class_assessment ? "Open assessment" : "Open assignment"} primary icon="arrow" onPress={() => onOpen(row)} />}
           <Text style={a.small}>One attempt. Save your answers before leaving.</Text>
           <StudentAssignmentButton label="View results" icon="stats" onPress={() => onResults(row)} />
         </View>

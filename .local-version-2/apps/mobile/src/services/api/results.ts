@@ -6,6 +6,7 @@ export type ReviewItem = { result_id: string; assignment_question_id: string; qu
   position: number; question: AssignmentItem; answer: Record<string, unknown> | null; state: "AUTO_GRADABLE" | "MANUAL_REVIEW_REQUIRED" | "NOT_APPLICABLE" | "UNSUPPORTED";
   correct: boolean | null; awarded_points: string | null; max_points: string | null };
 export type AssessmentResult = { assignment_id: string; class_id: string; version_id: string; title: string; attempt_id: string | null;
+  class_assessment_kind?: "pre_test" | "post_test" | null;
   student_id: string | null; student_username: string | null; submitted_at: string | null; submission_status: "not_started" | "in_progress" | "submitted";
   state: "not_submitted" | "submitted" | "awaiting_manual_review" | "withheld" | "released" | "not_applicable"; released: boolean;
   revision: string; pinned_run_id: string | null; evaluation: Evaluation | null; earned_points: string | null; possible_points: string | null; items: ReviewItem[] };

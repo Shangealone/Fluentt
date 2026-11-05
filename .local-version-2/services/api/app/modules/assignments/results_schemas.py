@@ -39,6 +39,7 @@ class ReviewItem(Model):
 
 
 class ResultView(Model):
+    class_assessment_kind: Literal["pre_test", "post_test"] | None = None
     assignment_id: UUID
     class_id: UUID
     version_id: UUID

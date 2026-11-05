@@ -133,6 +133,8 @@ export async function request<T>(
         class_archived: "Archived classes cannot be edited.",
         class_not_found: "Class not found or unavailable to this instructor.",
         instructor_required: "Only instructors can manage classes.",
+        class_assessment_research_class: "Classroom assessments are unavailable for this research class.",
+        class_assessment_question_type: "Use multiple choice, True or false, or short answer questions for this assessment.",
       };
       try {
         const envelope = await response.json();

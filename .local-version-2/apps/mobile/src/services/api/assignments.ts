@@ -7,12 +7,13 @@ export type LessonContext = { lesson_id: string; lesson_name: string; curriculum
 export type AssignmentItem = { id: string; question_id: string; version: number; eligible: boolean;
   definition: { lesson_id: string; method: AssignmentMethod; prompt: string; instructions: string | null; content: Record<string, unknown> } };
 export type AssignmentInput = { lesson_id: string; title: string; instructions: string | null; question_revision_ids: string[] };
+export type ClassAssessment = { kind: "pre_test" | "post_test"; opens_at: string | null };
 export type AssignmentDraft = { id: string; class_id: string; version_id: string; revision: string; status: "draft" | "archived" | "published";
-  title: string; instructions: string | null; context: LessonContext; questions: AssignmentItem[]; eligible: boolean; editable: boolean; requires_subject: boolean };
+  title: string; instructions: string | null; context: LessonContext; questions: AssignmentItem[]; eligible: boolean; editable: boolean; requires_subject: boolean; class_assessment?: ClassAssessment | null };
 export type AssignmentPage<T> = { items: T[]; has_more: boolean; offset: number; limit: number };
-export type AssignmentSummary = Pick<AssignmentDraft, "id" | "class_id" | "title" | "status" | "context"> & { question_count: number };
-export type PublishedAssignment = Pick<AssignmentDraft, "id" | "class_id" | "version_id" | "title" | "instructions" | "context"> & {
-  status: "published"; published_at: string; question_count: number; methods: AssignmentMethod[] };
+export type AssignmentSummary = Pick<AssignmentDraft, "id" | "class_id" | "title" | "status" | "context" | "class_assessment"> & { question_count: number };
+export type PublishedAssignment = Pick<AssignmentDraft, "id" | "class_id" | "version_id" | "title" | "instructions" | "context" | "class_assessment"> & {
+  status: "published"; published_at: string; question_count: number; methods: AssignmentMethod[]; assessment_available?: boolean | null };
 function validatePublished(row: PublishedAssignment): PublishedAssignment {
   if (!row || row.status !== "published" || typeof row.id !== "string" || typeof row.class_id !== "string"
     || typeof row.version_id !== "string" || typeof row.title !== "string" || !row.context || typeof row.context.lesson_name !== "string"
@@ -54,7 +55,7 @@ export const assignmentApi = {
   create: async (secret: AuthContext, classId: string, body: AssignmentInput, key: string) => validateAssignment(await request<AssignmentDraft>(`/classes/${encodeURIComponent(classId)}/assignments`, "POST", body, secret, { "Idempotency-Key": key })),
   save: async (secret: AuthContext, row: AssignmentDraft, body: AssignmentInput) => validateAssignment(await request<AssignmentDraft>(`/assignments/${encodeURIComponent(row.id)}`, "PATCH", body, secret, { "If-Match": row.revision })),
   archive: async (secret: AuthContext, row: AssignmentDraft) => validateAssignment(await request<AssignmentDraft>(`/assignments/${encodeURIComponent(row.id)}/archive`, "POST", undefined, secret, { "If-Match": row.revision })),
-  publish: async (secret: AuthContext, row: AssignmentDraft, key: string) => validateAssignment(await request<AssignmentDraft>(`/assignments/${encodeURIComponent(row.id)}/publish`, "POST", { confirm: true, bind_subject_id: row.requires_subject ? row.context.subject_id : null }, secret, { "If-Match": row.revision, "Idempotency-Key": key })),
+  publish: async (secret: AuthContext, row: AssignmentDraft, key: string, assessment?: ClassAssessment) => validateAssignment(await request<AssignmentDraft>(`/assignments/${encodeURIComponent(row.id)}/publish`, "POST", { confirm: true, bind_subject_id: row.requires_subject ? row.context.subject_id : null, ...(assessment ? { class_assessment: assessment } : {}) }, secret, { "If-Match": row.revision, "Idempotency-Key": key })),
   published: async (secret: AuthContext, classId: string, offset = 0) => page(await request<AssignmentPage<PublishedAssignment>>(`/classes/${encodeURIComponent(classId)}/published-assignments?limit=20&offset=${offset}`, "GET", undefined, secret), validatePublished),
   publishedDetail: async (secret: AuthContext, id: string) => validatePublished(await request<PublishedAssignment>(`/assignments/${encodeURIComponent(id)}/published`, "GET", undefined, secret)),
 };
@@ -65,7 +66,7 @@ export function assignmentAccess(run: <T>(operation: (secret: AuthContext) => Pr
     questions: (id: string, lesson: string, q?: string, method?: string, offset?: number) => run(s => assignmentApi.questions(s, id, lesson, q, method, offset)),
     create: (id: string, body: AssignmentInput, key: string) => run(s => assignmentApi.create(s, id, body, key)),
     save: (row: AssignmentDraft, body: AssignmentInput) => run(s => assignmentApi.save(s, row, body)), archive: (row: AssignmentDraft) => run(s => assignmentApi.archive(s, row)),
-    publish: (row: AssignmentDraft, key: string) => run(s => assignmentApi.publish(s, row, key)),
+    publish: (row: AssignmentDraft, key: string, assessment?: ClassAssessment) => run(s => assignmentApi.publish(s, row, key, assessment)),
     published: (id: string, offset?: number) => run(s => assignmentApi.published(s, id, offset)),
     publishedDetail: (id: string) => run(s => assignmentApi.publishedDetail(s, id)) };
 }

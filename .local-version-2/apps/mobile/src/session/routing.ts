@@ -51,7 +51,7 @@ export function routeAllowed(profile: Profile | null, route: string, pending = f
   if (route === "learning-materials") return destination(profile) === "/student" || profile.role === "instructor";
   if (route === "learning-history") return profile.role !== "instructor" && destination(profile) === "/student";
   if (route === "preferences") return profile.role === "personal_student" && destination(profile) === "/student";
-  if (["instructor", "first-class", "class-details", "class-edit", "assignments", "assignment-builder", "assignment-results", "instructor-monitoring"].includes(route)) return profile.role === "instructor";
+  if (["instructor", "first-class", "class-details", "class-edit", "assignments", "class-assessments", "assignment-builder", "assignment-results", "instructor-monitoring"].includes(route)) return profile.role === "instructor";
   if (route === "class-code") return profile.role === "school_student";
   if (route === "published-assignments" || route === "assignment-attempt" || route === "assessment-results") return profile.role === "school_student" && destination(profile) === "/student";
   return route === "student" && destination(profile) === "/student";

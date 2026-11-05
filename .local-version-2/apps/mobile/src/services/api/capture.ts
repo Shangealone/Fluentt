@@ -1,12 +1,12 @@
 import type { AuthContext } from "./client";
 import { request, ApiError } from "./client.ts";
-import { validateItem, type AssignmentItem } from "./assignments.ts";
+import { validateItem, type AssignmentItem, type ClassAssessment } from "./assignments.ts";
 export type CaptureItem = AssignmentItem & { assignment_question_id: string };
 export type CapturedResponse = { assignment_question_id: string; answer: Record<string, unknown> };
 export type Progress = { position: number; responses: CapturedResponse[] };
 export type Attempt = { id: string; assignment_id: string; class_id: string; version_id: string; title: string; instructions: string | null;
   status: "in_progress" | "submitted"; revision: string; started_at: string; submitted_at: string | null;
-  position: number; question_count: number; completed_count: number; questions: CaptureItem[]; responses: CapturedResponse[]; revealed_item_ids: string[] };
+  position: number; question_count: number; completed_count: number; questions: CaptureItem[]; responses: CapturedResponse[]; revealed_item_ids: string[]; class_assessment?: ClassAssessment | null };
 export type RevealedBack = { revision_id: string; back: string; attempt_revision: string };
 export function validateAttempt(row: Attempt): Attempt {
   if (!row || typeof row.id !== "string" || typeof row.assignment_id !== "string" || typeof row.class_id !== "string"

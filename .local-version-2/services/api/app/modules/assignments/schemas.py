@@ -1,6 +1,6 @@
 from uuid import UUID
 from typing import Literal, Generic, TypeVar
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 from app.modules.questions.schemas import Preview, Method
 from app.modules.teacher_lessons.schemas import QuestionInput
 
@@ -71,6 +71,17 @@ class Context(Model):
     subject_name: str
 
 
+class ClassAssessment(Model):
+    kind: Literal["pre_test", "post_test"]
+    opens_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def schedule(self):
+        if self.kind == "post_test" and self.opens_at is None:
+            raise ValueError("Set the posttest opening date.")
+        return self
+
+
 class DraftView(Model):
     id: UUID
     class_id: UUID
@@ -84,6 +95,7 @@ class DraftView(Model):
     eligible: bool
     editable: bool
     requires_subject: bool
+    class_assessment: ClassAssessment | None = None
 
 
 class DraftSummary(Model):
@@ -93,11 +105,13 @@ class DraftSummary(Model):
     title: str
     context: Context
     question_count: int
+    class_assessment: ClassAssessment | None = None
 
 
 class PublishInput(Model):
     confirm: Literal[True]
     bind_subject_id: UUID | None = None
+    class_assessment: ClassAssessment | None = None
 
     @field_validator("confirm", mode="before")
     @classmethod
@@ -118,6 +132,8 @@ class PublishedView(Model):
     question_count: int
     methods: list[Method]
     status: Literal["published"] = "published"
+    class_assessment: ClassAssessment | None = None
+    assessment_available: bool | None = None
 
 
 T = TypeVar("T")

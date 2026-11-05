@@ -138,6 +138,7 @@ def describe(db, classroom, item):
         and classroom.archived_at is None
         and not any(row.locked_at for row in rows),
         requires_subject=classroom.subject_id is None,
+        class_assessment=version.curriculum_snapshot.get("class_assessment"),
     )
 
 
@@ -161,6 +162,7 @@ def summary(db, classroom, item):
         title=version.title,
         context=context,
         question_count=count,
+        class_assessment=version.curriculum_snapshot.get("class_assessment"),
     )
 
 

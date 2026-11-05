@@ -52,6 +52,7 @@ def view(db, classroom, root, version, attempt):
             )
     final = attempt.status == "submitted"
     return AttemptView(
+        class_assessment=version.curriculum_snapshot.get("class_assessment"),
         id=attempt.id,
         assignment_id=root.id,
         class_id=classroom.id,
@@ -125,6 +126,11 @@ def execute(
                 or version.curriculum_snapshot.get("context", {}).get("subject_id") != str(classroom.subject_id)
             ):
                 raise fail(404, "Assignment attempt unavailable.")
+            assessment = version.curriculum_snapshot.get("class_assessment")
+            if assessment and assessment.get("opens_at"):
+                opens_at = datetime.fromisoformat(assessment["opens_at"])
+                if datetime.now(timezone.utc) < opens_at:
+                    raise fail(409, "This assessment has not opened yet.")
             attempt = db.scalar(
                 select(AssignmentAttempt)
                 .where(AssignmentAttempt.assignment_version_id == version.id, AssignmentAttempt.student_id == user.id)
@@ -157,7 +163,7 @@ def execute(
                 else None
             )
             if action == "submit" and attempt.status == "submitted" and attempt.submission_fingerprint == digest:
-                if settings.assignment_results_on_submit:
+                if settings.assignment_results_on_submit or assessment:
                     release_on_submission(db, attempt, version, root, user.id, request_id)
                 return view(db, classroom, root, version, attempt)
             if attempt.status != "in_progress":
@@ -201,6 +207,12 @@ def execute(
                     raise ValueError("Progress request too large")
             except (ValueError, TypeError):
                 raise fail(422, "Check response fields, identifiers and input limits before saving.") from None
+            if action == "submit" and assessment and any(
+                not complete(question.method, question.content, values.get(entry.id))
+                for entry in entries.values()
+                for question in [db.get(QuestionRevision, entry.question_revision_id)]
+            ):
+                raise fail(422, "Answer every question before submitting this assessment.")
             now = datetime.now(timezone.utc)
             old = {row.assignment_question_id: row for row in responses(db, attempt)}
             for id, row in old.items():
@@ -229,7 +241,7 @@ def execute(
                 attempt.submission_fingerprint = digest
             audit(db, user.id, attempt, action, request_id)
             db.flush()
-            if action == "submit" and settings.assignment_results_on_submit:
+            if action == "submit" and (settings.assignment_results_on_submit or assessment):
                 release_on_submission(db, attempt, version, root, user.id, request_id)
             return view(db, classroom, root, version, attempt)
     except DBAPIError as exc:

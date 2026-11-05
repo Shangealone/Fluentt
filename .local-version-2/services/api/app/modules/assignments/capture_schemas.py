@@ -1,7 +1,7 @@
 from uuid import UUID
 from typing import Literal
 from pydantic import Field, field_validator
-from app.modules.assignments.schemas import Model, Item
+from app.modules.assignments.schemas import Model, Item, ClassAssessment
 
 
 class ResponseInput(Model):
@@ -30,6 +30,7 @@ class CaptureItem(Item):
 
 
 class AttemptView(Model):
+    class_assessment: ClassAssessment | None = None
     id: UUID
     assignment_id: UUID
     class_id: UUID
