@@ -246,11 +246,12 @@ def test_send_conversation_message_text_success():
         )
         mock_config.return_value.id = uuid4()
         resp = send_conversation_message(
-            db, user, session_id=session_id, content="Ako po si Maria. Kayo po?",
+            db, user, session_id=session_id, content="Ako po si Maria. Kayo po?", feedback_language="english",
             settings=Settings(_env_file=None, GROQ_TUTOR_ENABLED=True, GROQ_API_KEY="synthetic-test-key",
                               GROQ_TUTOR_ALLOWED_USER_IDS=[user_id]),
         )
 
+    assert mock_reply.call_args.kwargs["feedback_language"] == "english"
     assert resp.session_id == session_id
     assert resp.user_message.sequence == 2
     assert resp.user_message.role == "user"

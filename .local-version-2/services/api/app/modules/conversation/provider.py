@@ -4,7 +4,7 @@ import re
 from typing import Any
 from uuid import UUID
 from app.core.config import Settings
-from app.modules.conversation.schemas import FormativeLanguageFeedbackDTO
+from app.modules.conversation.schemas import FeedbackLanguage, FormativeLanguageFeedbackDTO
 
 
 class SafetyGuard:
@@ -276,6 +276,7 @@ class ConversationProviderRegistry:
         max_turns: int = 15,
         settings: Settings | None = None,
         user_id: UUID | None = None,
+        feedback_language: FeedbackLanguage | None = None,
     ) -> ProviderTurnResponse:
         from app.modules.conversation.groq_provider import generate_turn
         from app.modules.identity.errors import IdentityError
@@ -284,5 +285,5 @@ class ConversationProviderRegistry:
             raise IdentityError(503, "tutor_not_configured", "Online tutor is not configured on this server.")
         return generate_turn(
             settings=settings, user_id=user_id, history=history,
-            topic_context=topic_context, language=language,
+            topic_context=topic_context, language=language, feedback_language=feedback_language,
         )

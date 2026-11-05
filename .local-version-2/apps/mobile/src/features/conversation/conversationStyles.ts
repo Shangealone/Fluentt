@@ -32,6 +32,8 @@ export const cs = StyleSheet.create({
   tabs: { flexDirection: "row", flexWrap: "wrap", padding: 5, gap: 5, borderRadius: 17, backgroundColor: "#EDF1E7" },
   tab: { flex: 1, minWidth: 72, minHeight: 44, borderRadius: 13, paddingHorizontal: 10, paddingVertical: 10, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7 },
   selectedTab: { backgroundColor: "#FFFFFF" },
+  feedbackLanguageBar: { width: "100%", maxWidth: 430, alignSelf: "center", paddingHorizontal: 22, paddingBottom: 8 },
+  feedbackLanguageTab: { minHeight: 44, paddingHorizontal: 12, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   quiet: { minHeight: 44, justifyContent: "center", paddingHorizontal: 6, paddingVertical: 10 },
   quietText: { fontSize: 12, lineHeight: 21, fontWeight: "600", color: c.teal },
   notice: { backgroundColor: "#EFF3E7", padding: 14, borderRadius: 16, gap: 8 },

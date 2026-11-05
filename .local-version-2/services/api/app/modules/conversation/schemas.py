@@ -1,14 +1,24 @@
 """Pydantic schemas for AI conversation practice, scenarios, and formative feedback."""
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, Field
+
+FeedbackLanguage = Literal["tagalog", "english"]
+
+
+class SentenceImprovementDTO(BaseModel):
+    revised_sentence: str = Field(min_length=1, max_length=1200)
+    explanation: str = Field(min_length=1, max_length=300)
 
 
 class FormativeLanguageFeedbackDTO(BaseModel):
     summary: str
     corrections: list[str] = Field(default_factory=list)
     suggestions: list[str] = Field(default_factory=list)
+    sentence_improvement: SentenceImprovementDTO | None = None
+    feedback_language: FeedbackLanguage | None = None
     politeness_marker_detected: bool | None = None
     topic_relevance_score: float | None = Field(default=None, ge=0.0, le=1.0)
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
@@ -74,6 +84,7 @@ class ConversationSessionDTO(BaseModel):
 class SendMessageRequest(BaseModel):
     content: str | None = Field(default=None, max_length=1000)
     audio_attempt_id: UUID | None = None
+    feedback_language: FeedbackLanguage | None = None
 
 
 class SendMessageResponseDTO(BaseModel):

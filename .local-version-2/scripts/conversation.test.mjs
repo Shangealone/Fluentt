@@ -91,6 +91,7 @@ test('conversationAccess wraps runner and executes full dialogue lifecycle', asy
       };
     }
     if (url.includes('/me/conversation/sessions/session-101/messages') && opts.method === 'POST') {
+      assert.equal(JSON.parse(opts.body).feedback_language, 'english');
       return {
         ok: true,
         status: 200,
@@ -116,6 +117,7 @@ test('conversationAccess wraps runner and executes full dialogue lifecycle', asy
               summary: 'Maganda ang iyong sagot! Mahusay ang paggamit ng magagalang na pananalita.',
               corrections: [],
               suggestions: [],
+              feedback_language: 'english',
               politeness_marker_detected: true,
               topic_relevance_score: 1.0,
               confidence: 0.94,
@@ -228,9 +230,10 @@ test('conversationAccess wraps runner and executes full dialogue lifecycle', asy
     assert.equal(fetchedSession.session_id, 'session-101');
 
     // 6. Send message
-    const sendRes = await access.sendMessage('session-101', 'Magandang araw po! Ako po si Maria.');
+    const sendRes = await access.sendMessage('session-101', 'Magandang araw po! Ako po si Maria.', null, 'english');
     assert.equal(sendRes.user_message.content, 'Magandang araw po! Ako po si Maria.');
     assert.equal(sendRes.assistant_message.feedback.politeness_marker_detected, true);
+    assert.equal(sendRes.assistant_message.feedback.feedback_language, 'english');
     assert.equal(sendRes.turns_count, 3);
 
     // 7. End session

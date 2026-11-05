@@ -1,10 +1,14 @@
 import type { AuthContext } from "./client";
 import { request } from "./client.ts";
 
+export type FeedbackLanguage = "tagalog" | "english";
+
 export interface FormativeFeedback {
   summary: string;
   corrections: string[];
   suggestions: string[];
+  sentence_improvement?: { revised_sentence: string; explanation: string } | null;
+  feedback_language?: FeedbackLanguage | null;
   politeness_marker_detected?: boolean | null;
   topic_relevance_score: number | null;
   confidence: number | null;
@@ -116,12 +120,13 @@ export const conversationApi = {
     token: AuthContext,
     sessionId: string,
     content?: string | null,
-    audioAttemptId?: string | null
+    audioAttemptId?: string | null,
+    feedbackLanguage?: FeedbackLanguage,
   ): Promise<SendMessageResponse> => {
     return request<SendMessageResponse>(
       `/me/conversation/sessions/${sessionId}/messages`,
       "POST",
-      { content: content ?? null, audio_attempt_id: audioAttemptId ?? null },
+      { content: content ?? null, audio_attempt_id: audioAttemptId ?? null, feedback_language: feedbackLanguage },
       token
     );
   },
@@ -141,7 +146,7 @@ export interface ConversationAccess {
   topic: (topicId: string) => Promise<ConversationTopic>;
   startSession: (topicId: string, classId?: string | null) => Promise<ConversationSession>;
   getSession: (sessionId: string) => Promise<ConversationSession>;
-  sendMessage: (sessionId: string, content?: string | null, audioAttemptId?: string | null) => Promise<SendMessageResponse>;
+  sendMessage: (sessionId: string, content?: string | null, audioAttemptId?: string | null, feedbackLanguage?: FeedbackLanguage) => Promise<SendMessageResponse>;
   endSession: (sessionId: string) => Promise<ConversationSessionSummary>;
 }
 
@@ -154,8 +159,8 @@ export function conversationAccess(
     startSession: (topicId: string, classId?: string | null) =>
       runner((token) => conversationApi.startSession(token, topicId, classId)),
     getSession: (sessionId: string) => runner((token) => conversationApi.getSession(token, sessionId)),
-    sendMessage: (sessionId: string, content?: string | null, audioAttemptId?: string | null) =>
-      runner((token) => conversationApi.sendMessage(token, sessionId, content, audioAttemptId)),
+    sendMessage: (sessionId: string, content?: string | null, audioAttemptId?: string | null, feedbackLanguage?: FeedbackLanguage) =>
+      runner((token) => conversationApi.sendMessage(token, sessionId, content, audioAttemptId, feedbackLanguage)),
     endSession: (sessionId: string) => runner((token) => conversationApi.endSession(token, sessionId)),
   };
 }

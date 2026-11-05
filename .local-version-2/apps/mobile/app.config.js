@@ -8,12 +8,12 @@ module.exports = ({ config }) => {
   return {
     ...config,
     name: "FLUENTT Online",
-    version: "1.0.8",
+    version: "1.0.9",
     scheme: "fluentt-online",
     android: {
       ...config.android,
       package: "com.shangealone.fluentt.classlearning",
-      versionCode: 8,
+      versionCode: 9,
     },
     extra: { ...config.extra, buildChannel: "online-demo" },
   };

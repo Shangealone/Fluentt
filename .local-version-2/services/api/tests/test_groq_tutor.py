@@ -40,31 +40,59 @@ def fake_client(monkeypatch, payload):
     return client, factory
 
 
-@pytest.mark.parametrize("language,text", [
-    ("english", "I'd like a coffee, please."),
-    ("tagalog", "Magkano po ang mga mangga?"),
+@pytest.mark.parametrize("language,feedback_language,text,dialogue,improvement", [
+    ("english", "tagalog", "I want order a coffee.", "What size would you like?", {
+        "revised_sentence": "I'd like to order a coffee, please.",
+        "explanation": "Gamitin ang 'to order' pagkatapos ng 'I'd like' kapag umoorder.",
+    }),
+    ("tagalog", "english", "Magkano po ang mga mangga?", "Isang daang piso po ang isang kilo.", None),
 ])
-def test_real_adapter_shapes_english_and_tagalog(monkeypatch, language, text):
+def test_real_adapter_shapes_english_and_tagalog(monkeypatch, language, feedback_language, text, dialogue, improvement):
     user_id = uuid4()
     client, factory = fake_client(monkeypatch, {
-        "dialogue": "What would you like next?", "summary": "Good practice.",
-        "corrections": [], "suggestions": ["Try a full sentence."],
+        "dialogue": dialogue, "summary": "Malinaw ang sagot mo." if feedback_language == "tagalog" else "Your reply was clear.",
+        "corrections": [], "suggestions": [],
+        "sentence_improvement": improvement,
     })
     result = groq_provider.generate_turn(
         settings=configured(user_id), user_id=user_id,
         history=[{"role": "assistant", "content": "Hello"}, {"role": "user", "content": text}],
         topic_context={"persona": "Barista", "scenario_description": "Cafe"}, language=language,
+        feedback_language=feedback_language,
     )
     assert result.simulated is False
     assert result.feedback.confidence is None
     assert result.feedback.topic_relevance_score is None
-    assert result.assistant_text == "What would you like next?"
+    assert result.feedback.model_dump()["sentence_improvement"] == improvement
+    assert result.feedback.feedback_language == feedback_language
+    assert result.assistant_text == dialogue
     request = client.chat.completions.create.call_args.kwargs
     assert request["model"] == "openai/gpt-oss-20b"
     assert request["messages"][-1] == {"role": "user", "content": text}
-    assert language in request["messages"][0]["content"]
+    prompt = request["messages"][0]["content"]
+    assert f"Write dialogue and revised_sentence in {language}" in prompt
+    assert f"Write summary, explanation, corrections, and suggestions in {feedback_language}" in prompt
     assert request["response_format"] == {"type": "json_object"}
     assert factory.call_args.kwargs["max_retries"] == 1
+
+
+@pytest.mark.parametrize("candidate", [
+    "Rewrite this",
+    {"revised_sentence": "I'd like a coffee.", "explanation": " "},
+    {"revised_sentence": " One  coffee, please. ", "explanation": "Use polite wording."},
+])
+def test_unusable_optional_improvement_preserves_valid_dialogue(candidate):
+    reply = groq_provider._parse_reply(
+        json.dumps({
+            "dialogue": "What size would you like?",
+            "summary": "Your order was clear.",
+            "sentence_improvement": candidate,
+        }),
+        "openai/gpt-oss-20b",
+        "One coffee, please.",
+    )
+    assert reply.assistant_text == "What size would you like?"
+    assert reply.feedback.sentence_improvement is None
 
 
 def test_prior_turns_preserved_and_bounded(monkeypatch):

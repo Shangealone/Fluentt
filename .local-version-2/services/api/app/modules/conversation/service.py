@@ -21,6 +21,7 @@ from app.modules.conversation.schemas import (
     ConversationSessionDTO,
     ConversationMessageDTO,
     SendMessageResponseDTO,
+    FeedbackLanguage,
     ConversationSessionSummaryDTO,
 )
 from app.modules.conversation.provider import ConversationProviderRegistry
@@ -394,6 +395,7 @@ def send_conversation_message(
     content: str | None = None,
     audio_attempt_id: UUID | None = None,
     settings: Settings | None = None,
+    feedback_language: FeedbackLanguage | None = None,
 ) -> SendMessageResponseDTO:
     """Processes a learner message (text or spoken audio), executes AI response turn, and returns feedback."""
     session = db.scalar(select(ConversationSession).where(ConversationSession.id == session_id))
@@ -489,6 +491,7 @@ def send_conversation_message(
         max_turns=MAX_SESSION_TURNS,
         settings=settings,
         user_id=user.id,
+        feedback_language=feedback_language,
     )
 
     session.model_configuration_id = get_or_create_groq_model_configuration(db, reply.model_version).id

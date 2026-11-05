@@ -29,7 +29,7 @@ test("online Android build refuses a local or missing backend and keeps a distin
     const online = configure({ config });
     assert.notEqual(online.android.package, config.android.package);
     assert.equal(online.android.package, "com.shangealone.fluentt.classlearning");
-    assert.equal(online.android.versionCode, 8);
+    assert.equal(online.android.versionCode, 9);
     assert.deepEqual(online.plugins, config.plugins);
     assert.deepEqual(online.android.permissions, config.android.permissions);
   } finally {

@@ -99,6 +99,7 @@ def send_message(
             session_id=session_id,
             content=body.content,
             audio_attempt_id=body.audio_attempt_id,
+            feedback_language=body.feedback_language,
             settings=request.app.state.settings,
         )
 
