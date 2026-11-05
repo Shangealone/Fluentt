@@ -6,14 +6,14 @@ import { router, usePreventRemove } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { Button, EmptyState, ErrorMessage, Loading, s } from "../../components/ui";
 import { type AssignmentAccess, type AssignmentDraft, type AssignmentInput, type AssignmentItem, type AssignmentPage, type LessonContext } from "../../services/api/assignments";
-import { addItem, draftError, DraftSubmission, moveItem } from "./state";
+import { addItem, draftError, DraftSubmission } from "./state";
 import { BuilderView, type BuilderConfirmation } from "./BuilderView";
 import type { ClassDetails } from "../../services/api/classes";
-import { useSession } from "../../session/provider";
-import type { TeacherLesson, TeacherQuestion } from "../../services/api/teacherLessons";
-import { LessonEditor } from "../teacher-lessons/LessonEditor";
-import { newQuestion, prepareQuestion, questionError, QuestionAuthor, TeacherQuestionPreview } from "../teacher-lessons/QuestionAuthor";
-import { LessonButton, LessonNote, l } from "../teacher-lessons/LessonUI";
+import type { TeacherQuestion } from "../../services/api/teacherLessons";
+import { newQuestion, prepareQuestion, TeacherQuestionPreview } from "../teacher-lessons/QuestionAuthor";
+import { SimpleQuestionAuthor, simpleQuestionError as questionError } from "../teacher-lessons/SimpleQuestionAuthor";
+import { LessonButton, LessonNote } from "../teacher-lessons/LessonUI";
+import { w } from "../teacher-lessons/WritingUI";
 
 export function Picker<T>({ fetch, render, renderHeader, emptyTitle = "No eligible records", emptyDescription = "No sample content is added. Adjust filters or ask your content administrator." }: { fetch: (offset: number) => Promise<AssignmentPage<T>>; render: (row: T, index: number) => React.ReactNode; renderHeader?: (page: AssignmentPage<T>) => React.ReactNode; emptyTitle?: string; emptyDescription?: string }) {
   const [offset, setOffset] = useState(0), [retry, setRetry] = useState(0), [page, setPage] = useState<AssignmentPage<T> | null>(null), [error, setError] = useState("");
@@ -33,11 +33,9 @@ export function Picker<T>({ fetch, render, renderHeader, emptyTitle = "No eligib
 }
 
 export function AssignmentEditor({ initial, initialLesson, classId, classroom, api, active = true }: { initial: AssignmentDraft | null; initialLesson?: LessonContext | null; classId: string; classroom: ClassDetails; api: AssignmentAccess; active?: boolean }) {
-  const { teacherLessons } = useSession();
-  const [ownLesson, setOwnLesson] = useState<TeacherLesson | null>(null), [resumeQuestions, setResumeQuestions] = useState(false);
   const [author, setAuthor] = useState<TeacherQuestion | null>(null), [authorPreview, setAuthorPreview] = useState(false);
+  const [choosingQuestionType, setChoosingQuestionType] = useState(false);
   const [questionRequest, setQuestionRequest] = useState<{ lessonId: string; question: TeacherQuestion; key: string } | null>(null);
-  const [catalogEpoch, setCatalogEpoch] = useState(0);
   const [row, setRow] = useState(initial), [title, setTitle] = useState(initial?.title ?? ""), [instructions, setInstructions] = useState(initial?.instructions ?? "");
   const [lesson, setLesson] = useState<LessonContext | null>(initial?.context ?? initialLesson ?? null), [items, setItems] = useState<AssignmentItem[]>(initial?.questions ?? []);
   const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
@@ -48,35 +46,27 @@ export function AssignmentEditor({ initial, initialLesson, classId, classroom, a
   const [publication, setPublication] = useState<{ row: AssignmentDraft; key: string } | null>(null);
   useEffect(() => { alive.current = active; return () => { alive.current = false; }; }, [active]);
   useEffect(() => {
-    if (Platform.OS !== "web" || (!dirty && !busy && !author && !ownLesson && !questionRequest)) return;
+    if (Platform.OS !== "web" || (!dirty && !busy && !author && !questionRequest)) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty, busy, author, ownLesson, questionRequest]);
-  const prevent = usePreventRemove(active && !ownLesson && (dirty || busy || !!submission.pending || !!author), ({ repeat }) => {
+  }, [dirty, busy, author, questionRequest]);
+  const prevent = usePreventRemove(active && (dirty || busy || !!submission.pending || !!author), ({ repeat }) => {
     if (!lock.current) setConfirm({ title: "Leave this assignment?", label: "Leave without saving", message: "Your unsaved changes will be lost. If a save was interrupted, check your assignments before creating another draft.", accept: () => { setDirty(false); submission.pending = null; repeat(); } });
   });
   const editable = !row || row.editable, frozen = busy || !!submission.pending || uncertain || !editable;
   const fetchLessons = useCallback((offset: number) => api.lessons(classId, "", offset), [api, classId]);
-  const fetchQuestions = useCallback((offset: number) => { void catalogEpoch; return api.questions(classId, lesson!.lesson_id, filters.q, filters.method, offset); }, [api, classId, lesson, filters, catalogEpoch]);
+  const fetchQuestions = useCallback((offset: number) => api.questions(classId, lesson!.lesson_id, filters.q, filters.method, offset), [api, classId, lesson, filters]);
   function closeAuthor() {
     if (busy) return;
-    setConfirm({ title: questionRequest ? "Leave an uncertain question publication?" : "Discard question edits?", label: "Back to assignment", message: questionRequest ? "This question may already be published. Your retry details will be cleared. Check the question list before creating another." : "These question edits will be discarded. Your assignment title, instructions and selections will stay.", accept: () => { setAuthor(null); setQuestionRequest(null); setAuthorPreview(false); setCatalogEpoch(value => value + 1); } });
+    setConfirm({ title: questionRequest ? "Leave without confirming question creation?" : "Discard question edits?", label: "Back to assignment", message: questionRequest ? "This question may already be in the question bank. Check there before creating it again." : "Your assignment title, instructions and selected questions will stay.", accept: () => { setAuthor(null); setQuestionRequest(null); setAuthorPreview(false); setError(""); } });
   }
-  async function openAuthor() {
+  function openAuthor() {
     if (frozen || !lesson || lock.current || items.length >= 200) return;
-    if (lesson.source !== "teacher") { setAuthor(newQuestion()); setError(""); return; }
-    lock.current = true; setBusy(true); setError("");
-    try {
-      const current = await api.lesson(classId, lesson.lesson_id);
-      if (!current.teacher_lesson_id) throw new Error("Reload this lesson before adding questions.");
-      const owned = await teacherLessons.get(current.teacher_lesson_id);
-      if (alive.current) { setResumeQuestions(true); setOwnLesson(owned); }
-    } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "Couldn’t open your lesson."); }
-    finally { lock.current = false; if (alive.current) setBusy(false); }
+    setChoosingQuestionType(true); setAuthor(newQuestion()); setError(""); setNotice("");
   }
   async function publishQuestion() {
-    if (!author || !lesson || lock.current) return;
+    if (!author || !lesson || frozen || lock.current || items.length >= 200) return;
     const question = prepareQuestion(author), invalid = questionError(question);
     if (!questionRequest && invalid) { setError(invalid); return; }
     const request = questionRequest ?? { lessonId: lesson.lesson_id, question, key: Crypto.randomUUID() };
@@ -85,26 +75,15 @@ export function AssignmentEditor({ initial, initialLesson, classId, classroom, a
       const created = await api.createQuestion(classId, request.lessonId, request.question, request.key);
       if (alive.current) {
         setItems(previous => addItem(previous, created)); setDirty(true); setAuthor(null); setAuthorPreview(false); setQuestionRequest(null);
-        setQuery(""); setMethod(""); setFilters({ q: "", method: "" }); setCatalogEpoch(value => value + 1);
-        setNotice("Question published and selected. Save your assignment draft to keep this selection.");
+        setNotice("Question added. Save your assignment draft to keep this selection.");
       }
     } catch (cause) {
       if (alive.current) {
-        setError(cause instanceof Error ? cause.message : "We couldn’t confirm the question publication.");
+        setError(cause instanceof Error ? cause.message : "We couldn’t confirm that the question was created.");
         const status = (cause as { status?: number }).status;
-        if (status && status !== 408 && status < 500) setQuestionRequest(null);
+        if (!questionRequest && status && status !== 408 && status < 500) setQuestionRequest(null);
       }
     } finally { lock.current = false; if (alive.current) setBusy(false); }
-  }
-  async function returnFromLesson(saved: TeacherLesson | null) {
-    setOwnLesson(null);
-    if (!saved || saved.status !== "published" || !saved.shares.some(share => share.class_id === classId && share.version_id === saved.version_id) || saved.lesson_id === lesson?.lesson_id) return;
-    lock.current = true; setBusy(true);
-    try {
-      const updated = await api.lesson(classId, saved.lesson_id);
-      if (alive.current) setConfirm({ title: "Use the updated lesson?", label: "Use updated lesson", message: "Your assignment title and instructions will stay. Any previously selected questions will be cleared so you can choose from this lesson version.", accept: () => { setLesson(updated); setItems([]); setFilters({ q: "", method: "" }); setQuery(""); setMethod(""); setError(""); changed(); } });
-    } catch (cause) { if (alive.current) setError(cause instanceof Error ? cause.message : "Couldn’t load the updated lesson."); }
-    finally { lock.current = false; if (alive.current) setBusy(false); }
   }
   function changed() { setDirty(true); setNotice(""); setPreview(null); }
   function restore(saved: AssignmentDraft) { setRow(saved); setTitle(saved.title); setInstructions(saved.instructions ?? ""); setLesson(saved.context); setItems(saved.questions); setDirty(false); setPreview(null); setUncertain(false); }
@@ -148,18 +127,17 @@ export function AssignmentEditor({ initial, initialLesson, classId, classroom, a
       if (alive.current) { setError(cause instanceof Error ? cause.message : "Publish outcome unknown. Retry the same publication or reload."); setUncertain(true); }
     } finally { lock.current = false; if (alive.current) setBusy(false); }
   }
-  if (ownLesson) return <LessonEditor initial={ownLesson} subjects={[{ id: ownLesson.subject_id, name: ownLesson.subject_name }]} api={teacherLessons} classId={classId} classroom={classroom} initialStep="Quiz" active={active} onReturnToAssignment={saved => void returnFromLesson(saved)} />;
-  const authorContent = author ? <View style={l.stack}>
-    <Text accessibilityRole="header" style={l.heading}>Create a question</Text>
-    <Text style={l.body}>For {lesson?.lesson_name}. Your assignment details are kept here.</Text>
+  const authorContent = author ? <View style={w.stack}>
+    <View style={w.intro}><Text accessibilityRole="header" style={w.title}>Add a question</Text>
+    <Text style={w.body}>For {lesson?.lesson_name}. Your assignment details are kept here.</Text></View>
     {!!error && <LessonNote error>{error}</LessonNote>}
-    {questionRequest && !busy && <LessonNote>The publication may have completed. Editing is paused. Retry with the original details to avoid duplicates.</LessonNote>}
-    {authorPreview ? <TeacherQuestionPreview question={prepareQuestion(author)} onClose={() => setAuthorPreview(false)} /> : <QuestionAuthor value={author} disabled={busy || !!questionRequest} onChange={value => { if (!busy && !questionRequest) { setAuthor(value); setError(""); } }} />}
-    {!authorPreview && <LessonButton label="Preview as a student" disabled={busy || !!questionRequest} onPress={() => { const invalid = questionError(prepareQuestion(author)); if (invalid) setError(invalid); else setAuthorPreview(true); }} />}
-    <LessonButton label={busy ? "Publishing…" : questionRequest ? "Retry original publication" : "Publish question"} primary disabled={busy} onPress={() => { const invalid = questionError(prepareQuestion(author)); if (!questionRequest && invalid) { setError(invalid); return; } setConfirm({ title: "Publish this question?", label: "Publish question", message: "This freezes the question and makes it available for assignments in this class. It won’t change the shared lesson or publish your assignment.", accept: () => void publishQuestion() }); }} />
+    {questionRequest && !busy && <LessonNote>The question may already have been created. Retry with the same details to avoid duplicates.</LessonNote>}
+    {authorPreview ? <TeacherQuestionPreview question={prepareQuestion(author)} onClose={() => setAuthorPreview(false)} /> : <SimpleQuestionAuthor value={author} initiallyChooseType={choosingQuestionType} onChoosingChange={setChoosingQuestionType} disabled={busy || !!questionRequest} onChange={value => { if (!busy && !questionRequest) { setAuthor(value); setError(""); } }} />}
+    {!authorPreview && !choosingQuestionType && <LessonButton label="Preview as a student" disabled={busy || !!questionRequest} onPress={() => { const invalid = questionError(prepareQuestion(author)); if (invalid) setError(invalid); else setAuthorPreview(true); }} />}
+    {!choosingQuestionType && <LessonButton label={busy ? "Creating…" : questionRequest ? "Retry creating question" : "Create and add"} primary disabled={busy} onPress={() => { const invalid = questionError(prepareQuestion(author)); if (!questionRequest && invalid) { setError(invalid); return; } setConfirm({ title: "Create and add this question?", label: "Create and add", message: "This also makes the question available for future assignments for this lesson in this class. Students can answer it after you publish an assignment that includes it.", accept: () => void publishQuestion() }); }} />}
     <LessonButton label="Back to assignment" disabled={busy} onPress={closeAuthor} />
   </View> : undefined;
-  return <BuilderView authorContent={authorContent} initialStep={resumeQuestions ? 1 : 0} onCreateQuestions={() => void openAuthor()} questionsFiltered={!!(filters.q || filters.method)} classroom={classroom} row={row} title={title} instructions={instructions} lesson={lesson} items={items}
+  return <BuilderView authorContent={authorContent} onCreateQuestion={openAuthor} questionsFiltered={!!(filters.q || filters.method)} classroom={classroom} row={row} title={title} instructions={instructions} lesson={lesson} items={items}
     busy={busy} frozen={frozen} editable={editable} dirty={dirty} error={error} notice={notice} uncertain={uncertain}
     pending={!!submission.pending} publication={!!publication} preview={preview} confirm={confirm}
     query={query} method={method} filterKey={JSON.stringify([lesson?.lesson_id, filters])}
@@ -174,8 +152,7 @@ export function AssignmentEditor({ initial, initialLesson, classId, classroom, a
     onSearch={() => setFilters({ q: query.trim().slice(0, 200), method })}
     onClearFilters={() => { setQuery(""); setMethod(""); setFilters({ q: "", method: "" }); }}
     onAdd={item => { if (!frozen) { setItems(addItem(items, item)); changed(); } }}
-    onMove={(index, delta) => { if (!frozen) { setItems(moveItem(items, index, delta)); changed(); } }}
-    onRemove={item => { if (!frozen) { setItems(items.filter(value => value.id !== item.id)); changed(); } }}
+    onQuestionsChange={questions => { if (!frozen) { setItems(questions); changed(); } }}
     onSave={() => void save()}
     onReload={() => {
       const action = () => { setPublication(null); void reload(); };

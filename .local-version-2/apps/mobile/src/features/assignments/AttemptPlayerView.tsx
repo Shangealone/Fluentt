@@ -14,6 +14,7 @@ type Props = {
   pending: boolean; error: string; notice: string; menu: boolean; review: boolean; focusRevision: number; confirmation: AttemptConfirmation | null;
   operation: "save" | "submit" | "reload" | "reveal" | null; question: ReactNode;
   onBack: () => void; onAccount: () => void; onMenu: () => void; onMove: (position: number) => void;
+  onResults?: () => void;
   onReview: () => void; onKeepWorking: () => void; onSave: () => void; onClear: () => void;
   onReload: () => void; onRetrySubmit: () => void; onSubmit: () => void; onCancel: () => void; onConfirm: () => void;
 };
@@ -52,7 +53,8 @@ export function AttemptPlayerView(p: Props) {
       <Text style={[a.body, a.centerText]}>Your submission has been received.</Text>
       <Text style={[a.small, a.centerText]}>{p.row.submitted_at ? new Date(p.row.submitted_at).toLocaleString() : ""}{"\n"}{p.row.completed_count} of {p.row.question_count} questions answered</Text>
       <View style={a.notice}><Text style={a.body}>Your answers are now saved and can’t be changed. Results will appear when they’re available.</Text></View>
-      <AttemptButton label="Back to assignment" onPress={p.onBack} />
+      {p.onResults && <AttemptButton label="View results" onPress={p.onResults} />}
+      <AttemptButton label="Back to assignment" secondary onPress={p.onBack} />
     </View> : <>
       {!!p.row.instructions && <AttemptDisclosure label="Assignment instructions"><Text style={a.body}>{p.row.instructions}</Text></AttemptDisclosure>}
       {!p.review && <View style={a.meta}><View style={a.row}><Text accessibilityRole="header" style={a.itemTitle}>Question {p.position} of {p.row.question_count}</Text>

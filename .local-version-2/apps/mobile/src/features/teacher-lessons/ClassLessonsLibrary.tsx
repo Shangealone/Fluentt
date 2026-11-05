@@ -31,7 +31,7 @@ export function ClassLessonsLibrary({ classId }: { classId: string }) {
       ? <AdministratorLessons classId={classId} search={search} applied={applied} onSearchChange={setSearch} onApply={setApplied} />
       : <SharedClassLessons classId={classId} onCreate={create} />}
     <DirectoryDisclosure label={classId ? "About class lessons" : "About your lessons"} about>
-      <Text style={cl.small}>Lessons you create stay in your library. Publish a version, then share it with a class when you’re ready. A published version can’t be edited.</Text>
+      <Text style={cl.small}>Lessons you create stay in your library. Use Edit lesson to make updates, then publish and share the updated lesson when it’s ready.</Text>
       {!!classId && <Text style={cl.small}>Browse lessons offers published content you can use to prepare assignments. It doesn’t make an editable copy or publish an assignment automatically.</Text>}
     </DirectoryDisclosure>
   </ClassLessonsFrame>;
@@ -55,6 +55,9 @@ function SharedClassLessons({ classId, onCreate }: { classId: string; onCreate: 
 
 function SharedLessonCard({ row, classId, alternate }: { row: TeacherLessonSummary; classId: string; alternate: boolean }) {
   const language = row.language === "english" ? "English" : "Tagalog";
+  const open = (edit = false) => router.push({ pathname: "/instructor-lesson", params: {
+    id: row.id, versionId: row.version_id, ...(classId ? { classId } : {}), ...(edit ? { mode: "edit" } : {}),
+  } });
   return <View style={cl.card}>
     <View style={cl.cardTop}><LessonDirectoryTile alternate={alternate} /><DirectoryBadge status={row.status} /></View>
     <Text accessibilityRole="header" style={cl.cardTitle}>{row.title}</Text>
@@ -63,11 +66,12 @@ function SharedLessonCard({ row, classId, alternate }: { row: TeacherLessonSumma
       <Text style={cl.small}>{language}{row.subject_name !== language ? ` · ${row.subject_name}` : ""}</Text>
     </View>
     <DirectoryDisclosure label="Lesson details">
-      <Text style={cl.small}>Version {row.version} · Subject: {row.subject_name}</Text>
+      <Text style={cl.small}>Subject: {row.subject_name}</Text>
       {!!row.introduction && <Text style={cl.small}>{row.introduction}</Text>}
     </DirectoryDisclosure>
     <View style={cl.cardActions}>
-      <DirectoryAction label={row.status === "draft" ? "Continue editing" : "Open lesson"} primary={row.status === "draft"} icon="arrow" onPress={() => router.push({ pathname: "/instructor-lesson", params: { id: row.id, versionId: row.version_id, ...(classId ? { classId } : {}) } })} />
+      <DirectoryAction label={row.status === "draft" ? "Continue editing" : "Open lesson"} primary={row.status === "draft"} icon="arrow" onPress={() => open()} />
+      {row.status === "published" && <DirectoryAction label="Edit lesson" onPress={() => open(true)} />}
       {!!classId && row.status === "published" && <DirectoryAction label="Create assignment" primary icon="arrow" onPress={() => router.push({ pathname: "/assignment-builder", params: { classId, lessonId: row.lesson_id } })} />}
     </View>
   </View>;

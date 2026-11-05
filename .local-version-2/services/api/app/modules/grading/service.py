@@ -2,6 +2,8 @@
 
 from copy import deepcopy
 from datetime import datetime, timezone
+import logging
+from uuid import uuid4
 from sqlalchemy import select, text, and_
 from sqlalchemy.exc import DBAPIError
 from app.models.assessments import (
@@ -15,6 +17,9 @@ from app.models.assessments import (
 )
 from app.models.grading import GradingRun, GradingItemResult
 from app.models.operations import AuditLog
+from app.models.result_release import AssessmentResultRelease
+from app.models.research_classrooms import ResearchClassroomBinding
+from app.models.vocabulary_review import ESRProtocol
 from app.modules.administration.service import resolve_session
 from app.modules.identity.errors import IdentityError
 from app.modules.grading.engine import ENGINE_VERSION, POLICY_VERSION, POLICY, Outcome, evaluate, aggregate
@@ -23,6 +28,47 @@ from app.modules.grading.schemas import RunView, RunSummary, ItemView, Page
 
 def fail(status=409, message="Evaluation is unavailable or requires operator review."):
     return IdentityError(status, "grading_unavailable", message)
+
+
+def release_on_submission(db, attempt, version, root, student_id, request_id):
+    if db.scalar(select(AssessmentResultRelease.id).where(AssessmentResultRelease.attempt_id == attempt.id).limit(1)):
+        return
+    if db.scalar(
+        select(ResearchClassroomBinding.id).where(ResearchClassroomBinding.class_id == root.class_id).limit(1)
+    ) or db.scalar(select(ESRProtocol.id).where(ESRProtocol.class_id == root.class_id).limit(1)):
+        return
+    try:
+        with db.begin_nested():
+            run = evaluate_locked(db, attempt, version, root, student_id, request_id, automatic=True)
+            if run.status != "COMPLETE" or run.actor_id != student_id:
+                return
+            event = AssessmentResultRelease(
+                attempt_id=attempt.id,
+                run_id=run.id,
+                assignment_version_id=version.id,
+                actor_id=student_id,
+                request_key=uuid4(),
+                sequence=1,
+                released=True,
+                automatic=True,
+            )
+            db.add(event)
+            db.flush()
+            db.add(
+                AuditLog(
+                    actor_id=student_id,
+                    action="results.release_on_submit",
+                    entity_type="assessment_result_release",
+                    entity_id=event.id,
+                    occurred_at=datetime.now(timezone.utc),
+                    request_id=request_id,
+                    safe_metadata={"attempt_id": str(attempt.id), "run_id": str(run.id)},
+                )
+            )
+    except (IdentityError, DBAPIError) as error:
+        logging.getLogger(__name__).warning(
+            "automatic_assignment_result_unavailable error_type=%s", type(error).__name__
+        )
 
 
 def describe(db, run):
@@ -38,6 +84,150 @@ def describe(db, run):
         policy_snapshot=run.policy_snapshot,
         items=[ItemView.model_validate(item) for item in items],
     )
+
+
+def evaluate_locked(db, attempt, version, root, actor_id, request_id, *, automatic=False):
+    """Persist one immutable evaluation while the caller holds the attempt lock."""
+    if (
+        attempt.capture_contract != "unscored-capture-v1"
+        or attempt.status != "submitted"
+        or attempt.submitted_at is None
+        or attempt.submission_key is None
+        or attempt.submission_fingerprint is None
+        or attempt.attempt_number != 1
+        or attempt.score is not None
+        or attempt.maximum_score is not None
+        or attempt.expires_at is not None
+        or not isinstance(attempt.capture_state, dict)
+        or not isinstance(attempt.capture_state.get("revealed"), list)
+        or any(not isinstance(value, str) for value in attempt.capture_state["revealed"])
+        or type(attempt.capture_state.get("position")) is not int
+        or version is None
+        or version.publication_contract != "distribution-only-v1"
+        or version.locked_at is None
+        or root is None
+        or root.status != "published"
+    ):
+        raise fail(409, "Only finalized ordinary classroom captures may be evaluated.")
+    existing = db.scalar(
+        select(GradingRun).where(
+            GradingRun.attempt_id == attempt.id,
+            GradingRun.engine_version == ENGINE_VERSION,
+            GradingRun.policy_version == POLICY_VERSION,
+        )
+    )
+    if existing:
+        return existing
+    evidence = db.execute(
+        select(AssignmentQuestion, QuestionRevision, QuestionAnswerKey, StudentResponse)
+        .join(QuestionRevision, AssignmentQuestion.question_revision_id == QuestionRevision.id)
+        .outerjoin(QuestionAnswerKey, QuestionAnswerKey.question_revision_id == QuestionRevision.id)
+        .outerjoin(
+            StudentResponse,
+            and_(
+                StudentResponse.assignment_question_id == AssignmentQuestion.id,
+                StudentResponse.attempt_id == attempt.id,
+            ),
+        )
+        .where(AssignmentQuestion.assignment_version_id == version.id)
+        .order_by(AssignmentQuestion.position)
+    ).all()
+    if (
+        not evidence
+        or len(evidence) > 200
+        or [row[0].position for row in evidence] != list(range(1, len(evidence) + 1))
+    ):
+        raise fail(409, "Assignment evidence is incomplete; operator review is required.")
+    outcomes = []
+    for entry, row, key, response in evidence:
+        invalid_response = response is not None and (
+            response.submitted_at != attempt.submitted_at
+            or response.grading_status != "unscored"
+            or any(
+                value is not None
+                for value in (
+                    response.correct,
+                    response.awarded_points,
+                    response.response_duration_ms,
+                    response.feedback,
+                    response.grading_version,
+                )
+            )
+            or (row.method == "flashcards" and str(entry.id) not in attempt.capture_state.get("revealed", []))
+        )
+        if invalid_response:
+            outcomes.append(Outcome("MANUAL_REVIEW_REQUIRED", "invalid_submission_evidence"))
+            continue
+        outcomes.append(
+            evaluate(
+                row.method,
+                row.content,
+                key.configuration if key else None,
+                response.answer if response else None,
+                schema_version=row.schema_version,
+                revision_locked=row.locked_at is not None,
+                key_locked=row.locked_at is not None,
+                source_grading_version=key.grading_version if key else None,
+            )
+        )
+    now = datetime.now(timezone.utc)
+    run = GradingRun(
+        attempt_id=attempt.id,
+        assignment_version_id=version.id,
+        actor_id=actor_id,
+        engine_version=ENGINE_VERSION,
+        policy_version=POLICY_VERSION,
+        policy_snapshot=deepcopy(POLICY),
+        evaluated_at=now,
+        context="ordinary_classroom",
+        item_count=len(evidence),
+        **aggregate(outcomes),
+    )
+    db.add(run)
+    db.flush()
+    for (entry, row, key, response), outcome in zip(evidence, outcomes, strict=True):
+        db.add(
+            GradingItemResult(
+                run_id=run.id,
+                assignment_version_id=version.id,
+                assignment_question_id=entry.id,
+                question_revision_id=row.id,
+                response_id=response.id if response else None,
+                key_id=key.id if key else None,
+                source_grading_version=key.grading_version if key else None,
+                rubric_version=POLICY_VERSION,
+                method=row.method,
+                position=entry.position,
+                state=outcome.state,
+                reason=outcome.reason,
+                correct=outcome.correct,
+                awarded_points=outcome.awarded_points,
+                max_points=outcome.max_points,
+                evaluation_metadata={
+                    "response_present": response is not None,
+                    "schema_version": row.schema_version,
+                },
+            )
+        )
+    db.flush()
+    run.completed_at = datetime.now(timezone.utc)
+    db.add(
+        AuditLog(
+            actor_id=actor_id,
+            action="grading.evaluate_on_submit" if automatic else "grading.evaluate",
+            entity_type="grading_run",
+            entity_id=run.id,
+            occurred_at=now,
+            request_id=request_id,
+            safe_metadata={
+                "engine_version": ENGINE_VERSION,
+                "policy_version": POLICY_VERSION,
+                "status": run.status,
+            },
+        )
+    )
+    db.flush()
+    return run
 
 
 def execute(
@@ -80,146 +270,7 @@ def execute(
             raise fail(404, "Finalized classroom attempt not found.")
         version = db.get(AssignmentVersion, attempt.assignment_version_id, populate_existing=True)
         root = db.get(Assignment, version.assignment_id, populate_existing=True) if version else None
-        if (
-            attempt.capture_contract != "unscored-capture-v1"
-            or attempt.status != "submitted"
-            or attempt.submitted_at is None
-            or attempt.submission_key is None
-            or attempt.submission_fingerprint is None
-            or attempt.attempt_number != 1
-            or attempt.score is not None
-            or attempt.maximum_score is not None
-            or attempt.expires_at is not None
-            or not isinstance(attempt.capture_state, dict)
-            or not isinstance(attempt.capture_state.get("revealed"), list)
-            or any(not isinstance(value, str) for value in attempt.capture_state["revealed"])
-            or type(attempt.capture_state.get("position")) is not int
-            or version is None
-            or version.publication_contract != "distribution-only-v1"
-            or version.locked_at is None
-            or root is None
-            or root.status != "published"
-        ):
-            raise fail(409, "Only finalized ordinary classroom captures may be evaluated.")
-        existing = db.scalar(
-            select(GradingRun).where(
-                GradingRun.attempt_id == attempt.id,
-                GradingRun.engine_version == ENGINE_VERSION,
-                GradingRun.policy_version == POLICY_VERSION,
-            )
-        )
-        if existing:
-            return describe(db, existing)
-        evidence = db.execute(
-            select(AssignmentQuestion, QuestionRevision, QuestionAnswerKey, StudentResponse)
-            .join(QuestionRevision, AssignmentQuestion.question_revision_id == QuestionRevision.id)
-            .outerjoin(QuestionAnswerKey, QuestionAnswerKey.question_revision_id == QuestionRevision.id)
-            .outerjoin(
-                StudentResponse,
-                and_(
-                    StudentResponse.assignment_question_id == AssignmentQuestion.id,
-                    StudentResponse.attempt_id == attempt.id,
-                ),
-            )
-            .where(AssignmentQuestion.assignment_version_id == version.id)
-            .order_by(AssignmentQuestion.position)
-        ).all()
-        if (
-            not evidence
-            or len(evidence) > 200
-            or [row[0].position for row in evidence] != list(range(1, len(evidence) + 1))
-        ):
-            raise fail(409, "Assignment evidence is incomplete; operator review is required.")
-        outcomes = []
-        for entry, row, key, response in evidence:
-            invalid_response = response is not None and (
-                response.submitted_at != attempt.submitted_at
-                or response.grading_status != "unscored"
-                or any(
-                    value is not None
-                    for value in (
-                        response.correct,
-                        response.awarded_points,
-                        response.response_duration_ms,
-                        response.feedback,
-                        response.grading_version,
-                    )
-                )
-                or (row.method == "flashcards" and str(entry.id) not in attempt.capture_state.get("revealed", []))
-            )
-            if invalid_response:
-                outcomes.append(Outcome("MANUAL_REVIEW_REQUIRED", "invalid_submission_evidence"))
-                continue
-            outcomes.append(
-                evaluate(
-                    row.method,
-                    row.content,
-                    key.configuration if key else None,
-                    response.answer if response else None,
-                    schema_version=row.schema_version,
-                    revision_locked=row.locked_at is not None,
-                    key_locked=row.locked_at is not None,
-                    source_grading_version=key.grading_version if key else None,
-                )
-            )
-        now = datetime.now(timezone.utc)
-        run = GradingRun(
-            attempt_id=attempt.id,
-            assignment_version_id=version.id,
-            actor_id=user.id,
-            engine_version=ENGINE_VERSION,
-            policy_version=POLICY_VERSION,
-            policy_snapshot=deepcopy(POLICY),
-            evaluated_at=now,
-            context="ordinary_classroom",
-            item_count=len(evidence),
-            **aggregate(outcomes),
-        )
-        db.add(run)
-        db.flush()
-        for (entry, row, key, response), outcome in zip(evidence, outcomes, strict=True):
-            db.add(
-                GradingItemResult(
-                    run_id=run.id,
-                    assignment_version_id=version.id,
-                    assignment_question_id=entry.id,
-                    question_revision_id=row.id,
-                    response_id=response.id if response else None,
-                    key_id=key.id if key else None,
-                    source_grading_version=key.grading_version if key else None,
-                    rubric_version=POLICY_VERSION,
-                    method=row.method,
-                    position=entry.position,
-                    state=outcome.state,
-                    reason=outcome.reason,
-                    correct=outcome.correct,
-                    awarded_points=outcome.awarded_points,
-                    max_points=outcome.max_points,
-                    evaluation_metadata={
-                        "response_present": response is not None,
-                        "schema_version": row.schema_version,
-                    },
-                )
-            )
-        db.flush()
-        run.completed_at = datetime.now(timezone.utc)
-        db.add(
-            AuditLog(
-                actor_id=user.id,
-                action="grading.evaluate",
-                entity_type="grading_run",
-                entity_id=run.id,
-                occurred_at=now,
-                request_id=request_id,
-                safe_metadata={
-                    "engine_version": ENGINE_VERSION,
-                    "policy_version": POLICY_VERSION,
-                    "status": run.status,
-                },
-            )
-        )
-        db.flush()
-        return describe(db, run)
+        return describe(db, evaluate_locked(db, attempt, version, root, user.id, request_id))
 
     try:
         return resolve_session(

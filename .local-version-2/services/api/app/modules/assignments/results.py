@@ -235,7 +235,8 @@ def describe(db, classroom, root, version, attempt, *, instructor=False, student
     )
 
 
-def student_read(repo, token, settings, assignment_id):
+@contextmanager
+def student_result_context(repo, token, settings, assignment_id):
     with student_context(repo, token, settings, assignment_id=assignment_id) as (db, user, classroom):
         root = db.get(Assignment, assignment_id, populate_existing=True)
         version = db.scalar(
@@ -255,6 +256,11 @@ def student_read(repo, token, settings, assignment_id):
                 AssignmentAttempt.attempt_number == 1,
             )
         )
+        yield db, classroom, root, version, attempt
+
+
+def student_read(repo, token, settings, assignment_id):
+    with student_result_context(repo, token, settings, assignment_id) as (db, classroom, root, version, attempt):
         return describe(db, classroom, root, version, attempt)
 
 

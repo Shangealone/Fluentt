@@ -13,6 +13,7 @@ export function AttemptPlayer({ initial, api, active = true }: { initial: Attemp
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [backs, setBacks] = useState<Record<string, RevealedBack>>({});
   const [menu, setMenu] = useState(false), [review, setReview] = useState(false), [kind, setKind] = useState<Operation | null>(null);
   const [focusRevision, setFocusRevision] = useState(0);
+  const [showSubmittedResult, setShowSubmittedResult] = useState(false);
   const [confirmation, setConfirmation] = useState<AttemptConfirmation | null>(null), [interactionReset, setInteractionReset] = useState(0);
   const [pending, setPending] = useState<{ row: Attempt; body: Progress; key: string } | null>(null);
   const lock = useRef(false), alive = useRef(active);
@@ -24,6 +25,11 @@ export function AttemptPlayer({ initial, api, active = true }: { initial: Attemp
     if (!lock.current) setConfirmation({ title: "Leave this assignment?", label: "Leave assignment", message: exitMessage,
       accept: () => { setDirty(false); setPending(null); setUncertain(false); repeat(); } });
   });
+  useEffect(() => {
+    if (showSubmittedResult && active && !busy && !dirty && !uncertain && !pending) {
+      router.replace({ pathname: "/assessment-results", params: { id: row.assignment_id } });
+    }
+  }, [showSubmittedResult, active, busy, dirty, uncertain, pending, row.assignment_id]);
   function restore(value: Attempt) {
     setRow(value); setBuffers(savedBuffers(value)); setPosition(value.position); setBacks({}); setInteractionReset(value => value + 1);
     setDirty(false); setUncertain(false); setBlocked(false); setPending(null); setReview(false); setMenu(false);
@@ -56,7 +62,7 @@ export function AttemptPlayer({ initial, api, active = true }: { initial: Attemp
         const request = pending ?? { row, body: progress(row, buffers, position), key: Crypto.randomUUID() };
         setPending(request);
         const saved = await api.submit(request.row, request.body, request.key);
-        if (alive.current) { restore(saved); setNotice(""); }
+        if (alive.current) { restore(saved); setNotice(""); setShowSubmittedResult(saved.status === "submitted"); }
       }
     } catch (cause) {
       if (alive.current) { failed(cause); if ((cause as { status?: number }).status === 422) setPending(null); }
@@ -80,7 +86,8 @@ export function AttemptPlayer({ initial, api, active = true }: { initial: Attemp
   }
   return <AttemptPlayerView row={row} buffers={buffers} position={position} dirty={dirty} busy={busy} uncertain={uncertain} blocked={blocked}
     pending={!!pending} error={error} notice={notice} menu={menu} review={review} focusRevision={focusRevision} confirmation={confirmation} operation={kind}
-    onBack={back} onAccount={account} onMenu={() => setMenu(value => !value)} onMove={move}
+    onBack={back} onResults={() => router.replace({ pathname: "/assessment-results", params: { id: row.assignment_id } })}
+    onAccount={account} onMenu={() => setMenu(value => !value)} onMove={move}
     onReview={() => { if (!lock.current && !frozen) { setReview(true); setMenu(false); } }} onKeepWorking={() => setReview(false)}
     onSave={() => void operation("save")} onRetrySubmit={() => void operation("submit")}
     onClear={() => { if (!lock.current && !frozen && item) { setBuffers(current => { const next = { ...current }; delete next[item.assignment_question_id]; return next; }); setInteractionReset(value => value + 1); setDirty(true); setNotice(""); } }}

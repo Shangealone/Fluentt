@@ -10,11 +10,6 @@ export function draftError(body: AssignmentInput, items: AssignmentItem[]): stri
 export function addItem(items: AssignmentItem[], row: AssignmentItem): AssignmentItem[] {
   return items.length < 200 && row.eligible && !items.some(item => item.question_id === row.question_id) ? [...items, row] : items;
 }
-export function moveItem(items: AssignmentItem[], index: number, delta: number): AssignmentItem[] {
-  const target = index + delta;
-  if (!Number.isInteger(index) || index < 0 || target < 0 || target >= items.length || index >= items.length) return items;
-  const next = [...items]; [next[index], next[target]] = [next[target], next[index]]; return next;
-}
 export class DraftSubmission {
   busy = false;
   pending: { body: AssignmentInput; key: string } | null = null;

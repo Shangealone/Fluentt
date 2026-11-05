@@ -1,3 +1,19 @@
+# Automatic results for ordinary assignments
+
+Finalizing a supported classroom assignment runs the existing objective evaluation
+engine and opens the student results screen. Complete evaluations are shared
+automatically as the first visibility event. The event records its automatic
+origin, and the instructor can still withdraw or re-share the same pinned result.
+Unresolved work shows its evaluation status without a final total.
+
+The automatic path is separate from managed research classrooms and study
+protocols. Earlier submissions retain their existing result and visibility.
+The `FLUENTT_ASSIGNMENT_RESULTS_ON_SUBMIT` setting can disable automatic
+evaluation and sharing for future submissions.
+
+The sections below record the earlier instructor-release workflow, which still
+applies to manually shared results.
+
 # Classroom results and feedback — Section 22
 
 The user approved explicit instructor release of existing Section 21 COMPLETE evaluations of ordinary classroom captures, including earlier Section 20 submissions. This is **equal-point objective evaluation**, not conversion of the original unscored capture into an examination grade. Grading still requires a separate administrator with grading.read/run; submission, instructor reads and release never execute the engine or enqueue a job. Existing engine policy snapshots retain their original no-release computation boundary; this separate visibility contract does not alter them.

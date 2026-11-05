@@ -6,6 +6,7 @@ from app.modules.identity.dependencies import require_secure_transport, throttle
 from app.modules.assignments.schemas import Query
 from app.modules.assignments.results_schemas import ResultView, ReleaseInput, ResultPage, EvaluationPage
 from app.modules.assignments.results import execute, student_read
+from app.modules.assignments.practice import PracticeInput, practice
 
 router = APIRouter(
     tags=["classroom results"], dependencies=[Depends(require_secure_transport), Depends(throttle_sessions)]
@@ -15,6 +16,19 @@ router = APIRouter(
 @router.get("/assignments/{assignment_id}/result", response_model=ResultView)
 def student_result(assignment_id: UUID, repo: Repo, credential: Credential, settings: Config):
     return student_read(repo, credential, settings, assignment_id)
+
+
+@router.get("/assignments/{assignment_id}/practice")
+def assignment_practice(assignment_id: UUID, repo: Repo, credential: Credential, settings: Config):
+    return practice(repo, credential, settings, assignment_id)
+
+
+@router.post("/assignments/{assignment_id}/practice/{item_id}")
+def save_assignment_practice(
+    assignment_id: UUID, item_id: UUID, payload: PracticeInput, repo: Repo, credential: Credential, settings: Config,
+    key: Annotated[UUID, Header(alias="Idempotency-Key")],
+):
+    return practice(repo, credential, settings, assignment_id, item_id=item_id, payload=payload, key=key)
 
 
 @router.get("/assignments/{assignment_id}/results", response_model=ResultPage)

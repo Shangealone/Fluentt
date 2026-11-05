@@ -4,9 +4,10 @@ import { Text } from "../../accessibility/Primitives";
 import { PersonalIcon } from "../../components/PersonalIcon";
 import { homeColors as c } from "../../theme/personal";
 
-export function WritingDisclosure({ label, children }: { label: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return <View style={w.disclosure}><Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(v => !v)} style={w.disclosureButton}><Text style={w.link}>{label}</Text><View style={open && w.up}><PersonalIcon name="chevron" color={c.teal} size={16} /></View></Pressable>{open && <View style={w.stack}>{children}</View>}</View>;
+export function WritingDisclosure({ label, children, expanded, onToggle }: { label: string; children: ReactNode; expanded?: boolean; onToggle?: () => void }) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = expanded ?? localOpen;
+  return <View style={w.disclosure}><Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={onToggle ?? (() => setLocalOpen(value => !value))} style={w.disclosureButton}><Text style={w.link}>{label}</Text><View style={open && w.up}><PersonalIcon name="chevron" color={c.teal} size={16} /></View></Pressable>{open && <View style={w.stack}>{children}</View>}</View>;
 }
 export const w = StyleSheet.create({
   stack: { gap: 16 }, intro: { gap: 8 }, title: { fontSize: 28, lineHeight: 37, fontWeight: "700", letterSpacing: -1, color: c.ink }, body: { fontSize: 13, lineHeight: 24, color: c.muted }, small: { fontSize: 11, lineHeight: 21, color: c.muted }, link: { fontSize: 12, lineHeight: 22, color: c.teal, flexShrink: 1 },

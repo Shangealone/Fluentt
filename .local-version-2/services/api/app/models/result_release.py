@@ -1,7 +1,7 @@
 """Append-only visibility decisions, separate from immutable evaluations and responses."""
 
 from uuid import UUID
-from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, UniqueConstraint, false
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base, Entity, reference
 
@@ -15,6 +15,7 @@ class AssessmentResultRelease(Entity, Base):
     request_key: Mapped[UUID]
     sequence: Mapped[int] = mapped_column(Integer)
     released: Mapped[bool]
+    automatic: Mapped[bool] = mapped_column(default=False, server_default=false())
     __table_args__ = (
         UniqueConstraint("attempt_id", "sequence", name="uq_result_release_sequence"),
         UniqueConstraint("actor_id", "request_key", name="uq_result_release_request"),

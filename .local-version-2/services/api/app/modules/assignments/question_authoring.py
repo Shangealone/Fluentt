@@ -8,7 +8,7 @@ from app.models.assessments import Question, QuestionRevision, QuestionAnswerKey
 from app.models.operations import AuditLog
 from app.modules.identity.session_service import authenticated_session
 from app.modules.classrooms.service import require_instructor
-from app.modules.assignments.service import fail, lesson_path, context_for, public_item
+from app.modules.assignments.service import fail, lesson_path, public_item
 
 
 def shared_question_scope():
@@ -30,9 +30,8 @@ def publish_question(repo, credential, settings, class_id, payload, request_key,
         if not classroom or classroom.archived_at or classroom.status != "active":
             raise fail(404, "Choose an active class you own.")
         db.execute(text("SELECT pg_advisory_xact_lock(78090001)"))
-        path = lesson_path(db, classroom, payload.lesson_id)
-        if path is None or context_for(path).source != "curriculum":
-            raise fail(422, "For your own lesson, create a new lesson version to add questions.")
+        if lesson_path(db, classroom, payload.lesson_id) is None:
+            raise fail(422, "Choose a published lesson available to this class.")
         digest = hashlib.sha256(json.dumps({"class_id": str(class_id), "body": payload.model_dump(mode="json")}, sort_keys=True).encode()).hexdigest()
         prior = db.scalar(select(InstructorLessonQuestion).where(
             InstructorLessonQuestion.instructor_id == user.id, InstructorLessonQuestion.request_id == request_key))

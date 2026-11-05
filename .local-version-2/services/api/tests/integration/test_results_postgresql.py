@@ -3,7 +3,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from uuid import UUID, uuid4
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select, func
@@ -83,6 +83,64 @@ def private_absent(response):
     )
 
 
+def test_assignment_practice_reschedules_without_changing_result(capture_case, bank, monkeypatch):  # noqa: F811
+    from app.modules.assignments import practice
+
+    client, auth = capture_case[0][0], capture_case[2]
+    url = student_url(capture_case).removesuffix("/result") + "/practice"
+    receipt, _ = evaluated(capture_case, bank)
+    assert client.get(url, headers=auth).json() == {"items": []}
+    assert client.get(url, headers=capture_case[0][1]).status_code == 403
+    released = visibility(capture_case, receipt, owner(capture_case, receipt))
+    assert released.status_code == 200, released.text
+    result = client.get(student_url(capture_case), headers=auth).json()
+    queue = client.get(url, headers=auth)
+    assert queue.status_code == 200, queue.text
+    private_absent(queue)
+    rows = queue.json()["items"]
+    assert rows and not any(row["is_due"] for row in rows)
+    row = next(row for row in rows if row["question"]["definition"]["method"] == "multiple_choice")
+    original = next(item for item in result["items"] if item["result_id"] == row["result_id"])
+    endpoint = url + "/" + row["result_id"]
+    payload = {"answer": original["answer"], "rating": "hard", "revision": 0}
+    headers = auth | {"Idempotency-Key": str(uuid4())}
+    assert client.post(endpoint, json=payload, headers=headers).status_code == 409
+
+    class AtDueDate(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return (datetime.fromisoformat(row["due_at"]) + timedelta(minutes=1)).astimezone(tz)
+
+    monkeypatch.setattr(practice, "datetime", AtDueDate)
+    saved = client.post(endpoint, json=payload, headers=headers)
+    assert saved.status_code == 200, saved.text
+    private_absent(saved)
+    assert saved.json()["revision"] == 1 and not saved.json()["is_due"]
+    assert saved.json()["due_at"] > row["due_at"]
+    assert saved.json()["last_correct"] == original["correct"]
+    assert client.post(endpoint, json=payload, headers=headers).json() == saved.json()
+    assert client.post(endpoint, json=payload, headers=auth | {"Idempotency-Key": str(uuid4())}).status_code == 409
+    assert client.get(student_url(capture_case), headers=auth).json() == result
+    assert visibility(capture_case, receipt, released.json(), False).status_code == 200
+    assert client.get(url, headers=auth).json() == {"items": []}
+    assert client.post(endpoint, json=payload, headers=headers).status_code == 404
+
+
+def test_submission_shows_final_score_and_practice_immediately(capture_case, monkeypatch):  # noqa: F811
+    client, auth = capture_case[0][0], capture_case[2]
+    monkeypatch.setattr(client.app.app.state.settings, "assignment_results_on_submit", True)
+    receipt = finalize(capture_case)
+    result = client.get(student_url(capture_case), headers=auth)
+    assert result.status_code == 200, result.text
+    assert result.json()["released"]
+    assert result.json()["earned_points"] == "6.00" and result.json()["possible_points"] == "9.00"
+    private_absent(result)
+    practice = client.get(student_url(capture_case).removesuffix("/result") + "/practice", headers=auth)
+    assert practice.status_code == 200 and practice.json()["items"]
+    assert visibility(capture_case, receipt, owner(capture_case, receipt), False).status_code == 200
+    assert client.get(student_url(capture_case), headers=auth).json()["state"] == "withheld"
+
+
 def test_release_review_withdraw_rerelease_and_replay(capture_case, bank):  # noqa: F811
     client, auth, _, _, engine = capture_case[0]
     not_started = client.get(student_url(capture_case), headers=capture_case[2])
@@ -144,7 +202,8 @@ def test_release_review_withdraw_rerelease_and_replay(capture_case, bank):  # no
             db.scalar(
                 select(func.count())
                 .select_from(AuditLog)
-                .where(AuditLog.action.in_(["results.release", "results.withdraw"]))
+                .where(AuditLog.action.in_(["results.release", "results.withdraw"]),
+                       AuditLog.safe_metadata["attempt_id"].as_string() == receipt["id"])
             )
             == 3
         )

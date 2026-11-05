@@ -4,14 +4,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Text, useWindowDimensions } from "../../accessibility/Primitives";
 import { FluenttLogo } from "../../components/FluenttLogo";
 import { PersonalIcon } from "../../components/PersonalIcon";
-import type { AssessmentResult, ReviewItem } from "../../services/api/results";
+import type { AssessmentResult, ResultsAccess, ReviewItem } from "../../services/api/results";
 import { AssignmentPresentation } from "../../theme/assignment";
 import { homeColors as c } from "../../theme/personal";
 import { CaptureQuestion } from "./CaptureQuestion";
+import { AssignmentReviewQueue } from "./AssignmentReviewQueue";
 
 type Props = {
   row: AssessmentResult | null; loading: boolean; error: string; unavailable: boolean; missing: boolean;
   onBack: () => void; onAccount: () => void; onRefresh: () => void; onOpen: () => void; onClasses: () => void;
+  practiceApi?: ResultsAccess;
 };
 const ignore = () => {};
 const statuses: Record<AssessmentResult["state"], { title: string; body: string; waiting?: boolean }> = {
@@ -19,7 +21,7 @@ const statuses: Record<AssessmentResult["state"], { title: string; body: string;
   submitted: { title: "Waiting for evaluation", body: "Your work is submitted. It hasn’t been evaluated yet.", waiting: true },
   awaiting_manual_review: { title: "Needs review", body: "Your submission needs further review. A final score isn’t available yet.", waiting: true },
   withheld: { title: "Not shared yet", body: "Your teacher hasn’t shared this result with you yet.", waiting: true },
-  released: { title: "Results shared", body: "Your teacher has shared your points and answer review." },
+  released: { title: "Results available", body: "Your points and answer review are ready." },
   not_applicable: { title: "No score available", body: "Objective scoring doesn’t apply to this assignment. There are no points to show." },
 };
 
@@ -65,7 +67,7 @@ export function StudentResultView(p: Props) {
       <Pressable accessibilityRole="button" accessibilityLabel="My account" onPress={p.onAccount} style={s.circle}><PersonalIcon name="account" size={18} /></Pressable>
     </View>
     <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.content, width < 360 && s.compact]}>
-      <View style={[s.hero, fontScale > 1.2 && s.stacked]}><View style={s.heroCopy}><Text accessibilityRole="header" style={s.title}>Your results</Text><Text style={s.body}>See the results shared by your teacher.</Text></View><ResultEnvelopeArt /></View>
+      <View style={[s.hero, fontScale > 1.2 && s.stacked]}><View style={s.heroCopy}><Text accessibilityRole="header" style={s.title}>Your results</Text><Text style={s.body}>See your assignment points and next review dates.</Text></View><ResultEnvelopeArt /></View>
       {p.loading ? <View style={[s.card, s.center]}><ActivityIndicator color={c.teal} accessibilityLabel="Loading your results" /><Text accessibilityRole="header" style={s.heading}>Loading your results…</Text><Text style={s.body}>Checking the latest result and access.</Text></View>
         : p.missing ? <View style={[s.card, s.center]}><Text accessibilityRole="header" style={s.heading}>Choose an assignment</Text><Text style={s.body}>Open an assignment from your classes to view its results.</Text><ResultButton primary label="Back to My classes" onPress={p.onClasses} /></View>
           : p.error ? <View style={[s.card, s.center]}><Text accessibilityRole="header" style={s.heading}>{p.unavailable ? "Results unavailable" : "We couldn’t load your results"}</Text><Text accessibilityRole="alert" style={s.error}>{p.unavailable ? "This assignment or your access to it is no longer available. " : ""}{p.error}</Text>{!p.unavailable && <ResultButton primary label="Try again" onPress={p.onRefresh} />}{p.unavailable && <ResultButton primary label="Back to My classes" onPress={p.onClasses} />}</View>
@@ -75,6 +77,7 @@ export function StudentResultView(p: Props) {
                 {row.released && row.earned_points !== null && row.possible_points !== null && <View><Text style={s.pointsLabel}>Assignment points</Text><Text style={s.score}>{row.earned_points}<Text style={s.scoreTotal}> / {row.possible_points} points</Text></Text></View>}
                 <Text style={s.body}>{status.body}</Text>
               </View>
+              {row.released && p.practiceApi && <AssignmentReviewQueue api={p.practiceApi} assignmentId={row.assignment_id} />}
               {item && <View style={s.card} onLayout={event => { reviewY.current = event.nativeEvent.layout.y; }}>
                 <View style={s.row}><Text accessibilityRole="header" style={s.heading}>Answer review</Text><Text style={s.small}>Question {position + 1} of {row.items.length}</Text></View>
                 <View style={[s.badge, item.correct === false && s.incorrectBadge]}><Text accessibilityLiveRegion="polite" style={[s.badgeText, item.correct === false && s.incorrectText]}>{itemOutcome(item)}{item.awarded_points !== null && item.max_points !== null ? ` · ${item.awarded_points} / ${item.max_points} points` : ""}</Text></View>
@@ -84,7 +87,7 @@ export function StudentResultView(p: Props) {
                 <View style={s.actions}><View style={s.action}><ResultButton label="Previous" disabled={position === 0} onPress={() => move(position - 1)} /></View><View style={s.action}><ResultButton label="Next" disabled={position === row.items.length - 1} onPress={() => move(position + 1)} /></View></View>
               </View>}
               <ResultButton label="Open assignment" onPress={p.onOpen} />
-              <View><Pressable accessibilityRole="button" accessibilityState={{ expanded: about }} onPress={() => setAbout(value => !value)} style={s.about}><View style={about ? s.openIcon : undefined}><PersonalIcon name="chevron" size={14} /></View><Text style={[s.buttonText, s.flex]}>About your results</Text></Pressable>{about && <View style={s.section}><Text style={s.small}>Your teacher decides when to share your points and answer review.</Text><Text style={s.small}>Assignment points describe objective questions in this assignment. They aren’t an examination grade or a measure of your overall ability.</Text><Text style={s.small}>Answer review shows your original responses. Expected answers, private feedback, and Flashcard backs aren’t shown.</Text></View>}</View>
+              <View><Pressable accessibilityRole="button" accessibilityState={{ expanded: about }} onPress={() => setAbout(value => !value)} style={s.about}><View style={about ? s.openIcon : undefined}><PersonalIcon name="chevron" size={14} /></View><Text style={[s.buttonText, s.flex]}>About your results</Text></Pressable>{about && <View style={s.section}><Text style={s.small}>Your teacher can change whether you can see your points and answer review.</Text><Text style={s.small}>Assignment points describe objective questions in this assignment. They aren’t an examination grade or a measure of your overall ability.</Text><Text style={s.small}>Answer review shows your original responses. Expected answers, private feedback, and Flashcard backs aren’t shown.</Text></View>}</View>
             </>}
     </ScrollView>
   </SafeAreaView></AssignmentPresentation.Provider>;

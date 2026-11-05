@@ -869,6 +869,12 @@ export function createDemoResultsApi(): ResultsAccess {
     async student() {
       return { ...demoStore.result };
     },
+    async practice() {
+      return { items: [] };
+    },
+    async savePractice() {
+      throw new Error("Saved assignment practice requires a student account.");
+    },
     async submissions() {
       return { items: DEMO_SUBMISSIONS, has_more: false, offset: 0, limit: 20 };
     },

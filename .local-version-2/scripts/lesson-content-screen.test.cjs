@@ -51,6 +51,10 @@ Module._load = function(name, parent, isMain) {
   if (name === './LessonUI') return { LessonButton:'Button', LessonFrame:'Frame', LessonHero:'Hero', LessonLoading:'Loading', LessonNote:'Note', l:{} };
   if (name === './LessonEditorParts') return { LessonDetailsFields:'Details', LessonQuizFields:'Quiz', LessonReview:'Review', LessonSharePicker:'Share', LessonSteps:'Steps', lessonSteps:['Details','Content','Quiz','Review'] };
   if (name === './LessonContentEditor') return { LessonContentEditor:'Content', LessonReadingPreview:'ReadingPreview' };
+  if (name === './LessonWritingEditor') return { LessonWritingEditor:'Content', partHeading:(heading,index)=>heading.trim() || `Part ${index+1}` };
+  if (name === './SimpleQuestionAuthor') return { SimpleQuestionAuthor:'SimpleQuestion', simpleQuestionError:()=>null };
+  if (name === './LessonQuestionList') return { LessonQuestionList:'QuestionList' };
+  if (name === './WritingUI') return { w:{} };
   if (name === './QuestionAuthor') return { cloneQuestion:structuredClone, prepareQuestion:q=>q, questionError:()=>null, newQuestion:()=>({}), QuestionAuthor:'Question', TeacherQuestionPreview:'QuestionPreview' };
   return originalLoad.call(this, name, parent, isMain);
 };
@@ -68,10 +72,13 @@ for (const ext of ['.ts','.tsx']) Module._extensions[ext] = (module, filename) =
 const { LessonEditor } = local(path.join(mobile, 'src/features/teacher-lessons/LessonEditor.tsx'));
 const draft = { title:'Greetings', introduction:'Welcome', grade:null, proficiency_level:'beginner', language:'english', subject_id:'subject', sections:[{heading:'First',body:'Text'},{heading:'Second',body:'More text'}], questions:[] };
 const saved = { ...draft, id:'lesson', version_id:'version', revision:'revision', status:'draft', versions:[], shares:[] };
-function start(api) {
+function mount(api, props = {}) {
   events.length=0; runner={cursor:0,slots:[],queue:[]};
-  const render=()=>{runner.cursor=0;const output=LessonEditor({initial:null,subjects:[],api,classId:'class',initialStep:'Content'});while(runner.queue.length)runner.queue.shift()();return output;};
-  const app={render};
+  const render=()=>{runner.cursor=0;const output=LessonEditor({initial:null,subjects:[],api,classId:'class',initialStep:'Content',...props});while(runner.queue.length)runner.queue.shift()();return output;};
+  return {render};
+}
+function start(api) {
+  const app=mount(api), {render}=app;
   find(render(), 'Content').props.onChange(structuredClone(draft.sections));
   // Enter valid details through the existing Details step.
   find(render(),'Steps').props.onSelect('Details');
@@ -114,4 +121,23 @@ test('uncertain content save freezes edits and retries identical data and identi
   find(app.render(),'Button','Retry original request').props.onPress();await flush();
   assert.equal(calls.length,2);assert.equal(calls[0].key,calls[1].key);assert.deepEqual(calls[0].body,calls[1].body);
   assert.equal(events[0].params.step,'Content');assert.equal(events[0].params.section,'1');
+});
+test('editing a published lesson creates its draft only after confirmation',async()=>{
+  const published={...saved,status:'published',published_at:'published',version_id:'published-version'};
+  const calls=[];
+  const app=mount({change:async(base,body)=>{calls.push({base,body});return saved;}},{initial:published,initialEdit:true});
+  assert.equal(calls.length,0);
+  find(app.render(),'Button','Start editing').props.onPress();
+  await flush();
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].body.action,'new_version');
+  assert.equal(calls[0].body.version_id,published.version_id);
+  assert.deepEqual(events[0].params,{id:'lesson',versionId:'version',step:'Details',classId:'class'});
+});
+test('Edit lesson opens an existing draft without creating another',()=>{
+  const published={...saved,status:'published',published_at:'published',version_id:'published-version',
+    versions:[{version_id:'published-version',published_at:'published'},{version_id:'version',published_at:null}]};
+  const app=mount({change:()=>assert.fail('Must open the existing draft')},{initial:published});
+  find(app.render(),'Button','Edit lesson').props.onPress();
+  assert.deepEqual(events[0].params,{id:'lesson',versionId:'version',classId:'class'});
 });

@@ -39,6 +39,7 @@ function StudentResultRead({ assignmentId, api }: { assignmentId: string; api: R
     else router.replace("/my-classes");
   };
   return <StudentResultView key={`${reload}:${row?.revision ?? (error ? "error" : "loading")}`} row={row}
+    practiceApi={api}
     loading={!!assignmentId && !current} error={error?.message ?? ""} unavailable={unavailable} missing={!assignmentId}
     onBack={back} onAccount={() => router.push("/account")} onRefresh={() => setReload(value => value + 1)}
     onClasses={() => router.replace("/my-classes")}

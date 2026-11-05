@@ -17,6 +17,7 @@ from app.modules.assignments.publication import student_context, CONTRACT as PUB
 from app.modules.assignments.service import children, public_item, fail
 from app.modules.assignments.capture_schemas import AttemptView, CaptureItem, ResponseInput, BackView
 from app.modules.identity.errors import IdentityError
+from app.modules.grading.service import release_on_submission
 from app.models.operations import AuditLog
 from app.schemas.capture import CONTRACT, validate_capture, complete
 
@@ -156,6 +157,8 @@ def execute(
                 else None
             )
             if action == "submit" and attempt.status == "submitted" and attempt.submission_fingerprint == digest:
+                if settings.assignment_results_on_submit:
+                    release_on_submission(db, attempt, version, root, user.id, request_id)
                 return view(db, classroom, root, version, attempt)
             if attempt.status != "in_progress":
                 raise fail(409, "This assignment has already been submitted.")
@@ -226,6 +229,8 @@ def execute(
                 attempt.submission_fingerprint = digest
             audit(db, user.id, attempt, action, request_id)
             db.flush()
+            if action == "submit" and settings.assignment_results_on_submit:
+                release_on_submission(db, attempt, version, root, user.id, request_id)
             return view(db, classroom, root, version, attempt)
     except DBAPIError as exc:
         if getattr(exc.orig, "sqlstate", None) in {"23503", "23505", "23514", "40001", "40P01"}:

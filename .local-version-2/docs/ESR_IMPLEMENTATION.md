@@ -1,5 +1,18 @@
 # ESR implementation checkpoint
 
+## Review due on ordinary assignment results
+
+After submitting an objectively scored assignment, Fluentt opens the result
+with the final objective points. Instructors can still stop sharing a result. **Review due** shows the next dates for answered multiple-choice,
+true-or-false, and identification questions. The initial FSRS-6 date uses the
+original submission time and shared correctness. When a question is due, open
+**Practice question**, answer it and rate recall to save a new date. Incorrect
+practice responses use the Again rating for scheduling.
+
+These reviews use FSRS-6 and have separate state from assignment submissions,
+grades and research activities. Apply migration `0026_assignment_practice` before
+starting this version of the API.
+
 2026-11-04 training follow-up: `ESR_PUBLIC_DATA_PILOT_RESULTS.md` records a completed, bounded public-data CPU engineering pilot. It is not a genuine validated study provider and does not remove either study-activation dependency below.
 
 Updated: 2026-11-02

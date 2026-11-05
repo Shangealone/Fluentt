@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     personal_learner_registration_enabled: bool = False
     parallel_research_enabled: bool = False
     parallel_test_workflows_enabled: bool = False
+    assignment_results_on_submit: bool = True
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8081"]
     mobile_web_origins: list[str] = []
     mobile_web_csrf_secret: SecretStr | None = None

@@ -10,6 +10,11 @@ export type AssessmentResult = { assignment_id: string; class_id: string; versio
   state: "not_submitted" | "submitted" | "awaiting_manual_review" | "withheld" | "released" | "not_applicable"; released: boolean;
   revision: string; pinned_run_id: string | null; evaluation: Evaluation | null; earned_points: string | null; possible_points: string | null; items: ReviewItem[] };
 export type Submission = { attempt_id: string; student_id: string; student_username: string; submitted_at: string };
+export type AssignmentPractice = {
+  result_id: string; assignment_question_id: string; question: AssignmentItem;
+  due_at: string; is_due: boolean; revision: number; last_correct: boolean | null;
+};
+type PracticeAnswer = { answer: Record<string, unknown>; rating: "again" | "hard" | "good" | "easy"; revision: number };
 const points = (value: unknown) => value === null || (typeof value === "string" && /^\d+\.\d{2}$/.test(value));
 export function validateResult(row: AssessmentResult, instructor = false): AssessmentResult {
   if (!row || typeof row.assignment_id !== "string" || typeof row.class_id !== "string" || typeof row.version_id !== "string"
@@ -42,6 +47,9 @@ export const resultsApi = {
 };
 export function resultsAccess(run: <T>(operation: (secret: AuthContext) => Promise<T>) => Promise<T>) {
   return { student: (id: string) => run(s => resultsApi.student(s, id)),
+    practice: (id: string) => run(s => request<{ items: AssignmentPractice[] }>(`${assignment(id)}/practice`, "GET", undefined, s)),
+    savePractice: (id: string, item: string, answer: PracticeAnswer, key: string) =>
+      run(s => request<AssignmentPractice>(`${assignment(id)}/practice/${encodeURIComponent(item)}`, "POST", answer, s, { "Idempotency-Key": key })),
     submissions: (id: string, offset = 0) => run(s => resultsApi.submissions(s, id, offset)),
     owner: (id: string, selected?: string) => run(s => resultsApi.owner(s, id, selected)),
     evaluations: (id: string, offset = 0) => run(s => resultsApi.evaluations(s, id, offset)),
