@@ -4,6 +4,7 @@ services:
     runtime: python
     plan: free
     region: singapore
+    rootDir: .local-version-2
     autoDeployTrigger: off
     healthCheckPath: /api/v1/health
     buildCommand: bash scripts/build-render-staging.sh
