@@ -1,0 +1,62 @@
+name: FLUENTT Online Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/class-learning-online
+    paths:
+      - .github/workflows/android-class-learning-online.yml
+      - .local-version-2/apps/mobile/app.config.js
+
+permissions:
+  contents: read
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CI: "1"
+      EXPO_NO_DOTENV: "1"
+      FLUENTT_BUILD_VARIANT: online-demo
+      EXPO_PUBLIC_API_URL: https://fluentt-team-demo.onrender.com
+      EXPO_PUBLIC_ANDROID_API_URL: https://fluentt-team-demo.onrender.com
+      NODE_OPTIONS: --max-old-space-size=2048
+    defaults:
+      run:
+        working-directory: .local-version-2/apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: .local-version-2/apps/mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install locked app dependencies
+        run: npm ci
+      - name: Check online variant and app types
+        run: |
+          node -e "const c=require('./app.config.js')({config:require('./app.json').expo});if(c.android.package!=='com.shangealone.fluentt.classlearning')throw Error('Wrong Android variant');"
+          npm run typecheck
+      - name: Generate native Android project with Expo
+        run: npx expo prebuild --platform android --no-install
+      - name: Build standalone ARM64 release APK
+        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon --max-workers=2
+        working-directory: .local-version-2/apps/mobile/android
+      - name: Record artifact identity
+        run: |
+          mkdir -p apk-output
+          cp android/app/build/outputs/apk/release/app-release.apk apk-output/FLUENTT-Online-1.0.8-arm64.apk
+          printf '%s\n' "$GITHUB_SHA" > apk-output/source-commit.txt
+          sha256sum apk-output/FLUENTT-Online-1.0.8-arm64.apk > apk-output/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fluentt-online-android-arm64
+          path: .local-version-2/apps/mobile/apk-output/
+          if-no-files-found: error
+          retention-days: 14
