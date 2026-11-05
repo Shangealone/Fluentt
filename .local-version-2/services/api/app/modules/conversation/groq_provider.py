@@ -29,7 +29,11 @@ def ensure_available(settings: Settings, user_id: UUID | None = None) -> str:
     key = settings.groq_api_key.get_secret_value() if settings.groq_api_key else ""
     if not key.strip():
         raise IdentityError(503, "tutor_not_configured", "Online tutor is not configured on this server.")
-    if user_id is not None and user_id not in settings.groq_tutor_allowed_user_ids:
+    if (
+        user_id is not None
+        and not settings.groq_tutor_team_demo_all_accounts
+        and user_id not in settings.groq_tutor_allowed_user_ids
+    ):
         raise IdentityError(403, "tutor_test_account_required", "Online tutor testing is limited to approved development accounts.")
     return key
 

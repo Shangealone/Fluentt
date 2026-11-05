@@ -6,6 +6,9 @@ set -euo pipefail
 export FLUENTT_PARALLEL_RESEARCH_ENABLED=false
 export FLUENTT_PARALLEL_TEST_WORKFLOWS_ENABLED=false
 export FLUENTT_PERSONAL_LEARNER_REGISTRATION_ENABLED=false
+if [[ "${GROQ_TUTOR_TEAM_DEMO:-}" == "true" ]]; then
+  export GROQ_TUTOR_TEAM_DEMO_ALL_ACCOUNTS=true
+fi
 
 cd services/api
 if [[ "${FLUENTT_DATABASE_URL:-}" == postgresql://* ]]; then

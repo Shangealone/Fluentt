@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     groq_tutor_enabled: bool = Field(default=False, validation_alias="GROQ_TUTOR_ENABLED")
     groq_tutor_synthetic_staging: bool = Field(default=False, validation_alias="GROQ_TUTOR_SYNTHETIC_STAGING")
     groq_tutor_team_demo: bool = Field(default=False, validation_alias="GROQ_TUTOR_TEAM_DEMO")
+    groq_tutor_team_demo_all_accounts: bool = Field(default=False, validation_alias="GROQ_TUTOR_TEAM_DEMO_ALL_ACCOUNTS")
     groq_tutor_allowed_user_ids: list[UUID] = Field(default_factory=list, validation_alias="GROQ_TUTOR_ALLOWED_USER_IDS")
     groq_tutor_per_user_limit: int = Field(default=5, ge=1, le=30, validation_alias="GROQ_TUTOR_PER_USER_LIMIT")
     groq_tutor_max_concurrency: int = Field(default=2, ge=1, le=8, validation_alias="GROQ_TUTOR_MAX_CONCURRENCY")
@@ -121,11 +122,14 @@ class Settings(BaseSettings):
             self.environment != "production" or not self.groq_tutor_allowed_user_ids
         ):
             raise ValueError("Synthetic tutor staging requires production transport and an explicit account allowlist")
+        if self.groq_tutor_team_demo_all_accounts and not self.groq_tutor_team_demo:
+            raise ValueError("All-account tutor access requires the hosted team demo")
         if self.groq_tutor_team_demo and (
-            self.environment != "production" or not self.groq_tutor_allowed_user_ids
+            self.environment != "production"
+            or not (self.groq_tutor_allowed_user_ids or self.groq_tutor_team_demo_all_accounts)
             or not self.team_demo_supabase_project or self.groq_tutor_synthetic_staging
         ):
-            raise ValueError("Team tutor demo requires production transport, an approved Supabase project and an explicit account allowlist")
+            raise ValueError("Team tutor demo requires production transport, an approved Supabase project and an explicit account access policy")
         if (
             self.environment == "production"
             and self.admin_oidc_enabled
