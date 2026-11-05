@@ -1,5 +1,5 @@
 # Class Learning online release
-Date: 2026-11-05. Status: IN PROGRESS — database transaction and Render release verification pending.
+Date: 2026-11-05. Status: LIVE — scoped team-demo Class Learning acceptance passed. Full real-student production readiness remains unapproved.
 
 ## Authorized scope
 The user requested the current version-5-based Class Learning feature online using the existing Supabase team-test accounts. This authorizes the necessary reviewed database/content upgrade and online release. Research participation, validated hybrid treatment, paid hosting, new speech checkpoints and grade fabrication are excluded.
@@ -37,8 +37,43 @@ The ordinary library CLI remains development-only. This release uses an explicit
 - Latest mobile entry/form suite: 9 passed; typecheck passed; lint 0 errors/6 retained warnings.
 - Private files, configuration, model/audio resources and built assets remain ignored.
 
-## Pending acceptance
-Record the actual Supabase commit receipt, Render live commit/deploy ID, and real HTTPS checks here after they complete. Do not call the release online merely because GitHub contains the code.
+## Actual database and deployment result
+
+The Supabase transaction committed from 0018_personal_history to 0027_parallel_test_workflows. It preserved every pre-existing projected row across 71 tables, including the original 5 users, class and membership. Immediately after migration/import: users 5, classes 1, memberships 1, administrator lessons 45, assignments 0, research participants 0. Direct anon/authenticated application-table grants remained zero. New private research tables are structural only; no participation or model treatment was activated.
+
+The pinned bundle retained 45 published administrator lessons, 37 published questions and 334 draft questions; draft questions were not promoted. Content import used existing version/lock/conflict guards, not a reset or overwrite. Its network-bound row-by-row transaction took several minutes; activity checks confirmed forward progress and no lock wait. The atomic preservation check preceded commit.
+
+Render deploy dep-dbm8a75bedkc73bhcjvg succeeded and was marked Live. Deployed source: 3bc6dd7392ad46f2a4ae213e76757d029f7e8cea, branch codex/class-learning-online. Recorded duration: 3m 29s. Build used Python 3.12.10, Node 22.23.4, pinned pip/npm dependencies and Expo web export. The existing service remained Free. No new paid service was created. Later documentation-only commits do not change the deployed application code.
+
+The exact team-demo startup guard separately passed against Supabase read-only at head 0027. Build/start/root settings now target the combined app, not the old root app.
+
+## Real HTTPS acceptance
+
+All checks below used https://fluentt-team-demo.onrender.com with server-backed sessions. Two newly created, clearly named synthetic team-test accounts and one synthetic class/reading were retained for review. No existing account/class was edited or deleted. This adds two users, one class/membership and one teacher-owned reading beyond the post-migration counts; it is not participant enrollment.
+
+| Live operation | Actual HTTP result |
+|---|---|
+| Health and school-only registration options | 200 |
+| Test research workflow unavailable | 404 as intended |
+| Teacher browser registration | 201 |
+| Class creation with Beginner proficiency and no grade field | 201; stored grade NULL |
+| Teacher class directory and subject choices | 200 |
+| Teacher lesson draft | 201 |
+| Publish and explicitly share the synthetic reading | 200 / 200 |
+| Teacher session restoration | 200 |
+| Student class-code preview and school signup | 200 / 201 |
+| Student membership and shared-lesson directory | 200 / 200 |
+| Student reading of the shared lesson | 200 |
+| Student session restoration | 200 |
+| English speech capability response | 200; no model inference executed |
+
+The public browser visibly showed Class Learning, Teach a class and Sign in without a Personal Learning signup choice. Screenshot and detailed test receipts are stored privately under private-data/class-online-release. Original account passwords were not reset; sign-in with an original user's password was not exercised because this verification used generated synthetic credentials. Original credentials/account values were covered by preservation checks.
+
+This is a live teacher/student class-and-reading acceptance pass. It does not claim an online assignment grading/release walkthrough, device/APK acceptance, real speech/Tutor inference, external model validity or a live research experiment.
+
+## Dependency audit follow-up
+
+The build reported 20 npm advisories: 1 low, 16 moderate and 3 high, with 0 critical. npm audit and npm explain were run without changing packages. High-severity dependency entries were @expo/cli, node-forge and zod; the inspected paths run through Expo CLI/code-signing tooling and lint tooling. This is not a completed exploitability audit. No npm audit fix --force or SDK downgrade was applied. Review compatible dependency patches separately before broader use with real students. Raw audit output stays private. Existing backend session/data boundaries were not relaxed to deploy.
 
 ## Boundaries and recovery
 Both research flags and new personal signup are explicitly off in the team startup script. WavLM/MMS settings and AI Tutor secrets/allowlist are not broadened by this release. Free Render speech inference remains unavailable unless separately provisioned safely; no fake score is substituted.

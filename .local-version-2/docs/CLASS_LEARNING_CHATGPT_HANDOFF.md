@@ -1,5 +1,5 @@
 # FLUENTT Class Learning — Current Implementation Handoff
-Snapshot: 5 November 2026
+Snapshot: 5 November 2026. Online-release update: see CLASS_LEARNING_ONLINE_RELEASE.md for the verified live deployment and its limits.
 
 Use this as project context. Distinguish implemented source, isolated automated evidence, the running local preview, and the older online/APK builds. Do not describe them as the same release.
 
@@ -21,7 +21,7 @@ C:/Users/shang/Desktop/Fluent/versions/fluentt-version5-combined/.local-version-
 
 Use apps/mobile, apps/admin and services/api inside that directory. The repository also contains another mobile/backend tree; do not edit or launch it by mistake.
 
-Version 8 contains the version-5 combination and the guarded Class Learning research workflows. The subsequent class-only welcome/signup presentation, teacher-form regression and preview notes are local uncommitted changes, not yet included in the remote version-8 commit.
+Version 8 contains the version-5 combination and the guarded Class Learning research workflows. The later school-only entry and release changes are committed to codex/class-learning-online in https://github.com/Shangealone/Fluentt, the repository connected to Render. The deployed application commit is 3bc6dd7392ad46f2a4ae213e76757d029f7e8cea. The saved Kaiser version-8 commit remains unchanged.
 
 ## 3. Running version versus old version
 
@@ -32,9 +32,9 @@ The earlier localhost:8083 app used fluentt-groupmate/.local-version-2. Its clas
 
 The correct preview uses a separate local development database through migration 0027_parallel_test_workflows. It contains the committed administrator library: 45 lessons and 371 questions. Those counts describe imported content, not validated curriculum, active classroom assignments or learning achievement.
 
-Supabase accounts were not copied. One generated synthetic teacher/class was created for verification; users should create local test accounts for this preview. Supabase was last inspected read-only at migration 0018_personal_history and was not upgraded.
+The local preview remains separate and has no copied Supabase accounts. For the requested online release, the owner explicitly approved a private local backup, the upgrade was rehearsed on a restored copy, and Supabase was then upgraded from 0018_personal_history to 0027_parallel_test_workflows. All original records were preserved and the content-only library was imported. New synthetic online QA accounts/class/reading were created separately; no real research participation was added.
 
-Older online services and Android APKs exist, but they were not redeployed/rebuilt with these latest changes. Their current feature availability is not established by the local tests.
+The current online Class Learning app is https://fluentt-team-demo.onrender.com/ . Render marked its deployment Live and actual HTTPS teacher/student checks passed. The older synthetic staging service remains separate. Android APKs were not rebuilt with this release; an old installed APK does not automatically receive the new UI. The separate Next administrator website was not deployed by this task.
 
 ## 4. Entry, accounts and class creation
 
@@ -122,13 +122,13 @@ Latest entry/form evidence: 9 mobile tests and 14 selected backend registration/
 
 Actual local HTTP checks: browser teacher registration 201; class creation without any grade field 201; stored grade NULL/proficiency beginner; session restoration 200. Correct preview/API/registration-options returned 200. Welcome and teacher-signup navigation were observed in the browser.
 
-Full student/teacher device acceptance, APK rebuild, online deployment, real-model checks in the new preview and a live research study remain unverified or not performed. Automated tests are not scientific validation.
+Online release acceptance additionally verified teacher browser signup, no-grade class creation, subject choices, teacher lesson draft/publication/sharing, student code-based signup/membership/reading access and session restoration over real HTTPS. The public welcome page was observed. Full device acceptance, APK rebuild, an online assignment-grading walkthrough, new real-model inference and a live study remain unverified/not performed. These checks are not scientific validation. See the release report for the outstanding dependency-audit follow-up.
 
 ## 12. Constraints and next work
 
 Preserve existing accounts/history, exact FSRS calculations, English WavLM, Tagalog MMS, Tutor integration, immutable evidence and authorization boundaries. Do not fabricate scores or enable FIFAKT/Tagalog ratings.
 
-Next: complete teacher/student class-demo acceptance; verify lessons, sharing, assignments, messages and allowed results; independently verify speech/Tutor resources; review the required Supabase migration and deployment separately; rebuild the APK against the intended backend. Real research requires its own approved protocol and validated treatment.
+Next: extend acceptance to assignments, messages and permitted results; verify original-account sign-in manually, review dependency patches, independently verify speech/Tutor resources, and rebuild/test the APK against the online backend. Real research requires its own approved protocol and validated treatment. Supabase migration and the scoped web release described above have already completed.
 
 Before changing anything, read AGENTS.md, current source, Git status and these reports:
 - VERSION5_COMBINATION.md
